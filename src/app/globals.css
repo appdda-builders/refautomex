@@ -1,26 +1,199 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+@layer components {
+    .bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer {
+        @apply bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer;
+    }
+    .bg-gradient-to-bl hover:bg-gradient-to-tr bg-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out {
+        @apply bg-gradient-to-bl hover:bg-gradient-to-tr bg-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out;
+    }
+    .bg-gradient-to-b hover:bg-gradient-to-t from-slate-200 via-gray-300 to-zinc-100 shadow text-slate-900 p-2 rounded-r-3xl mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer diagonal-cut {
+        @apply bg-gradient-to-b hover:bg-gradient-to-t from-slate-200 via-gray-300 to-zinc-100 shadow text-slate-900 p-2 rounded-r-3xl mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer diagonal-cut;
+    }
+    .muted-circle-button{
+        @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-gray-300 cursor-pointer inline-block transition-all duration-500 ease-in-out;
+    }
+    .gray-circle-button{
+        @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-gray-500 text-white cursor-pointer inline-block transition-all duration-500 ease-in-out;
+    }
+    .normal-circle-button{
+        @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 text-[#f6f6f6] cursor-pointer inline-block transition-all duration-500 ease-in-out;
+    }
+    .blue-circle-button{
+        @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-blue-500 text-[#f6f6f6] cursor-pointer inline-block transition-all duration-500 ease-in-out;
+    }
+    .indigo-circle-button{
+        @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-indigo-500 text-[#f6f6f6] cursor-pointer inline-block transition-all duration-500 ease-in-out;
+    }
+    .green-circle-button{
+        @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-green-500 text-[#f6f6f6] cursor-pointer inline-block transition-all duration-500 ease-in-out;
+    }
+    .animate-up{
+        @apply transform transition-all duration-500 ease-in-out hover:-translate-y-2 cursor-pointer;
+    }
+    .animate-out{
+        @apply transform transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer;
+    }
+    .gradient-hover-text{
+        @apply text-transparent;
+        background: linear-gradient(to left, #4e0a96, #2262c8, #ffc400, #ffba53, #2a3db7);
+        background-size: 200% 200%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        animation: gradient-animation 20s ease infinite;
+    }
+    .title{
+        @apply hover:text-transparent opacity-90;
+    }
+    nav a.active {
+        @apply text-transparent opacity-90;
+        background: linear-gradient(to left, #4e0a96, #2262c8, #ffc400, #ffba53, #2a3db7);
+        background-size: 200% 200%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        animation: gradient-animation 20s ease infinite;
+    }
+}
+*/
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@keyframes gradient-animation {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@keyframes fall {
+    10%, 90% {
+        opacity: 1;
+    }
+    0% {
+        transform: rotate(0deg) translateX(0%) translateY(0%);
+    }
+    25% {
+        transform: rotate(90deg) translateX(-30vw) translateY(200vh);
+    }
+    50% {
+        transform: rotate(180deg) translateX(-60vw) translateY(75vh);
+    }
+    75% {
+        transform: rotate(250deg) translateX(-90vw) translateY(180.75vh);
+    }
+    100% {
+        transform: rotate(360deg) translateX(-100vw) translateY(100vh);
+        opacity: 0;
+    }
+}
+
+@layer utilities {
+    .no-spin {
+        -webkit-appearance: none;
+        -moz-appearance: textfield;
+    }
+    .no-spin::-webkit-inner-spin-button,
+    .no-spin::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    font-family: "Poppins", sans-serif;
+    font-style: normal;
+}
+
+.diagonal-cut{
+    clip-path: polygon(8% 0%, 100% 0%, 100% 100%, -25% 100%);
+}
+
+.gradient-text {
+    background: linear-gradient(to left, #4e0a96, #2262c8, #ffc400, #ffba53, #2a3db7);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: gradient-animation 20s ease infinite;
+}
+
+.gradient-text-light {
+    background: linear-gradient(to right, #ffffff, #fff5ab, #ffc400, #ffba53, #ecff5a);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: gradient-animation 10s ease infinite;
+}
+
+.gradient-text-title {
+    background: linear-gradient(to left, #e32d2d, #cca301, #592b9a);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.color-cultured{
+    color: #f6f6f6;
+}
+
+.star {
+    opacity: 0;
+    animation: fall linear infinite;
+}
+
+.media-animate-enter {
+    animation: slideUp 1s ease-out forwards;
+}
+
+/* Añade esta animación que falta */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Ensures every printed sheet has consistent margins (≈ my-6) */
+@media print {
+    /* Use the unit you prefer: mm/in/rem. 1.5rem ~ Tailwind my-6 visually. */
+    @page {
+      margin: 1.5rem; /* top/right/bottom/left margins per printed page */
+    }
+
+    /* Improve print fidelity of colors/shadows if needed */
+    html, body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* Prevent elements from being cut between pages */
+    .avoid-break {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    /* If you ever need to force a new sheet after a block */
+    .force-break-after {
+        break-after: page;
+        page-break-after: always;
+    }
 }

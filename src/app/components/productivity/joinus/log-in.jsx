@@ -1,0 +1,183 @@
+import RefautomexLogo from '@/app/components/refautomex-logo';
+import { CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
+import { useState, useEffect } from 'react';
+import { userPool } from "@/app/lib/cognito-manager";
+import { setStorageValue } from "@/app/lib/storage-values";
+import { AiFillEye } from 'react-icons/ai';
+import { TbWorldWww } from "react-icons/tb";
+import Link from 'next/link';
+import axios from 'axios';
+
+export default function LogIn() {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [passwordVisible, setPasswordVisible] = useState(false);
+    const [alertMessage, setAlertMessage] = useState(null);
+    const [alertSuccess, setSuccessMessage] = useState(null);
+    const [alertDanger, setDangerMessage] = useState(null);
+    const [indicationMessage, setIndicationMessage] = useState(null);
+    const [isLoading, setLoading] = useState(false);
+    const urlParams = new URLSearchParams(window.location.search);
+    const userStatus = urlParams.get('user_status');
+
+    useEffect(() => {
+        if (userStatus && userStatus.includes('new')) {
+            setSuccessMessage('Se ha enviado un correo de confirmación a tu correo.');
+            setIndicationMessage('Por favor, verifica tu bandeja de entrada y sigue las instrucciones para validar tu cuenta.');
+        } else if (userStatus && userStatus.includes('password-reset')) {
+            setSuccessMessage('Se ha restablecido su contraseña con éxito.');
+        } else if (userStatus && userStatus.includes('error')) {
+            setDangerMessage('Por favor, inténtalo de nuevo más tarde.');
+        }
+    }, []);
+
+    const onSubmit = (event) => {
+        event.preventDefault();
+        setLoading(true);
+
+        const authenticationDetails = new AuthenticationDetails({
+            Username: email,
+            Password: password
+        });
+
+        const cognitoUser = new CognitoUser({
+            Username: email,
+            Pool: userPool
+        });
+
+        cognitoUser.authenticateUser(authenticationDetails, {
+            onSuccess: function (result) {
+                setStorageValue('CognitoUserSession', result);
+                // pasamos cognitoId para verificar en la base de datos si es empleado
+                checkIfUserIsEmployee(result.idToken.payload.sub).then(isEmployee => {
+                    if (isEmployee) {
+                        window.location.href = '/productivity';
+                    } else {
+                        setAlertMessage('No fue posible ingresar a Refautomex Calidad con este usuario.');
+                        cognitoUser.signOut();
+                        setLoading(false);
+                    }
+                }).catch(() => {
+                    setAlertMessage('Error al verificar el estado de empleado.');
+                    setLoading(false);
+                });
+            },
+            onFailure: function (err) {
+                if (err.code === 'UserNotConfirmedException') {
+                    setAlertMessage('Tu cuenta no ha sido confirmada.');
+                } else {
+                    setAlertMessage('Correo electrónico o contraseña inválidos.');
+                }
+                setLoading(false);
+            }
+        });
+    };
+
+    const checkIfUserIsEmployee = async (token) => {
+        try {
+            const response = await axios.get(`/api/dataManage?type=verifyEmployee&id=${token}`);
+            console.log('Empleado:', response.data.empleado);
+            return response.data.empleado;
+        } catch (error) {
+            console.error('Error al verificar empleado:', error);
+            setAlertMessage('Imposible verificar empleado.');
+            return false;
+        }
+    };
+
+    return (
+        <>
+            <div className="top-0 left-0 w-full h-full flex flex-col justify-center items-center">
+                <div className="relative bg-gray-200 dark:bg-slate-800 opacity-60 dark:opacity-50 w-full md:w-[500px] md:rounded-xl shadow-md dark:shadow-slate-300/10 lg:pt-10 pt-0">
+                    <Link href='/' className="bg-slate-50 dark:bg-stone-700 text-stone-900 dark:text-indigo-100 dark:hover:bg-stone-800 hover:bg-slate-100 cursor-pointer absolute top-4 left-3 items-center leading-none rounded-full flex lg:inline-flex" role="alert">
+                        <span className="flex rounded-full bg-yellow-200 dark:bg-purple-800 uppercase p-1 text-xs font-bold mr-3 shadow-md"><TbWorldWww size={30}/></span>
+                        <span className="font-semibold mr-2 text-left flex-auto">Refautomex.com</span>
+                    </Link>
+                    <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:pb-10 lg:px-8">
+                        <div className="sm:mx-auto sm:w-full sm:max-w-sm">
+                            <RefautomexLogo classAttr={"h-24 md:h-32 w-auto object-contain p-2 md:p-3 mx-auto"} />
+                            <h2 className="text-center text-2xl leading-9 tracking-tight text-stone-600 dark:text-stone-200 text-shadow">
+                                Sistema de CALIDAD
+                            </h2>
+                        </div>
+                        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+                            <form className="space-y-6" method="POST" onSubmit={onSubmit}>
+                                <div>
+                                    <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                    Correo electrónico
+                                    </label>
+                                    <div className="mt-2">
+                                    <input
+                                        id="email"
+                                        name="email"
+                                        type="email"
+                                        autoComplete="email"
+                                        required
+                                        onChange={event => setEmail(event.target.value)}
+                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    />
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="flex items-center justify-between">
+                                    <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                        Contraseña
+                                    </label>
+                                    <div className="text-sm">
+                                        <a href="section/account?load=recovery&lang=es" className="font-semibold dark:text-amber-300 text-amber-400 text-shadow">
+                                        Olvidé mi contraseña
+                                        </a>
+                                    </div>
+                                    </div>
+                                    <div className="mt-2 relative">
+                                        <input
+                                            id="password"
+                                            name="password"
+                                            type={passwordVisible ? "text" : "password"}
+                                            autoComplete="current-password"
+                                            required
+                                            onChange={event => setPassword(event.target.value)}
+                                            className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                        />
+                                        <div 
+                                            className='absolute right-0 top-0 bg-blue-300 cursor-pointer m-1.5 p-1 rounded-full shadow-xl'
+                                            onClick={() => setPasswordVisible(!passwordVisible)}>
+                                            <AiFillEye />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex flex-1 justify-center items-center">
+                                    <button
+                                    type="submit"
+                                    className="bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer -mt-2"
+                                    >
+                                        {isLoading ? 'Ingresando...' : 'Ingresar'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    {alertMessage && (
+                        <div className="md:rounded-xl bg-gradient-to-br from-orange-400 to-amber-200 dark:from-indigo-950 dark:to-indigo-600 text-center py-4 lg:px-4">
+                            <div className="px-6 md:px-4 p-2 bg-transparent items-center text-stone-900 dark:text-indigo-100 leading-none lg:rounded-full flex lg:inline-flex md:animate-out" role="alert">
+                                <span className="flex rounded-full bg-red-400 uppercase px-2 py-1 text-xs font-bold mr-3 shadow">Error</span>
+                                <span className="font-semibold mr-2 text-left flex-auto">{alertMessage}</span>
+                            </div>
+                        </div>
+                    )}
+                    {alertSuccess && (
+                        <div className="md:rounded-xl bg-gradient-to-br from-orange-400 to-amber-200 dark:from-indigo-950 dark:to-indigo-600 text-center py-4 lg:px-4">
+                            <div className="px-6 md:px-4 p-2 bg-transparent items-center text-stone-900 dark:text-indigo-100 leading-none lg:rounded-full flex lg:inline-flex" role="alert">
+                                <span className="flex rounded-full dark:bg-amber-500 bg-indigo-500 text-white uppercase px-2 py-1 text-xs font-bold mr-3 shadow">Warning</span>
+                                <span className="inline-block m-2 text-justify italic">
+                                    <b>{alertSuccess}</b>
+                                </span>
+                                <span className="font-semibold mr-2 text-left flex-auto">{indicationMessage}</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </>
+    )
+}

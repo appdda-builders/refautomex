@@ -1,0 +1,478 @@
+import React, { useState, useEffect } from 'react';
+import { userPool } from '@/app/lib/cognito-manager';
+import { TbCircleX } from 'react-icons/tb';
+import { Switch } from '@headlessui/react';
+import axios from 'axios';
+import { AiFillEye } from 'react-icons/ai';
+import RefautomexLogo from '@/app/components/refautomex-logo';
+import ReCAPTCHA from "react-google-recaptcha";
+import { useTranslation } from 'react-i18next';
+import { GoTasklist } from "react-icons/go";
+import GooglePlacesAutocomplete from './google-places';
+import '@/app/translations/i18next-translation';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+
+function classNames(...classes) {
+    return classes.filter(Boolean).join(' ');
+}
+
+export default function SignUp() {
+    const router = useRouter();
+    const { i18n, t } = useTranslation();
+    const [selectedLanguage, setSelectedLanguage] = useState('es');
+    const recaptchaRef = React.createRef();
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [verifyPassword, setVerifyPassword] = useState("");
+    const [name, setName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [phone, setPhone] = useState('');
+    const [gender, setGender] = useState('');
+    const [birthDate, setBirthDate] = useState('');
+    const [placeId, setPlaceId] = useState('');
+    const [rfc, setRfc] = useState('');
+    const [alertMessage, setAlertMessage] = useState(null);
+    const [isLoading, setLoading] = useState(false);
+    const [isFocus, setIsFocus] = useState(false);
+    const [passwordVisible, setPasswordVisible] = useState(false);
+    const [errorMessages, setErrorMessage] = useState('');
+    const [isSuccessfull, setIsSuccessfull] = useState(false);
+    const [isCaptchaValid, setIsCaptchaValid] = useState(false);
+    const [agreed, setAgreed] = useState(false);
+    const [isValid, setIsValid] = useState({
+        minLength: false,
+        hasNumber: false,
+        hasSpecialChar: false,
+        hasUppercase: false,
+        hasLowercase: false,
+        isSame: false,
+    });
+    let error = '';
+
+    const onReCAPTCHAChange = (token) => {
+        if (token) {
+            setIsCaptchaValid(true);
+        } else {
+            setIsCaptchaValid(false);
+        }
+    };
+
+    const validatePassword = (password, verifyPassword) => {
+        setIsValid({
+            minLength: password.length >= 8,
+            hasNumber: /\d/.test(password),
+            hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/.test(password),
+            hasUppercase: /[A-Z]/.test(password),
+            hasLowercase: /[a-z]/.test(password),
+            isSame: password === verifyPassword,
+        });
+    }
+
+    const onFocusHandler = () => {
+        setIsFocus(true);
+    };
+
+    const onBlurHandler = () => {
+        setIsFocus(false);
+    };
+
+    const onSubmit = (event) => {
+        onBlurHandler();
+        event.preventDefault();
+        const recaptchaValue = recaptchaRef.current.getValue();
+        const nameRegex = /^[a-zA-ZñÑáéíóúÁÉÍÓÚ\s]+$/; 
+        const phoneRegex = /^[0-9]{10,12}$/;
+        const rfcRegex = /^([A-ZÑ&]{3,4})?(?:\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01]))([A-Z\d]{2})([A\d])$/;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/; 
+        const birthDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+        if (!name || !nameRegex.test(name)) {
+            error += 'Por favor ingrese un nombre válido.' + '\n';
+        }
+        if (!lastName || !nameRegex.test(lastName)) {
+            error += 'Por favor ingrese un apellido válido.' + '\n';
+        }
+        if (!phone || !phoneRegex.test(phone)) {
+            error += 'Por favor ingrese un número de teléfono válido.' + '\n';
+        }
+        if (!rfc || !rfcRegex.test(rfc)) {
+            error += 'Por favor ingrese un RFC válido.' + '\n';
+        }
+        if (!birthDate || !birthDateRegex.test(birthDate)) {
+            error += 'Por favor ingrese una fecha de nacimiento válida.' + '\n';
+        }
+        if (!gender) {
+            error += 'Por favor seleccione un género.' + '\n';
+        }
+        if (!email || !emailRegex.test(email)) {
+            error += 'Por favor ingrese un correo electrónico válido.' + '\n';
+        }
+        if (!password || !passwordRegex.test(password)) {
+            error += 'Por favor ingrese una contraseña válida.' + '\n';
+        }
+        if (verifyPassword !== password) {
+            error += 'Las contraseñas no coinciden.' + '\n';
+        }
+        if (!placeId) {
+            error += 'Por favor seleccione una dirección válida.' + '\n';
+        }
+        if (!agreed) {
+            error += 'Debe aceptar la política de privacidad y condiciones.' + '\n';
+        }
+        if (!recaptchaValue) {
+            error += 'Verifica que no eres un robot.' + '\n';
+        }
+
+        recaptchaRef.current.reset();
+
+        if (error){
+            setAlertMessage(error);
+            return;
+        }
+
+        userPool.signUp(email, password, [], null, async (err, data) => {
+            if (err) {
+                if (err.code === 'UsernameExistsException') {
+                    setAlertMessage('La cuenta con el correo electrónico proporcionado ya existe.');
+                } else {
+                    console.error(err);
+                }
+            } else {
+                const { userSub } = data;
+                const user_data = {
+                    nombre: name || "",
+                    apellido: lastName || "",
+                    telefono: phone || "",
+                    rfc: rfc || "",
+                    f_nacimiento: birthDate || "",
+                    genero: gender || "",
+                    email: email || "",
+                    cognitoid: userSub,
+                    domicilio: placeId || "",
+                    categoria: "G",
+                    empleado: "0"
+                };
+                
+                setLoading(true);
+
+                try {           
+                    axios.post('/api/dataManage?type=newUser', user_data, {
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => {
+                        console.log('Data sent successfully:', response.data);
+                        setAlertMessage("Información enviada correctamente!");
+                        window.location.href = '/section/account?load=log-in&user_status=new';
+                    })
+                    .catch(error => {
+                        console.log('Error:', error);
+                        setAlertMessage("Un error ocurrió mientras se envió el formulario.");
+                    });
+                } catch (error) {
+                    console.log('Error al subir formulario:', error);
+                    setAlertMessage("Error al subir formulario. Revisa la conexión a internet e intentalo más tarde.");
+                }
+            }
+        });
+    };
+
+    useEffect(() => {
+        const handleRouteChange = () => {
+            const lang = router.query.lang;
+            if (lang) {
+                i18n.changeLanguage(lang);
+                setSelectedLanguage(lang);
+            }
+        };
+        router.events.on('routeChangeComplete', handleRouteChange);
+
+        handleRouteChange();
+        return () => {
+            router.events.off('routeChangeComplete', handleRouteChange);
+        };
+    }, [router.query.lang, i18n, router.events]);
+
+    return (
+        <div className="relative w-full h-auto flex flex-col justify-center items-center p-6">
+            <div className="relative h-full justify-center items-center bg-slate-200 dark:bg-slate-700 opacity-40 dark:opacity-50 w-full md:w-[650px] rounded-xl shadow-md dark:shadow-slate-300/10 pt-0 overflow-y-auto">
+                <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-1 lg:px-8">
+                    <div className="sm:mx-auto sm:w-full sm:max-w-sm">
+                        <RefautomexLogo classAttr={"h-24 md:h-32 w-auto object-contain p-2 md:p-3 mx-auto"} />
+                        <h2 className="text-center text-2xl leading-4 -mt-2 mb-1 tracking-tight text-stone-600 dark:text-stone-200 text-shadow">
+                            {t('account.register')}
+                        </h2>
+                    </div>
+                </div>
+                <form onSubmit={onSubmit}>
+                    <div className="space-y-4 max-w-3xl mx-auto mt-1 px-12">
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6 sm:pt-12">
+                            <div className="sm:col-span-3 sm:col-start">
+                                <label htmlFor="name" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                    {t('account.name')}
+                                </label>
+                                <div className="mt-2">
+                                    <input
+                                        id="name"
+                                        name="Nombre"
+                                        type="text"
+                                        required
+                                        placeholder={t('account.name')}
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    />
+                                </div>
+                            </div>
+                            <div className="sm:col-span-3">
+                                <label htmlFor="lastname" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                    {t('account.lastname')}
+                                </label>
+                                <div className="mt-2">
+                                    <input
+                                        id="lastname"
+                                        name="Apellido"
+                                        type="text"
+                                        required
+                                        placeholder={t('account.lastname')}
+                                        value={lastName}
+                                        onChange={(e) => setLastName(e.target.value)}
+                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    />
+                                </div>
+                            </div>
+                            <div className="sm:col-span-3">
+                                <label htmlFor="phone" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                    {t('account.phone')}
+                                </label>
+                                <div className="mt-2">
+                                    <input
+                                        id="phone"
+                                        name="Teléfono"
+                                        type="text"
+                                        required
+                                        placeholder={t('account.phone')}
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    />
+                                </div>
+                            </div>
+                            <div className="sm:col-span-3">
+                                <label htmlFor="rfc" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                    RFC
+                                </label>
+                                <div className="mt-2">
+                                    <input 
+                                        type="text" 
+                                        name="rfc"
+                                        id="rfc"
+                                        required
+                                        placeholder='RFC'
+                                        value={rfc}
+                                        onChange={(e) => setRfc(e.target.value)}
+                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" />
+                                </div>
+                            </div>
+                            <div className="sm:col-span-3">
+                                <label htmlFor="birth_date" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                    {t('account.birthdate')}
+                                </label>
+                                <div className="mt-2">
+                                    <input type="date" name="birth_date" id="birth_date"
+                                        value={birthDate}
+                                        onChange={(e) => setBirthDate(e.target.value)}
+                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" />
+                                </div>
+                            </div>
+                            <div className="sm:col-span-3">
+                                <label htmlFor="gender" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                    {t('account.gener')}
+                                </label>
+                                <div>
+                                    <select 
+                                        name="gender"
+                                        id="gender"
+                                        value={gender}
+                                        onChange={(e) => setGender(e.target.value)}
+                                        className="mt-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                        <option id="gender_0" value="" disabled>{t('account.gener')}</option>
+                                        <option id="gender_1" value="M">Masculino</option>
+                                        <option id="gender_2" value="F">Femenino</option>
+                                        <option id="gender_3" value="O">Otro</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="sm:col-span-full">
+                                <label htmlFor="email" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                    {t('account.mail')}
+                                </label>
+                                <div className="mt-2">
+                                    <input type="text"
+                                        name="email"
+                                        id="email"
+                                        value={email}
+                                        onChange={(event) => setEmail(event.target.value)}
+                                        placeholder={t('account.mail')}
+                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    />
+                                </div>
+                            </div>
+                            <div className="sm:col-span-full">
+                                <label htmlFor="password" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                    {t('account.password')}
+                                </label>
+                                <div className="mt-2 relative">
+                                    <input
+                                        type={passwordVisible ? "text" : "password"}
+                                        name="pass"
+                                        id="pass"
+                                        value={password}
+                                        onFocus={onFocusHandler}
+                                        placeholder={t('account.password')}
+                                        onChange={(event) => {
+                                            setPassword(event.target.value);
+                                            validatePassword(event.target.value, verifyPassword);
+                                        }}
+                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" />
+                                    <div 
+                                        className='absolute right-0 top-0 bg-blue-300 cursor-pointer m-1.5 p-1 rounded-full shadow-xl'
+                                        onClick={() => setPasswordVisible(!passwordVisible)}>
+                                        <AiFillEye />
+                                    </div>
+                                    <label htmlFor="verifyPassword" className="block font-medium leading-6 mt-4 text-gray-900 dark:text-gray-200">
+                                        {t('account.verify')}
+                                    </label>
+                                    <input 
+                                        type={passwordVisible ? 'text' : 'password'}
+                                        name="verifyPassword"
+                                        id="verifyPassword"
+                                        value={verifyPassword}
+                                        placeholder={t('account.verify')}
+                                        onChange={(event) => {
+                                            setVerifyPassword(event.target.value);
+                                            validatePassword(password, event.target.value); 
+                                        }}
+                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" 
+                                    />
+                                </div>
+                                <div className={`grid grid-cols-2 p-2 leading-3 text-xs mt-1.5 opacity-40 shadow bg-slate-200 dark:bg-slate-800 rounded-md -mx-10 sm:mx-0 ${isFocus ? '' : 'hidden'}`}>
+                                    <p className={isValid.minLength ? 'text-green-500' : 'text-red-400'}>
+                                        - {isValid.minLength ? 'La longitud es válida.' : 'Minimo 8 caracteres.'}
+                                    </p>
+                                    <p className={isValid.hasNumber ? 'text-green-500' : 'text-red-400'}>
+                                        - {isValid.hasNumber ? 'Un número válido.' : 'Al menos un número.'}
+                                    </p>
+                                    <p className={isValid.hasSpecialChar ? 'text-green-500' : 'text-red-400'}>
+                                        - {isValid.hasSpecialChar ? 'Caracter especial válido.' : 'Al menos un caracter especial.'}
+                                    </p>
+                                    <p className={isValid.hasUppercase ? 'text-green-500' : 'text-red-400'}>
+                                        - {isValid.hasUppercase ? 'Letra mayúscula válida.' : 'Al menos una letra mayúscula.'}
+                                    </p>
+                                    <p className={isValid.hasLowercase ? 'text-green-500' : 'text-red-400'}>
+                                        - {isValid.hasLowercase ? 'Letra minúscula válida.' : 'Al menos una letra minúscula.'}
+                                    </p>
+                                    <p className={(password ? (isValid.isSame ? 'text-green-500' : 'text-red-400') : 'text-red-400')}>
+                                        - {password
+                                            ? (isValid.isSame ? 'Las contraseñas coinciden.' : 'Las contraseñas no coinciden.')
+                                            : 'El campo contraseña no puede estar vacío.'
+                                        }
+                                    </p>
+                                </div>
+                                <div className="sm:col-span-full mt-3">
+                                    <label htmlFor="placeId" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                        {t('account.address')}
+                                    </label>
+                                    <div className="mt-2 relative">
+                                        <GooglePlacesAutocomplete 
+                                            placeId={placeId}
+                                            setPlaceId={setPlaceId}
+                                        />
+                                    </div>
+                                </div>
+                                <Switch.Group as="div" className="flex gap-x-4 my-1.5 sm:col-span-2">
+                                    <div className="flex h-6 items-center mt-2.5">
+                                    <Switch
+                                        checked={agreed}
+                                        onChange={setAgreed}
+                                        className={classNames(
+                                        agreed ? 'bg-amber-400' : 'bg-gray-200',
+                                        'flex w-8 flex-none cursor-pointer rounded-full p-px ring-1 ring-inset ring-gray-900/5 transition-colors duration-200 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
+                                        )}
+                                    >
+                                        <span
+                                        aria-hidden="true"
+                                        className={`
+                                        ${agreed ? 'translate-x-3.5' : 'translate-x-0'}
+                                        ${errorMessages.name ? "bg-red-200" : ""}
+                                        ${isSuccessfull ? "bg-stone-400 opacity-70" : ""} 
+                                        py-2 h-4 w-4 transform rounded-full bg-white shadow-sm ring-1 ring-gray-900/5 transition duration-200 ease-in-out
+                                        `}
+                                        />
+                                    </Switch>
+                                    </div>
+                                    <Switch.Label className="text-sm mt-3 leading-6 text-gray-600 dark:text-gray-50 font-bold">
+                                        {t('account.agree')}
+                                    </Switch.Label>
+                                </Switch.Group>
+                            </div>
+                        </div>
+                        {alertMessage && !isLoading && (
+                            <div className="dark:text-red-200 text-red-700 px-6 py-2 border-0 rounded relative dark:bg-stone-800 bg-stone-200 max-w-xl mx-auto">
+                                <span className="text-xl inline-block mr-5 align-middle">
+                                    <i className="fas fa-bell" />
+                                </span>
+                                <span className="inline-block align-middle mr-8">
+                                    {alertMessage.split('\n').map((line, index) => (
+                                    <div key={index}>
+                                        {line}
+                                    </div>
+                                    ))}
+                                    Imposible continuar con el registro.
+                                </span>
+                                <button className="absolute bg-transparent text-2xl font-semibold leading-none right-0 top-0 mt-4 mr-6 outline-none focus:outline-none"
+                                    onClick={() => setAlertMessage(null)}>
+                                    <span><TbCircleX/></span>
+                                </button>
+                            </div>
+                        )}
+                        <div className='flex flex-col items-center justify-center'>
+                            {!isSuccessfull ? (
+                            <div className="m-2 w-full md:flex md:items-center md:justify-between mx-auto">
+                                <ReCAPTCHA
+                                    ref={recaptchaRef}
+                                    sitekey="6Lf6jHcgAAAAALChHtUKBVxS23pYaFAo9HNJG1qF"
+                                    onChange={onReCAPTCHAChange}
+                                />
+                                <button
+                                    type="submit"
+                                    className={!isCaptchaValid ? 'bg-gradient-to-bl hover:bg-gradient-to-tr bg-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out cursor-not-allowed font-bold' : 'bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer font-bold'}
+                                    disabled={!isCaptchaValid || isLoading}
+                                >
+                                    <span className='flex px-1 justify-center items-center'>
+                                        <GoTasklist className="inline-block text-xl md:text-2xl mx-1.5 p-0.5 rounded-md bg-slate-50 opacity-50 shadow" />
+                                        {t('account.btnCaption')}
+                                    </span>
+                                </button>
+                            </div>
+                            ) : null}
+                            <p className="my-5 text-center text-sm text-slate-700 dark:text-stone-200">
+                                {t('account.haveAccount')}{' '}
+                                <Link href={{ pathname: "/section/account", query: { load: 'log-in', lang: selectedLanguage } }} className="font-semibold leading-6 dark:text-amber-300 text-amber-400 text-shadow">
+                                    {t('account.login')}
+                                </Link>
+                                <p className='text-gray-400 text-xs mt-4'>
+                                    {t('account.support')} <a href="mailto:volkspaco@gmail.com" className="text-amber-400">volkspaco@gmail.com</a>
+                                </p>
+                            </p>
+                            
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    )
+}
