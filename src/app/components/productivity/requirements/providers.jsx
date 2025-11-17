@@ -5,6 +5,7 @@ import { HiClipboardDocumentList } from "react-icons/hi2";
 import { BiSolidUserCircle } from "react-icons/bi";
 import { GrStatusGoodSmall } from "react-icons/gr";
 import axios from 'axios';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 export default function Providers() {
     const router = useRouter();
@@ -16,7 +17,7 @@ export default function Providers() {
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const response = await axios.get('/api/dataManage?type=getAllUsers');
+                const response = await axios.get(buildApiUrl('/getAllUsers'));
                 setUsers(response.data);
             } catch (error) {
                 console.error('Error fetching users:', error);

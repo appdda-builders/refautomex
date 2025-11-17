@@ -1,4 +1,6 @@
+'use client';
 import axios from 'axios';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import Spinner from '@/app/components/principal/spinner';
 import { CgMoreO } from 'react-icons/cg';
@@ -16,13 +18,13 @@ function filterProductsByCategory(products, searchTerm, searchType) {
     };
 
     switch (searchType) {
-        case 'descripcion':
+        case 'Descripcion':
             result.dataProducts = products.filter(product =>
                 searchWords.every(word => product.descripcion.toLowerCase().includes(word))
             ).sort((a, b) => a.descripcion.localeCompare(b.descripcion));
             result.type = 'descripcion';
             break;
-        case 'num_parte':
+        case 'Parte':
             result.dataProducts = products.filter(product =>
                 searchWords.every(word => product.num_parte.toLowerCase().includes(word))
             ).sort((a, b) => {
@@ -32,7 +34,7 @@ function filterProductsByCategory(products, searchTerm, searchType) {
             });
             result.type = 'num_parte';
             break;
-        case 'localizacion':
+        case 'Localizacion':
             result.dataProducts = products.filter(product =>
                 searchWords.every(word => product.localizacion.toLowerCase().includes(word))
             ).sort((a, b) => {
@@ -41,7 +43,11 @@ function filterProductsByCategory(products, searchTerm, searchType) {
             result.type = 'localizacion';
             break;
         default:
-            result.type = 'Sin resultados';
+            result.dataProducts = products.filter(product =>
+                searchWords.every(word => product.descripcion.toLowerCase().includes(word))
+            ).sort((a, b) => a.descripcion.localeCompare(b.descripcion));
+            result.type = 'descripcion';
+            break;
     }
 
     result.dataProducts = result.dataProducts.map(product => {
@@ -89,7 +95,7 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
         setSearchTerm(event.target.value);
     };
 
-    const searchTypes = ['descripcion', 'num_parte', 'localizacion'];
+    const searchTypes = ['Descripcion', 'Parte', 'Localizacion'];
 
     const handleTypeClick = () => {
         const currentTypeIndex = searchTypes.indexOf(searchType);
@@ -101,7 +107,7 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
         setIsLoading(true);
         setError(null);
         try {
-            const response = await axios.get(`/api/dataManage?type=getAllProducts`);
+            const response = await axios.get(buildApiUrl('/getAllProducts'));
             setProducts(response.data[0]);
         } catch (error) {
             console.error('Error fetching products:', error);
@@ -203,23 +209,23 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
                     placeholder='Buscar productos'
                     value={searchTerm}
                     onChange={handleSearchChange}
-                    className="uppercase w-[300px] block border-0 rounded-2xl py-1.5 p-3 -mt-1 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                    className="uppercase w-[300px] block border-0 rounded-full py-1.5 p-3 -mt-1 text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-galaxy))] placeholder:text-[rgb(var(--color-text))] bg-[rgb(var(--color-bg))] sm:text-sm sm:leading-6"
                 />
                 <div
                     onMouseEnter={deleteTooltip.show}
                     onMouseLeave={deleteTooltip.hide}
                     onClick={() => setSearchTerm('')}
-                    className='mx-2 -mt-1 mb-1 text-sm font-bold leading-6 p-2 shadow rounded-full cursor-pointer relative bg-stone-100 dark:bg-stone-800 hover:bg-zinc-200 dark:hover:bg-stone-600'>
+                    className='mx-2 -mt-1 mb-1 text-sm font-bold leading-6 p-2 shadow rounded-full cursor-pointer relative bg-[rgb(var(--color-card))]'>
                     <FaDeleteLeft size={20}
-                        className='text-md xl:text-lg leading-6 text-slate-800 dark:text-stone-300 hover:text-red-500 dark:hover:text-red-300'
+                        className='text-md xl:text-lg leading-6 text-[rgb(var(--color-error))]'
                     />
                     {deleteTooltip.tooltip}
                 </div>
                 <div className='absolute -top-11 md:right-0 -mt-1 mb-1 flex rounded-3xl '>
-                    <span className='italic font-sans mx-1 my-auto text-sm dark:text-white'>
+                    <span className='italic font-sans mx-1 my-auto text-sm text-[rgb(var(--color-text))]'>
                         {searchTerm.length === 0 ? 'TODOS' : searchTerm.toUpperCase()}
                     </span>
-                    <span className="bg-amber-500 text-white dark:text-stone-800 font-semibold rounded-full h-10 w-10 text-md flex items-center justify-center shadow-lg">
+                    <span className="bg-amber-500 text-white font-semibold rounded-full h-10 w-10 text-md flex items-center justify-center shadow-lg">
                         {filteredProducts.length}
                     </span>
                 </div>
@@ -234,8 +240,8 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
                     </div>
                 )}
             </div>
-            <div className='bg-yellow-200 flex flex-1 sm:justify-center px-3 cursor-pointer' onClick={handleTypeClick}>
-                <span className='px-2 my-0.5 shadow-md rounded-md bg-amber-300 animate-out'>{searchType.toUpperCase()}</span>
+            <div className='bg-[rgb(var(--color-card))] flex flex-1 sm:justify-center px-3 cursor-pointer' onClick={handleTypeClick}>
+                <span className='px-2 my-0.5 rounded-full bg-[rgb(var(--color-bg))] shadow shadow-[rgb(var(--color-galaxy))] animate-out italic'>POR: {searchType.toUpperCase()}</span>
             </div>
             <div className='flex flex-1 justify-center overflow-y-auto h-[570px] w-auto'>
             {isLoading ? (
@@ -243,64 +249,110 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
             ) : (
                 showCards && (
                     <div className="relative min-h-[30rem] w-full grow [container-type:inline-size] max-lg:mx-auto max-lg:max-w-sm">
-                        <div className="absolute left-1/2 top-10 z-10 flex items-center space-x-1 bg-gray-800 dark:bg-slate-30 p-1 rounded-full transform -translate-x-1/2">
+                        <div className="absolute left-1/2 top-10 z-10 flex items-center space-x-1 bg-[rgb(var(--color-slate))] p-1 rounded-full transform -translate-x-1/2">
                             <FaStar className="w-3 h-3 text-amber-400 animate-bounce"/>
                             <p className="text-xs font-medium text-gray-300">Refacciones</p>
                         </div>
-                        <div className="absolute inset-x-5 sm:inset-x-1 xl:inset-x-10 bottom-0 top-3 rounded-t-[12cqw] overflow-x-hidden overflow-y-auto border-x-[3cqw] border-t-[3cqw] border-slate-800 bg-gray-100 pt-5 dark:bg-white shadow-2xl">
-                            <div className="flex flex-col items-center justify-center py-2 px-4 mt-5">
-                                <div className="pb-3 pt-2 sm:pl-2 px-3 ">
+                        <div className="absolute inset-x-2 sm:inset-x-1 xl:inset-x-10 bottom-0 top-3 rounded-t-[12cqw] overflow-x-hidden overflow-y-auto border-x-[3cqw] border-t-[3cqw] border-[rgb(var(--color-slate))] bg-[rgb(var(--color-gray))] pt-5 shadow-2xl">
+                            <div className="p-1 mt-5">
+                                <div className="pb-3 pt-1 sm:pl-2 px-1 flex flex-col items-center justify-center">
                                     {filteredProducts
                                         .filter(product => !isMissing || product.existencia === 0)
                                         .slice(0, 25)
                                         .map((product) => {
                                         const imageUrl = product.ruta ? `${multimediaSrc}${product.ruta}` : `${multimediaSrc}productos/no-img.png`;
                                         return (
-                                            <div key={product.num_parte} className="group w-[250px] lg:w-[300px] pb-4 relative bg-slate-100 rounded-3xl cursor-pointer p-0.5 md:-mx-3 mb-3 border border-stone-200 shadow">
-                                                {alertProduct === product.num_parte && (
-                                                    <div className="flex items-center bg-yellow-500 text-white text-sm font-bold mx-3 py-0.5 my-1 rounded-2xl" role="alert">
-                                                        <TiInfo className="text-2xl mx-2" />
-                                                        <p>Sin existencia {product.num_parte}</p>
-                                                        <button onClick={() => setAlertProduct(null)} 
-                                                        className="text-sm font-semibold underline absolute bg-gray-200 animate-out rounded-full -right-3 -top-1">
-                                                            <IoCloseCircle className="text-2xl text-red-400" />
-                                                        </button>
-                                                    </div>
-                                                )}
-                                                <div className="aspect-w-1 aspect-h-1 h-auto w-full overflow-hidden rounded-3xl shadow-xl bg-gray-200 border border-slate-100 z-0">
-                                                    <img
-                                                    src={imageUrl}
-                                                    onClick={() => isProductAdded(product) ? handleRemoveClick(product) : handleAddClick(product)}
-                                                    className="h-full w-full object-cover object-center group-hover:opacity-75 transition-opacity duration-300"
-                                                    />
-                                                    <div className='flex flex-1 relative z-10'>
-                                                        {isProductAdded(product) ? (
-                                                            <div onClick={() => handleRemoveClick(product)} className="absolute right-9 cursor-pointer text-sm font-bold leading-6 p-2 shadow bg-stone-100 hover:bg-zinc-200 rounded-full m-1">
-                                                                <IoBagRemove className='text-red-600 ' />
-                                                            </div>
-                                                        ) : (
-                                                            <div onClick={() => handleAddClick(product)} className="absolute right-9 cursor-pointer text-sm font-bold leading-6 p-2 shadow bg-stone-100 hover:bg-zinc-200 rounded-full m-1">
-                                                                <IoBagAdd className='text-amber-500 ' />
-                                                            </div>
-                                                        )}
-                                                        <div className="absolute right-0.5 cursor-pointer text-sm font-bold leading-6 p-2 shadow bg-stone-100 hover:bg-zinc-200 rounded-full m-1">
-                                                            <CgMoreO className='text-slate-900 ' />
-                                                        </div>
-                                                        <div className="absolute -left-1 top-1 text-xl font-semibold text-gray-900 dark:text-stone-100 mt-1 px-4">
-                                                            <span className={`${product.existencia === 0 ? 'bg-red-400' : 'bg-amber-500'} text-white text-sm rounded-full h-8 w-8 text-md flex items-center justify-center shadow-lg animate-up`}>
-                                                                {product.existencia}
-                                                            </span>
-                                                        </div>
-                                                    </div>
+                                            <div
+                                              key={product.num_parte}
+                                              className="flex flex-col md:flex-row w-full pb-4 relative bg-[rgb(var(--color-bg))] rounded-sm cursor-pointer md:-mx-3 mb-3 shadow shadow-[rgb(var(--color-galaxy))] p-2"
+                                            >
+                                              {alertProduct === product.num_parte && (
+                                                <div
+                                                  className="flex items-center bg-yellow-500 text-white text-sm font-bold mx-3 py-0.5 my-1 rounded-2xl"
+                                                  role="alert"
+                                                >
+                                                  <TiInfo className="text-2xl mx-2" />
+                                                  <p>Sin existencia {product.num_parte}</p>
+                                                  <button
+                                                    onClick={() => setAlertProduct(null)}
+                                                    className="text-sm font-semibold underline absolute bg-gray-200 animate-out rounded-full -right-3 -top-1"
+                                                  >
+                                                    <IoCloseCircle className="text-2xl text-red-400" />
+                                                  </button>
                                                 </div>
-                                                <div className='flex my-3 justify-center items-center'>
-                                                    <p className="text-lg font-bold text-amber-500 -mt-1 px-2">{product.num_parte}</p>
-                                                    <p className="text-lg font-bold text-amber-500 bg-slate-50 rounded-full shadow -mt-1 px-2">{product.localizacion}</p>
+                                              )}
+                                          
+                                              {/* ==== Imagen a la izquierda ==== */}
+                                              <div className="relative md:w-1/3 w-full h-auto overflow-hidden rounded-xl shadow-md group">
+                                                <img
+                                                  src={imageUrl}
+                                                  alt={product.descripcion}
+                                                  onClick={() =>
+                                                    isProductAdded(product)
+                                                      ? handleRemoveClick(product)
+                                                      : handleAddClick(product)
+                                                  }
+                                                  className="w-full h-full object-cover object-center group-hover:opacity-80 transition-opacity duration-300 rounded-xl"
+                                                />
+                                          
+                                                {/* ==== Botones flotantes sobre la imagen ==== */}
+                                                <div className="absolute top-1 right-2 flex flex-col gap-2 z-10">
+                                                  {isProductAdded(product) ? (
+                                                    <div
+                                                      onClick={() => handleRemoveClick(product)}
+                                                      className="cursor-pointer text-sm font-bold leading-6 p-2 shadow bg-stone-100 hover:bg-zinc-200 rounded-full"
+                                                    >
+                                                      <IoBagRemove className="text-red-600" />
+                                                    </div>
+                                                  ) : (
+                                                    <div
+                                                      onClick={() => handleAddClick(product)}
+                                                      className="cursor-pointer text-sm font-bold leading-6 p-2 shadow bg-stone-100 hover:bg-zinc-200 rounded-full"
+                                                    >
+                                                      <IoBagAdd className="text-amber-500" />
+                                                    </div>
+                                                  )}
+                                          
+                                                  <div className="cursor-pointer text-sm font-bold leading-6 p-2 shadow bg-stone-100 hover:bg-zinc-200 rounded-full">
+                                                    <CgMoreO className="text-slate-900" />
+                                                  </div>
                                                 </div>
-                                                <h3 className="text-xl text-gray-700 max-w-full h-[85px] overflow-y-scroll px-2 mb-5 font-semibold text-justify">{product.descripcion}</h3>
-                                                <p className="absolute bottom-0 right-0 text-2xl font-italic text-green-700 px-4">$ {(Number(product.precio)).toFixed(2)} MXN</p>
+                                          
+                                                {/* ==== Stock badge ==== */}
+                                                <div className="absolute -left-2 top-2 text-xl font-semibold text-[rgb(var(--color-text))] mt-1 px-4">
+                                                  <span
+                                                    className={`${
+                                                      product.existencia === 0 ? 'bg-red-400' : 'bg-amber-500'
+                                                    } text-white text-sm rounded-full h-8 w-8 text-md flex items-center justify-center shadow-lg animate-up`}
+                                                  >
+                                                    {product.existencia}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                          
+                                              {/* ==== Descripción a la derecha ==== */}
+                                              <div className="flex flex-col justify-between md:w-2/3 w-full md:pl-6 mt-3 md:mt-0 relative">
+                                                <div className="flex flex-wrap my-2 justify-center md:justify-start items-center gap-2">
+                                                  <p className="text-lg font-bold text-[rgb(var(--color-refautomex))] bg-[rgb(var(--color-gray-base))] rounded-full px-3 py-0.5">
+                                                    {product.num_parte}
+                                                  </p>
+                                                  <p className="text-lg font-bold text-[rgb(var(--color-refautomex))]">
+                                                    {product.localizacion}
+                                                  </p>
+                                                </div>
+                                          
+                                                <h3 className="text-xl text-[rgb(var(--color-text))] max-w-full h-[85px] overflow-y-auto px-2 mb-3 font-semibold text-justify">
+                                                  {product.descripcion}
+                                                </h3>
+                                          
+                                                <p className="absolute bottom-0 right-0 text-2xl italic font-bold text-green-700 px-4">
+                                                  ${' '}
+                                                  {(Number(product.precio)).toFixed(2)} MXN
+                                                </p>
+                                              </div>
                                             </div>
-                                        );
+                                          );
+                                          
                                     })}
                                 </div>
                             </div>

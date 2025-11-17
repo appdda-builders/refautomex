@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { FaArrowDown, FaArrowUp, FaSearch } from "react-icons/fa";
 import { FaMoneyBillTransfer, FaBook, FaBox } from "react-icons/fa6";
 import { GrStatusGoodSmall } from "react-icons/gr";
@@ -51,7 +52,9 @@ export default function Site() {
         setIsSearchingFolio(true);
 
         try {
-            const response = await axios.get(`/api/dataManage?type=getFolioHistory&id=${folio}`);
+            const response = await axios.get(buildApiUrl('/getFolioHistory'), {
+                params: { id: folio },
+            });
             const data = response.data;
 
             if (Array.isArray(data) && data.length >= 2) {
@@ -152,7 +155,7 @@ export default function Site() {
 
     const fetchData = async () => {
         try {
-            const response = await axios.get(`/api/dataManage?type=getSiteRequests`);
+            const response = await axios.get(buildApiUrl('/getSiteRequests'));
             if (Array.isArray(response.data) && response.data.length >= 2) {
                 const pedidos = Array.isArray(response.data[0]) ? response.data[0] : [];
                 const detalles = Array.isArray(response.data[1]) ? response.data[1] : [];

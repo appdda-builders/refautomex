@@ -108,7 +108,7 @@ const ComponentToPrint = React.forwardRef(({ items, subtotal, discount, total, c
                         <p className="text-right text-xs font-semibold">Subtotal: {subtotal.toFixed(2)} MXN</p>
                     </>
                 )}
-                <p className="text-left font-bold">Total: <p className='text-xl'>{total.toFixed(2)} MXN</p></p>
+                <span className="text-left font-bold">Total: <span className='text-xl'>{total.toFixed(2)} MXN</span></span>
             </div>
 
             <div className="my-2">

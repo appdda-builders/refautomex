@@ -1,11 +1,16 @@
-import MetaHead from "@/app/components/meta-head";
-import OrderGrid from "@/app/components/principal/products/order-grid";
+import Shopping from "./shopping";
 
-export default function Shopping() {
-  return(
-    <section>
-      <MetaHead title="Shopping"/>
-      <OrderGrid />
-    </section>
-  )
+export function generateMetadata({ searchParams }) {
+    const lang = searchParams.lang || "es";
+    return {
+        title: lang === "en" ? "Refautomex | Shopping" : "Refautomex | Carrito",
+        description:
+        lang === "en"
+            ? "Shopping Refautomex"
+            : "Carrito Refautomex",
+    };
+}
+
+export default function ShoppingPage() {
+    return <Shopping />;
 }

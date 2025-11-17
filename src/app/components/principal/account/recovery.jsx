@@ -5,12 +5,13 @@ import RefautomexLogo from "@/app/components/refautomex-logo";
 import { AiFillEye } from 'react-icons/ai';
 import '@/app/translations/i18next-translation';
 import { useTranslation } from 'react-i18next';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function Recovery() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const lang = searchParams.get('lang') || 'es';
     const { i18n, t } = useTranslation();
-    const [selectedLanguage, setSelectedLanguage] = useState('es');
     const [email, setEmail] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -80,32 +81,18 @@ export default function Recovery() {
         });
     };
 
-    const handleAlertClose = () => {
-        setAlertMessage(null);
-    };
-
     useEffect(() => {
-        const handleRouteChange = () => {
-            const lang = router.query.lang;
-            if (lang) {
-                i18n.changeLanguage(lang);
-                setSelectedLanguage(lang);
-            }
-        };
-        router.events.on('routeChangeComplete', handleRouteChange);
-
-        handleRouteChange();
-        return () => {
-            router.events.off('routeChangeComplete', handleRouteChange);
-        };
-    }, [router.query.lang, i18n, router.events]);
+        if (i18n.language !== lang) {
+            i18n.changeLanguage(lang);
+        }
+    }, [lang, i18n]);
 
     return (
-        <div className="relative mx-auto w-full md:w-[500px] bg-slate-200 dark:bg-slate-700 opacity-40 dark:opacity-50 md:rounded-xl shadow-md dark:shadow-slate-300/10 p-6">
+        <div className="relative mx-auto w-full md:w-[500px] bg-[rgb(var(--color-card))]/50 md:rounded-xl shadow shadow-[rgb(var(--color-text))]/10 p-6">
             <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
                 <div className="sm:mx-auto sm:w-full sm:max-w-sm">
                     <RefautomexLogo classAttr={"h-24 md:h-32 w-auto object-contain p-2 md:p-3 mx-auto"} />
-                    <h2 className="text-center text-2xl leading-9 tracking-tight text-stone-600 dark:text-stone-200 text-shadow">
+                    <h2 className="text-center text-2xl leading-9 tracking-tight text-[rgb(var(--color-text))] text-shadow">
                         {t('account.recovery')}
                     </h2>
                 </div>
@@ -113,7 +100,7 @@ export default function Recovery() {
                     {step === 1 && (
                         <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleSendCode(); }}>
                             <div>
-                                <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="email" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.mail')}
                                 </label>
                                 <div className="mt-2">
@@ -139,7 +126,7 @@ export default function Recovery() {
                     {step === 2 && (
                         <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleResetPassword(); }}>
                             <div>
-                                <label htmlFor="verificationCode" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="verificationCode" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.verifyCode')}
                                 </label>
                                 <div className="mt-2">
@@ -155,7 +142,7 @@ export default function Recovery() {
                                 </div>
                             </div>
                             <div>
-                                <label htmlFor="newPassword" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="newPassword" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.new')}
                                 </label>
                                 <div className="mt-2 relative">
@@ -179,7 +166,7 @@ export default function Recovery() {
                                 </div>
                             </div>
                             <div>
-                                <label htmlFor="verifyNewPassword" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="verifyNewPassword" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.verifyNew')}
                                 </label>
                                 <div className="mt-2">
@@ -197,7 +184,7 @@ export default function Recovery() {
                                     />
                                 </div>
                             </div>
-                            <div className={`grid grid-cols-2 p-2 leading-3 text-xs mt-1.5 opacity-40 shadow bg-slate-200 dark:bg-slate-800 rounded-md ${newPassword && verifyNewPassword ? '' : 'hidden'}`}>
+                            <div className={`grid grid-cols-2 p-2 leading-3 text-xs mt-1.5 opacity-40 shadow bg-[rgb(var(--color-gray))] rounded-md ${newPassword && verifyNewPassword ? '' : 'hidden'}`}>
                                 <p className={isValid.minLength ? 'text-green-500' : 'text-red-400'}>
                                     - {isValid.minLength ? 'La longitud es válida.' : 'Minimo 8 caracteres.'}
                                 </p>
@@ -234,9 +221,9 @@ export default function Recovery() {
                             <p>{alertMessage}</p>
                         </div>
                     )}
-                    <p className="mt-5 text-center text-sm text-slate-700 dark:text-stone-200">
+                    <p className="mt-5 text-center text-sm text-[rgb(var(--color-text))]">
                         {t('account.haveAccount')}{' '}
-                        <a href="/section/account?load=login" className="font-semibold leading-6 dark:text-amber-300 text-amber-400 text-shadow">
+                        <a href="/section/account?load=login" className="font-semibold leading-6 text-[rgb(var(--color-refautomex))] text-shadow">
                             {t('account.login')}
                         </a>
                     </p>

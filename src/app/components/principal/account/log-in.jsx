@@ -2,7 +2,7 @@
 import { FcGoogle } from "react-icons/fc";
 import { FaFacebook } from "react-icons/fa";
 import { AuthContext } from '@/app/lib/auth-tracker';
-import { useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect, useContext } from 'react';
 import { CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
 import { userPool } from "@/app/lib/cognito-manager";
@@ -14,9 +14,11 @@ import { IoMdLogIn } from "react-icons/io";
 import { AiFillEye } from 'react-icons/ai';
 import { IoIosCloseCircle } from "react-icons/io";
 import Link from 'next/link';
-//import { Auth } from 'aws-amplify';
+import { signInWithRedirect } from 'aws-amplify/auth';
+import '@/app/lib/amplify-client';
 
 export default function Login() {
+    const searchParams = useSearchParams();
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -29,49 +31,16 @@ export default function Login() {
     const { isAuthenticated } = useContext(AuthContext);
     const [selectedLanguage, setSelectedLanguage] = useState('es');
     const { i18n, t } = useTranslation();
-    const urlParams = new URLSearchParams(window.location.search);
-    const userStatus = urlParams.get('user_status');
+    const userStatus = searchParams.get('user_status');
 
     const signIn = async (provider) => {
-
         try {
-            if (Auth.signInWithRedirect) {
-                await Auth.signInWithRedirect({ provider });
-            } else {
-                console.error("signInWithRedirect no está disponible en esta versión de Amplify.");
-            }
+            await signInWithRedirect({ provider });
         } catch (err) {
             console.error("Error en signInWithRedirect:", err);
+            setAlertMessage('No pudimos iniciar la sesión social, intenta nuevamente.');
         }
     };
-
-
-    useEffect(() => {
-        if (userStatus && userStatus.includes('new')) {
-            setSuccessMessage('Se ha enviado un correo de confirmación a tu correo.');
-            setIndicationMessage('Por favor, verifica tu bandeja de entrada y sigue las instrucciones para validar tu cuenta.');
-        } else if (userStatus && userStatus.includes('password-reset')) {
-            setSuccessMessage('Se ha restablecido su contraseña con éxito.');
-        } else if (userStatus && userStatus.includes('error')) {
-            setAlertMessage('Por favor, inténtalo de nuevo más tarde.');
-        }
-    }, []);
-
-    useEffect(() => {
-        const handleRouteChange = () => {
-            const lang = router.query.lang;
-            if (lang) {
-                i18n.changeLanguage(lang);
-                setSelectedLanguage(lang);
-            }
-        };
-        router.events.on('routeChangeComplete', handleRouteChange);
-
-        handleRouteChange();
-        return () => {
-            router.events.off('routeChangeComplete', handleRouteChange);
-        };
-    }, [router.query.lang, i18n, router.events]);
 
     const onSubmit = (event) => {
         event.preventDefault();
@@ -125,54 +94,75 @@ export default function Login() {
         setSuccessMessage(null);
     };
 
+    useEffect(() => {
     if (isAuthenticated) {
-        router.push('/section/refautomex');
-    }
+            router.replace('/section/refautomex');
+        }
+    }, [isAuthenticated, router]);
+
+    useEffect(() => {
+        const lang = searchParams.get('lang');
+        if (lang) {
+            i18n.changeLanguage(lang);
+            setSelectedLanguage(lang);
+        }
+    }, [searchParams, i18n]);
+
+    useEffect(() => {
+        if (userStatus && userStatus.includes('new')) {
+            setSuccessMessage('Se ha enviado un correo de confirmación a tu correo.');
+            setIndicationMessage('Por favor, verifica tu bandeja de entrada y sigue las instrucciones para validar tu cuenta.');
+        } else if (userStatus && userStatus.includes('password-reset')) {
+            setSuccessMessage('Se ha restablecido su contraseña con éxito.');
+        } else if (userStatus && userStatus.includes('error')) {
+            setAlertMessage('Por favor, inténtalo de nuevo más tarde.');
+        }
+    }, []);
 
     return (
-        <div className="relative mx-auto w-full md:w-[500px] bg-slate-200 dark:bg-slate-700 opacity-40 dark:opacity-50 md:rounded-xl shadow-md dark:shadow-slate-300/10 p-6">
+        <div className="relative mx-auto w-full md:w-[500px] bg-[rgb(var(--color-card))]/50 md:rounded-xl shadow shadow-[rgb(var(--color-text))]/10 p-6">
             {alertMessage && (
-                <div className="rounded-xl my-1 shadow bg-gradient-to-br from-orange-500 to-amber-200 dark:from-indigo-950 dark:to-indigo-800 text-center py-4 lg:px-4">
-                    <div className="px-4 md:px-2 p-1 bg-transparent items-center text-stone-900 dark:text-indigo-100 leading-none lg:rounded-full flex lg:inline-flex" role="alert">
+                <div className="rounded-xl my-1 shadow bg-gradient-to-br from-[rgb(var(--color-galaxy))] to-[rgb(var(--color-bg))] text-center py-4 lg:px-4">
+                    <div className="px-4 md:px-2 p-1 bg-transparent items-center text-[rgb(var(--color-text))] leading-none lg:rounded-full flex lg:inline-flex" role="alert">
                         <span className="flex rounded-full bg-red-600 text-indigo-100 uppercase px-2 py-1 text-xs font-bold mr-3 shadow">Error</span>
                         <span className="font-semibold mr-2 text-left flex-auto">{alertMessage}</span>
                         <button onClick={closeAlert} className="ml-2">
-                            <IoIosCloseCircle className="text-red-500 dark:text-red-300 text-2xl" />
+                            <IoIosCloseCircle className="text-red-500 text-2xl" />
                         </button>
                     </div>
                     {alertConfirmation && (
                         <div>
-                            <span className="mx-2.5 italic font-sans text-left text-stone-900 dark:text-indigo-100">{alertConfirmation}</span>
+                            <span className="mx-2.5 italic font-sans text-left text-[rgb(var(--color-text))]">{alertConfirmation}</span>
                             <button onClick={resendConfirmationCode} className="ml-2 text-blue-500 underline">Reenviar</button>
                         </div>
                     )}
                 </div>
             )}
             {alertSuccess && (
-                <div className="rounded-xl my-1 shadow bg-gradient-to-br from-orange-400 to-amber-200 dark:from-indigo-950 dark:to-indigo-600 text-center py-4 lg:px-4">
-                    <div className="px-4 md:px-2 p-1 bg-transparent items-center text-stone-900 dark:text-indigo-100 leading-none lg:rounded-full flex lg:inline-flex" role="alert">
-                        <span className="flex rounded-full dark:bg-amber-500 bg-indigo-500 text-white uppercase px-2 py-1 text-xs font-bold mr-3 shadow">Warning</span>
+                <div className="rounded-xl my-1 shadow bg-gradient-to-br from-[rgb(var(--color-galaxy))] to-[rgb(var(--color-bg))] text-center py-4 lg:px-4">
+                    <div className="px-4 md:px-2 p-1 bg-transparent items-center text-[rgb(var(--color-text))] leading-none lg:rounded-full flex lg:inline-flex" role="alert">
+                        <span className="flex rounded-full bg-[rgb(var(--color-galaxy))] text-[rgb(var(--color-text))] uppercase px-2 py-1 text-xs font-bold mr-3 shadow">Warning</span>
                         <span className="m-2 text-left font-sans">
                             <b>{alertSuccess}</b>
                         </span>
                         <button onClick={closeAlert} className="ml-2">
-                            <IoIosCloseCircle className="text-red-500 dark:text-red-300 text-2xl" />
+                            <IoIosCloseCircle className="text-red-500 text-2xl" />
                         </button>
                     </div>
-                    <div className="mx-2.5 italic font-sans text-left flex-auto text-stone-900 dark:text-indigo-100 ">{indicationMessage}</div>
+                    <div className="mx-2.5 italic font-sans text-left flex-auto text-[rgb(var(--color-text))]">{indicationMessage}</div>
                 </div>
             )}
             <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
                 <div className="sm:mx-auto sm:w-full sm:max-w-sm">
                     <RefautomexLogo classAttr={"h-24 md:h-32 w-auto object-contain p-2 md:p-3 mx-auto"} />
-                    <h2 className="text-center text-2xl leading-9 tracking-tight text-stone-600 dark:text-stone-200 text-shadow">
+                    <h2 className="text-center text-2xl leading-9 tracking-tight text-[rgb(var(--color-text))] text-shadow">
                         {t('account.account')}
                     </h2>
                 </div>
                 <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
                     <form className="space-y-6" method="POST" onSubmit={onSubmit}>
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200">
+                            <label htmlFor="email" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                 {t('account.mail')}
                             </label>
                             <div className="mt-2">
@@ -183,17 +173,17 @@ export default function Login() {
                                     autoComplete="email"
                                     required
                                     onChange={event => setEmail(event.target.value)}
-                                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                 />
                             </div>
                         </div>
                         <div>
                             <div className="flex items-center justify-between">
-                                <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="password" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.password')}
                                 </label>
                                 <div className="text-sm">
-                                    <Link href={{ pathname: "/section/account", query: { load: 'recovery', lang: selectedLanguage } }} className="font-semibold leading-6 dark:text-amber-300 text-amber-400 text-shadow">
+                                    <Link href={{ pathname: "/section/account", query: { load: 'recovery', lang: selectedLanguage } }} className="font-semibold leading-6 text-[rgb(var(--color-refautomex))] text-shadow">
                                         {t('account.forgot')}
                                     </Link>
                                 </div>
@@ -206,10 +196,10 @@ export default function Login() {
                                     autoComplete="current-password"
                                     required
                                     onChange={event => setPassword(event.target.value)}
-                                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                 />
                                 <div
-                                    className='absolute right-0 top-0 bg-blue-300 cursor-pointer m-1.5 p-1 rounded-full shadow-xl'
+                                    className='absolute right-0 top-0 bg-[rgb(var(--color-amber))] text-[rgb(var(--color-text-base))] cursor-pointer m-1.5 p-1 rounded-full shadow-xl'
                                     onClick={() => setPasswordVisible(!passwordVisible)}>
                                     <AiFillEye />
                                 </div>
@@ -224,14 +214,14 @@ export default function Login() {
                             </button>
                         </div>
                     </form>
-                    <p className="mt-5 text-center text-sm text-slate-700 dark:text-stone-200">
-                        <Link href={{ pathname: "/section/account", query: { load: 'sign-up', lang: selectedLanguage } }} className="font-semibold leading-6 dark:text-amber-300 text-amber-400 text-shadow">
+                    <p className="mt-5 text-center text-sm text-[rgb(var(--color-text))]">
+                        <Link href={{ pathname: "/section/account", query: { load: 'sign-up', lang: selectedLanguage } }} className="font-semibold leading-6 text-[rgb(var(--color-refautomex))] text-shadow">
                             {t('account.noAccount')}
                         </Link>
                     </p>
                     <div className="mt-6 flex items-center justify-center">
                         <div className="flex-grow border-t border-gray-400"></div>
-                        <span className="mx-4 text-gray-700 text-sm dark:text-gray-300">
+                        <span className="mx-4 text-[rgb(var(--color-text))]">
                         {t('account.continue')}
                         </span>
                         <div className="flex-grow border-t border-gray-400"></div>

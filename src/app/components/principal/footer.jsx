@@ -27,7 +27,9 @@ export default function Footer() {
                 icon: (props) => (
                     <FaInstagram
                         size={iconSize}
-                        className="transition duration-300 ease-in-out hover:bg-gradient-to-bl hover:from-amber-500 hover:via-purple-600 hover:to-red-600 text-white rounded p-0.5 border border-stone-600 shadow"
+                        className="transition duration-300 ease-in-out
+                        hover:bg-gradient-to-bl hover:from-amber-500 hover:via-purple-600 hover:to-red-600 text-[rgb(var(--color-text))] hover:text-white
+                        rounded p-0.5 shadow shadow-[rgb(var(--color-galaxy))] bg-[rgb(var(--color-gray))]"
                     />
                 ),
             },
@@ -35,14 +37,18 @@ export default function Footer() {
                 name: 'LinkedIn',
                 href: `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`,
                 icon: (props) => (
-                    <FaWhatsapp size={iconSize} className='transition duration-300 ease-in-out hover:bg-gradient-to-bl hover:from-green-300 hover:via-green-600 hover:to-green-800 text-white rounded p-0.5 border border-stone-600 shadow' />
+                    <FaWhatsapp size={iconSize} className='transition duration-300 ease-in-out
+                    hover:bg-gradient-to-bl hover:from-green-300 hover:via-green-600 hover:to-green-800 text-[rgb(var(--color-text))] hover:text-white
+                    rounded p-0.5 shadow shadow-[rgb(var(--color-galaxy))] bg-[rgb(var(--color-gray))]' />
                 ),
             },
             {
                 name: 'Facebook',
                 href: `https://www.facebook.com/search/top?q=refautomex%20by%20volkspaco`,
                 icon: (props) => (
-                    <FaFacebookSquare size={iconSize} className='transition duration-300 ease-in-out hover:bg-gradient-to-bl hover:from-blue-400 hover:to-blue-800 text-white rounded p-0.5 border border-stone-600 shadow' />
+                    <FaFacebookSquare size={iconSize} className='transition duration-300 ease-in-out
+                    hover:bg-gradient-to-bl hover:from-blue-400 hover:to-blue-800 text-[rgb(var(--color-text))] hover:text-white
+                    rounded p-0.5 shadow shadow-[rgb(var(--color-galaxy))] bg-[rgb(var(--color-gray))]' />
                 ),
             },
         ],
@@ -65,11 +71,11 @@ export default function Footer() {
             desc: `${t('footer.ourBrands')}`,
             ruta:
             <div className='w-full flex flex-wrap justify-center items-center'>
-                <div className="flex justify-center flex-wrap dark:bg-stone-600 bg-gray-300 -p-1 py-2 max-w-md rounded-xl shadow">
+                <div className="flex justify-center flex-wrap bg-[rgb(var(--color-bg))] -p-1 py-2 max-w-md rounded-xl shadow">
                     {bubblesData.map((bubble, index) => (
                         <div
                             key={index}
-                            className='sm:m-1.5 sm:p-0.5 p-2 m-2 h-[85px] sm:h-[127px] flex items-center justify-center bg-white dark:bg-stone-400 rounded-full shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] animate-up'
+                            className='sm:m-1.5 sm:p-0.5 p-2 m-2 h-[85px] sm:h-[127px] flex items-center justify-center bg-[rgb(var(--color-card-white))] rounded-full shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] animate-up'
                             style={{
                                 width: 'calc(33% - 1rem)',
                                 position: 'relative',
@@ -88,7 +94,7 @@ export default function Footer() {
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3759.801947704656!2d-99.19440841998485!3d19.5501146347099!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d21d65c03197a1%3A0x909cdd5c91dd2897!2sRefautomex%20by%20Volks%20Paco!5e0!3m2!1ses!2smx!4v1707630313260!5m2!1ses!2smx" 
                 allowFullScreen=""
                 loading="lazy"
-                className='w-full h-[430px] shadow-md rounded-xl animate-up dark:opacity-80'
+                className='w-full h-[430px] shadow-md rounded-xl animate-up'
                 referrerPolicy="no-referrer-when-downgrade">
             </iframe>,
             value: `${t('footer.maps')}`
@@ -128,16 +134,16 @@ export default function Footer() {
     }
 
     return (
-        <footer className="bg-stone-950 text-white z-0">
-            <div className="bg-gradient-to-bl from-gray-50 via-zinc-200 to-slate-400 dark:from-stone-600 dark:via-zinc-800 dark:to-stone-900 pt-14 sm:pt-20 pb-3 z-0">
+        <footer className="bg-[rgb(var(--color-bg))] text-white z-0">
+            <div className="bg-gradient-to-bl from-[rgb(var(--color-card))] via-[rgb(var(--color-card))] to-[rgb(var(--color-galaxy))]/50 pt-14 sm:pt-20 pb-3 z-0">
                 <div className="mx-auto max-w-7xl px-6 lg:px-8 mb-10">
                     <dl className="grid grid-cols-1 gap-2 text-center lg:grid-cols-2">
                         {stats.map((stat) => (
                         <div key={stat.id} className="mx-auto flex flex-col gap-y-4">
-                            <div className="order-first text-2xl font-semibold tracking-tight text-slate-800 dark:text-stone-300 sm:text-3xl">
+                            <div className="order-first text-2xl font-semibold tracking-tight text-[rgb(var(--color-text))] sm:text-3xl pt-5">
                                 {stat.value}
                             </div>
-                            <div className="text-sm leading-5 text-gray-600 dark:text-zinc-400">{stat.desc}</div>
+                            <div className="text-sm leading-5 text-[rgb(var(--color-gray-base))] pt-2">{stat.desc}</div>
                             <div>{stat.ruta}</div>
                         </div>
                         ))}
@@ -148,8 +154,10 @@ export default function Footer() {
             <div className="mx-auto max-w-7xl overflow-hidden px-6 py-8">
                 <dl className="mx-auto max-w-7xl grid grid-cols-1 text-center sm:grid-cols-2 lg:grid-cols-3">
                     {buttonSection.map((button) => (
-                        <Link key={button.id} href={{ pathname: button.ruta, query: { lang: selectedLanguage } }} className='bg-gradient-to-b hover:bg-gradient-to-t from-slate-200 via-gray-300 to-zinc-100 shadow text-slate-900 p-2 rounded-r-3xl mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer diagonal-cut mx-5'>
-                            <p className='text-gray-600'>{button.value}</p>
+                        <Link   key={button.id} href={{ pathname: button.ruta, query: { lang: selectedLanguage } }}
+                                className='bg-gradient-to-b hover:bg-gradient-to-t from-[rgb(var(--color-card))] via-[rgb(var(--color-gray))] to-[rgb(var(--color-gray))] shadow shadow-[rgb(var(--color-galaxy))]
+                                        rounded-tr-xl rounded-bl-xl mt-3 py-4 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer diagonal-cut mx-5'>
+                            <p className='text-[rgb(var(--color-text))] font-semibold'>{button.value}</p>
                         </Link>
                     ))}
                 </dl>
@@ -161,8 +169,8 @@ export default function Footer() {
                         </Link>
                     ))}
                 </div>
-                <p className="mt-4 text-center text-xs leading-5 ">
-                    2025 Refautomex.com - <Link href={{ pathname: "/privacy-notice", query: { lang: selectedLanguage } }} className='text-amber-200'>{t('footer.notice')}</Link>
+                <p className="mt-4 text-center text-xs leading-5 text-[rgb(var(--color-text))]">
+                    2025 Refautomex.com - <Link href={{ pathname: "/privacy", query: { lang: selectedLanguage } }} className='text-[rgb(var(--color-refautomex))]'>{t('footer.notice')}</Link>
                 </p>
             </div>
         </footer>

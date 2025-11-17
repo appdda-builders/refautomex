@@ -212,12 +212,6 @@ app.get('/api/getProducts', (req, res) => {
     handleQuery(query, [], res);
 });
 
-// GET: all pending web deliveries
-app.get('/api/getWebDelivery', (req, res) => {
-    const query = 'CALL pendingWebDelivery()';
-    handleQuery(query, [], res);
-});
-
 // GET: filter products by folio
 app.get('/api/getFolioHistory', async (req, res) => {
     const { id } = req.query;
@@ -265,6 +259,11 @@ app.get('/api/getSiteRequests', (req, res) => {
     handleQuery(query, [], res);
 });
 
+// GET: all pending web deliveries
+app.get('/api/getWebDelivery', (req, res) => {
+    const query = 'CALL pendingWebDelivery()';
+    handleQuery(query, [], res);
+});
 
 // GET: all invoices captured
 app.get('/api/getInvoicesCaptured', (req, res) => {

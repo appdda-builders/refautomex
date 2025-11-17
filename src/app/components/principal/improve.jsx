@@ -28,15 +28,21 @@ export default function Improve() {
     }, [i18n, selectedLanguage]);
 
     return (
-        <section className='overflow-hidden dark:bg-stone-900 bg-gray-100 min-h-[300px] sm:min-h-[500px] opacity-80 dark:opacity-90'>
-            <div className="relative sm:h-screen overflow-hidden bg-white dark:bg-stone-950">
+        <section className='overflow-hidden
+        bg-[rgb(var(--color-bg)/0.90)]
+        text-[rgb(var(--color-text-base))]
+        min-h-[300px] sm:min-h-[500px]'>
+            <div className="relative sm:h-screen overflow-hidden
+                bg-[rgb(var(--color-bg)/0.95)]
+            ">
                 <div className="pb-80 pt-16 sm:pb-40 sm:pt-24 lg:pb-48 lg:pt-40">
-                    <div className="relative mx-auto max-w-7xl px-4 sm:static sm:px-6 lg:px-8">
-                        <div className="sm:max-w-lg">
-                            <h1 className="text-4xl sm:text-5xl md:text-6xl gradient-text-title font-bold tracking-tight">
+                    <div className="relative mx-auto max-w-7xl px-4 sm:static lg:px-6">
+                        <div className="sm:max-w-sm lg:max-w-md">
+                            <h1 className="text-4xl sm:text-5xl lg:text-6xl gradient-text-title font-bold tracking-tight">
                                 {t('index.improve.title')}
                             </h1>
-                            <p className="mt-4 text-xl text-gray-500 dark:text-gray-300">
+                            <p className="mt-4 text-xl max-w-full sm:max-w-xs lg:max-w-md text-justify
+                                    text-[rgb(var(--color-text))]">
                                 {t('index.improve.description')}
                             </p>
                         </div>
@@ -46,7 +52,7 @@ export default function Improve() {
                                     <div className="absolute transform sm:left-1/2 sm:top-0 sm:translate-x-8 lg:left-1/2 lg:top-1/2 lg:-translate-y-1/2 lg:translate-x-8">
                                         <div className="flex items-center space-x-6 lg:space-x-8">
                                             <div className="grid flex-shrink-0 grid-cols-1 gap-y-6 lg:gap-y-8">
-                                                <div className="h-44 w-44 overflow-hidden rounded-lg sm:opacity-0 lg:opacity-100 border border-gray-200 shadow-md">
+                                                <div className="h-44 w-44 overflow-hidden rounded-lg border border-gray-200 shadow-md">
                                                     <img
                                                     src={`${multimediaSrc}productos/2480/PhotoRoom_20231024_141254.jpeg`}
                                                     alt=""
@@ -106,9 +112,9 @@ export default function Improve() {
                                 <Link
                                     href={{ pathname: "/section/products",
                                     query: { lang: selectedLanguage } }}
-                                    className="inline-block bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer font-bold">
+                                    className="inline-block bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 px-2 py-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer font-bold">
                                         <span className='flex px-1 justify-center items-center'>
-                                            <FaShoppingBag className="inline-block text-xl md:text-2xl mx-1.5 p-0.5 rounded-md bg-slate-50 opacity-50 shadow" />
+                                            <FaShoppingBag className="inline-block text-xl md:text-2xl mx-1.5 p-0.5 rounded-full bg-amber-100 shadow" />
                                             {t('index.improve.btnCaption')}
                                         </span>
                                 </Link>
@@ -119,10 +125,11 @@ export default function Improve() {
             </div>
             <div className='flex flex-col justify-center items-center h-screen pb-10'>
                 <div className="text-4xl sm:text-5xl md:text-6xl gradient-text-title mt-5 md:mt-10 p-2 mx-auto px-10 font-bold text-center">{t('index.beginning.title')}</div>
-                <div className="text-xl md:text-3xl text-gray-700 dark:text-stone-300 md:p-1 p-3 mb-3 text-center font-semibold">{t('index.beginning.leyend')}</div>
+                <div className="text-xl md:text-3xl text-[rgb(var(--color-text))] md:p-1 p-3 mb-3 text-center font-semibold">{t('index.beginning.leyend')}</div>
                 <Atropos className="overflow-visible max-w-[400px] mx-auto my-10"
                     activeOffset={10} shadowScale={0.8}>
-                    <div className='overflow-hidden px-5 bg-gradient-to-tr from-slate-300 via-slate-100 to-white dark:from-stone-950 dark:via-stone-900 dark:to-stone-700'>
+                    <div className='overflow-hidden px-5 bg-[rgb(var(--color-text-base))]
+                    '>
                         <RefautomexLogo classAttr=" h-48 md:h-60 w-auto object-contain p-3 mx-auto" />
                     </div>
                 </Atropos>

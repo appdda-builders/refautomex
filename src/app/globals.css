@@ -1,199 +1,173 @@
 @import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/*
-@layer components {
-    .bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer {
-        @apply bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer;
-    }
-    .bg-gradient-to-bl hover:bg-gradient-to-tr bg-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out {
-        @apply bg-gradient-to-bl hover:bg-gradient-to-tr bg-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out;
-    }
-    .bg-gradient-to-b hover:bg-gradient-to-t from-slate-200 via-gray-300 to-zinc-100 shadow text-slate-900 p-2 rounded-r-3xl mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer diagonal-cut {
-        @apply bg-gradient-to-b hover:bg-gradient-to-t from-slate-200 via-gray-300 to-zinc-100 shadow text-slate-900 p-2 rounded-r-3xl mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer diagonal-cut;
-    }
-    .muted-circle-button{
-        @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-gray-300 cursor-pointer inline-block transition-all duration-500 ease-in-out;
-    }
-    .gray-circle-button{
-        @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-gray-500 text-white cursor-pointer inline-block transition-all duration-500 ease-in-out;
-    }
-    .normal-circle-button{
-        @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 text-[#f6f6f6] cursor-pointer inline-block transition-all duration-500 ease-in-out;
-    }
-    .blue-circle-button{
-        @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-blue-500 text-[#f6f6f6] cursor-pointer inline-block transition-all duration-500 ease-in-out;
-    }
-    .indigo-circle-button{
-        @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-indigo-500 text-[#f6f6f6] cursor-pointer inline-block transition-all duration-500 ease-in-out;
-    }
-    .green-circle-button{
-        @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-green-500 text-[#f6f6f6] cursor-pointer inline-block transition-all duration-500 ease-in-out;
-    }
-    .animate-up{
-        @apply transform transition-all duration-500 ease-in-out hover:-translate-y-2 cursor-pointer;
-    }
-    .animate-out{
-        @apply transform transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer;
-    }
-    .gradient-hover-text{
-        @apply text-transparent;
-        background: linear-gradient(to left, #4e0a96, #2262c8, #ffc400, #ffba53, #2a3db7);
-        background-size: 200% 200%;
-        -webkit-background-clip: text;
-        background-clip: text;
-        animation: gradient-animation 20s ease infinite;
-    }
-    .title{
-        @apply hover:text-transparent opacity-90;
-    }
-    nav a.active {
-        @apply text-transparent opacity-90;
-        background: linear-gradient(to left, #4e0a96, #2262c8, #ffc400, #ffba53, #2a3db7);
-        background-size: 200% 200%;
-        -webkit-background-clip: text;
-        background-clip: text;
-        animation: gradient-animation 20s ease infinite;
-    }
+:root {
+  --color-amber:  255 196 83;
+  --color-bg: 255 255 255;
+  --color-border: 220 220 220;
+  --color-card: 245 245 245;
+  --color-card-white: 250 250 250;
+  --color-error: 252 32 32;
+  --color-error-base: 251 178 178;
+  --color-galaxy: 248 216 108;
+  --color-gray: 225 225 225;
+  --color-gray-base: 115 115 115;
+  --color-refautomex: 255 196 0;
+  --color-slate: 75 75 75;
+  --color-success: 0 166 3;
+  --color-blue: 34 98 200;
+  --color-text: 15 15 15;
+  --color-text-base: 255 255 255;
 }
-*/
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
+[data-theme="dark"] {
+  --color-amber: 255 196 0;
+  --color-bg: 12 12 12;
+  --color-border: 60 60 60;
+  --color-card: 24 24 24;
+  --color-card-white: 180 180 180;
+  --color-error: 253 124 124;
+  --color-error-base: 105 4 4;
+  --color-galaxy: 34 98 200;
+  --color-gray: 45 45 45;
+  --color-gray-base: 175 175 175;
+  --color-refautomex: 255 245 171;
+  --color-slate: 15 15 15;
+  --color-success: 145 249 150;
+  --color-blue: 6 25 103;
+  --color-text: 240 240 240;
+  --color-text-base: 0 0 0;
+}
+
+html, body {
+  background-color: rgb(var(--color-bg));
+  color: rgb(var(--color-text));
+  font-family: "Poppins", sans-serif;
+  transition: background-color 0.5s ease, color 0.5s ease;
 }
 
 @keyframes gradient-animation {
-    0% {
-        background-position: 0% 50%;
-    }
-    50% {
-        background-position: 100% 50%;
-    }
-    100% {
-        background-position: 0% 50%;
-    }
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-@keyframes fall {
-    10%, 90% {
-        opacity: 1;
-    }
-    0% {
-        transform: rotate(0deg) translateX(0%) translateY(0%);
-    }
-    25% {
-        transform: rotate(90deg) translateX(-30vw) translateY(200vh);
-    }
-    50% {
-        transform: rotate(180deg) translateX(-60vw) translateY(75vh);
-    }
-    75% {
-        transform: rotate(250deg) translateX(-90vw) translateY(180.75vh);
-    }
-    100% {
-        transform: rotate(360deg) translateX(-100vw) translateY(100vh);
-        opacity: 0;
-    }
+.gradient-text-title {
+  background: linear-gradient(to left, #0a0c96, #2262c8, #ffc400, #ffba53, #2a3db7);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-animation 20s ease infinite;
+}
+
+.gradient-text-light-white {
+  background: linear-gradient(to right, #ffffff, #f9f8f5, #ffc400, #e9cc9f, #e4e8c5);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-animation 10s ease infinite;
+}
+
+.gradient-text-light {
+  background: linear-gradient(to right, #fff5ab, #ffc400, #ffba53, #ecff5a);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-animation 10s ease infinite;
 }
 
 @layer utilities {
-    .no-spin {
-        -webkit-appearance: none;
-        -moz-appearance: textfield;
-    }
-    .no-spin::-webkit-inner-spin-button,
-    .no-spin::-webkit-outer-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-    }
+  .animate-up {
+    @apply transform transition-all duration-500 ease-in-out hover:-translate-y-2 cursor-pointer;
+  }
+  .animate-out {
+    @apply transform transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer;
+  }
+  .no-spin {
+    -webkit-appearance: none;
+      -moz-appearance: textfield;
+  }
+  .no-spin::-webkit-inner-spin-button,
+  .no-spin::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }
 
-body {
-    font-family: "Poppins", sans-serif;
-    font-style: normal;
-}
-
-.diagonal-cut{
+@layer components {
+  .normal-button {
+    @apply bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transform transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer;
+  }
+  .muted-button {
+    @apply bg-gradient-to-bl hover:bg-gradient-to-tr bg-slate-300 shadow text-slate-900 p-3 rounded-full mt-3;
+  }
+  .banner-button {
+    @apply bg-gradient-to-b hover:bg-gradient-to-t from-slate-200 via-gray-300 to-zinc-100 shadow text-slate-900 p-2 rounded-r-3xl mt-3 transform transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer;
     clip-path: polygon(8% 0%, 100% 0%, 100% 100%, -25% 100%);
-}
+  }
 
-.gradient-text {
+  .muted-circle-button { @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-gray-300 cursor-pointer inline-block; }
+  .gray-circle-button { @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-gray-500 text-white cursor-pointer inline-block; }
+  .normal-circle-button { @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 text-[rgb(var(--color-bg))] cursor-pointer inline-block; }
+  .blue-circle-button { @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-blue-500 text-white cursor-pointer inline-block; }
+  .indigo-circle-button { @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-indigo-500 text-white cursor-pointer inline-block; }
+  .green-circle-button { @apply p-3 m-1 rounded-full shadow hover:shadow-xl bg-green-500 text-white cursor-pointer inline-block; }
+
+  .title {
+    position: relative;
+    opacity: 0.9;
+    transition: all 0.5s ease-in-out;
+  }
+  .title:hover {
     background: linear-gradient(to left, #4e0a96, #2262c8, #ffc400, #ffba53, #2a3db7);
     background-size: 200% 200%;
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
     animation: gradient-animation 20s ease infinite;
-}
+  }
 
-.gradient-text-light {
-    background: linear-gradient(to right, #ffffff, #fff5ab, #ffc400, #ffba53, #ecff5a);
+  nav a.active {
+    @apply opacity-90;
+    background: linear-gradient(to left, #4e0a96, #2262c8, #ffc400, #ffba53, #2a3db7);
     background-size: 200% 200%;
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    animation: gradient-animation 10s ease infinite;
+  }
 }
 
-.gradient-text-title {
-    background: linear-gradient(to left, #e32d2d, #cca301, #592b9a);
-    background-size: 200% 200%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
-.color-cultured{
-    color: #f6f6f6;
+@keyframes fall {
+  0%   { transform: rotate(0deg) translateX(0%) translateY(0%); opacity: 1; }
+  25%  { transform: rotate(90deg) translateX(-30vw) translateY(200vh); }
+  50%  { transform: rotate(180deg) translateX(-60vw) translateY(75vh); }
+  75%  { transform: rotate(250deg) translateX(-90vw) translateY(180.75vh); }
+  100% { transform: rotate(360deg) translateX(-100vw) translateY(100vh); opacity: 0; }
 }
 
-.star {
-    opacity: 0;
-    animation: fall linear infinite;
-}
+.star { opacity: 0; animation: fall linear infinite; }
 
-.media-animate-enter {
-    animation: slideUp 1s ease-out forwards;
-}
-
-/* Añade esta animación que falta */
 @keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Ensures every printed sheet has consistent margins (≈ my-6) */
+.media-animate-enter { animation: slideUp 1s ease-out forwards; }
+
 @media print {
-    /* Use the unit you prefer: mm/in/rem. 1.5rem ~ Tailwind my-6 visually. */
-    @page {
-      margin: 1.5rem; /* top/right/bottom/left margins per printed page */
-    }
-
-    /* Improve print fidelity of colors/shadows if needed */
-    html, body {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
-    /* Prevent elements from being cut between pages */
-    .avoid-break {
-        break-inside: avoid;
-        page-break-inside: avoid;
-    }
-
-    /* If you ever need to force a new sheet after a block */
-    .force-break-after {
-        break-after: page;
-        page-break-after: always;
-    }
+  @page { margin: 1.5rem; }
+  html, body {
+    -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+  }
+  .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+  .force-break-after { break-after: page; page-break-after: always; }
 }
+

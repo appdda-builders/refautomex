@@ -2,6 +2,7 @@ import { MdDelete, MdAddPhotoAlternate } from 'react-icons/md';
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import axios from 'axios';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 export default function EditRegistry({ prodOverview, onCancelEdit, setProdOverview }) {
     const multimediaSrc = process.env.NEXT_PUBLIC_S3;
@@ -88,7 +89,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                 num_parte: prodOverview.refaccion
             };
             // Llamada al backend
-            const response = await axios.get('/api/dataManage', {
+            const response = await axios.get(buildApiUrl('/dataManage'), {
                 params: {
                     type: 'verifyLocation', // Tipo de operación
                     params: JSON.stringify(params), // Convertir a JSON
@@ -164,7 +165,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
 
         const fetchBrand = async () => {
             try {
-                const response = await axios.get('/api/dataManage?type=getBrands');
+                const response = await axios.get(buildApiUrl('/getBrands'));
                 const formattedBrandOptions = response.data.map(marca => ({
                     value: marca.idmarca,
                     label: marca.marca
@@ -177,7 +178,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
 
         const fetchQuantity = async () => {
             try {
-                const response = await axios.get('/api/dataManage?type=getQuantity');
+                const response = await axios.get(buildApiUrl('/getQuantity'));
                 const formattedQuantityOptions = response.data.map(cantidad => ({
                     value: cantidad.idCantidad,
                     label: cantidad.cantidad

@@ -5,6 +5,7 @@ import Select from 'react-select';
 import { LuListRestart } from "react-icons/lu";
 import { CiBoxList } from "react-icons/ci";
 import axios from 'axios';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 export default function TableDescription({ items, buttonConfigs, onRemoveProduct, onUpdateProduct, handleMouseEnter, handleMouseLeave, visibleTooltip, onEditClick }) {
     const [QuantityOptions, setQuantityOptions] = useState([]);
@@ -50,7 +51,7 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
     useEffect(() => {
         const fetchQuantity = async () => {
             try {
-                const response = await axios.get('/api/dataManage?type=getQuantity');
+                const response = await axios.get(buildApiUrl('/getQuantity'));
                 const formattedQuantityOptions = response.data.map(cantidad => ({
                     value: cantidad.idCantidad,
                     label: cantidad.cantidad

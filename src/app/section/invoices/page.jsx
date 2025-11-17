@@ -1,12 +1,16 @@
-import MetaHead from '@/app/components/meta-head';
-import FormInvoice from '@/app/components/principal/invoices/form-invoice';
+import Invoices from "./invoices";
 
-export default function Invoices() {
-    return (
-        <section>
-            <MetaHead title="Invoices"/>
-            <FormInvoice />
-        </section>
+export function generateMetadata({ searchParams }) {
+    const lang = searchParams.lang || "es";
+    return {
+        title: lang === "en" ? "Refautomex | Invoices" : "Refautomex | Facturas",
+        description:
+        lang === "en"
+            ? "Invoices Refautomex"
+            : "Facturas Refautomex",
+    };
+}
 
-    )
+export default function InvoicesPage() {
+    return <Invoices />;
 }

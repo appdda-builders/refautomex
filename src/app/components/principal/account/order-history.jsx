@@ -1,27 +1,8 @@
-import React, { useState, useEffect, use } from "react";
+'use client';
+import React, { useState, useEffect } from "react";
 import { getStorageValue } from "@/app/lib/storage-values";
 import axios from "axios";
-
-const orders = [
-  {
-    id: 'WU88191111',
-    date: 'January 22, 2021',
-    amount: '$302.00',
-    status: 'View Order',
-    invoice: 'View Invoice',
-    products: [
-      {
-        name: 'Nomad Tumbler',
-        description: 'This durable double-walled insulated tumbler keeps your beverages...',
-        price: '$35.00',
-        status: 'Out for delivery',
-        imageUrl: 'https://tailwindui.com/img/ecommerce-images/product-page-01-related-product-01.jpg' // Replace with your image path
-      },
-      // ... more products
-    ]
-    // ... more orders
-  }
-];
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 export default function OrderHistory(){
     const cognitoUserSession = getStorageValue('CognitoUserSession');
@@ -34,7 +15,9 @@ export default function OrderHistory(){
     const fetchData = async (id) => {
         setError(null);
         try {
-            const response = await axios.get(`/api/dataManage?type=getUserHistory&id=${id}`);
+            const response = await axios.get(buildApiUrl('/getUserHistory'), {
+                params: { id },
+            });
             if (Array.isArray(response.data)) {
                 setSales(response.data);
                 //console.log(response.data);
@@ -53,31 +36,30 @@ export default function OrderHistory(){
     }, [userId]);
 
     return (
-        <div className='dark:bg-black'>
-            <div className="container mx-auto bg-gradient-to-tl from-stone-100 via-slate-200 to-slate-300 dark:from-slate-700 dark:via-slate-800 dark:to-slate-950 px-6 md:px-28 py-24 sm:py-40">
-                <h1 className="text-3xl pt-10 font-semibold mb-4 text-center sm:text-left dark:text-stone-100">Order history</h1>
-                <p className="mb-8 text-center sm:text-left dark:text-stone-50">Check the status of recent orders, manage returns, and download invoices.</p>
+        <div className='bg-[rgb(var(--color-card))]'>
+            <div className="container mx-auto bg-gradient-to-tl from-[rgb(var(--color-card))] via-[rgb(var(--color-bg))] to-[rgb(var(--color-galaxy))] px-6 md:px-28 py-24 sm:py-40">
+                <h1 className="text-3xl pt-10 font-semibold mb-4 text-center sm:text-left text-[rgb(var(--color-text))]">Order history</h1>
+                <p className="mb-8 text-center sm:text-left text-[rgb(var(--color-text))]">Check the status of recent orders, manage returns, and download invoices.</p>
                 {sales.map((order) => (
                     <div key={order.id} className="mb-6">
-                    <div className="flex flex-col lg:flex-row justify-between items-center bg-gray-100 dark:bg-slate-950 p-4 lg:p-8 my-2 rounded-2xl border border-zinc-300">
+                    <div className="flex flex-col lg:flex-row justify-between items-center bg-[rgb(var(--color-bg))] p-4 lg:p-8 my-2 rounded-2xl border border-zinc-300">
                         <div className="flex-1 mb-4 lg:mb-0">
-                        <div className="text-gray-600 dark:text-stone-50">Order number</div>
-                        <div className='dark:text-stone-100'>{order.folio}</div>
+                        <div className="text-[rgb(var(--color-text))]">Order number</div>
+                        <div className='text-[rgb(var(--color-gray))]'>{order.folio}</div>
                         </div>
                         <div className="flex-1 mb-4 lg:mb-0">
-                            <div className="text-gray-600 dark:text-stone-50">Date placed</div>
-                            <div className='dark:text-stone-100'>{order.fecha_venta}</div>
+                            <div className="text-[rgb(var(--color-text))]">Date placed</div>
+                            <div className='text-[rgb(var(--color-gray))]'>{order.fecha_venta}</div>
                         </div>
                         <div className="flex-1 mb-4 lg:mb-0">
-                            <div className="text-gray-600 dark:text-stone-50">Total amount</div>
-                            <div className='dark:text-stone-100'>{order.total_venta}</div>
+                            <div className="text-[rgb(var(--color-text))]">Total amount</div>
+                            <div className='text-[rgb(var(--color-gray))]'>{order.total_venta}</div>
                         </div>
                         <div className="flex space-x-2">
                             <div className="gradient-text-title flex justify-center items-center mx-2">{order.status == 'A' ? 'Pendiente' : 'Entregada'}</div>
                             <button className="bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer">Ver compra</button>
                         </div>
                     </div>
-                    
                     {/*sales.products.map((product) => (
                         <div key={product.name} className="border-t border-b py-4 mt-6 flex flex-col sm:flex-row justify-between items-center">
                             <div className="overflow-hidden rounded-xl shadow-md animate-out bg-gray-50">

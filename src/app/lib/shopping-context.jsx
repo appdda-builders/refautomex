@@ -1,56 +1,105 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+'use client';
+
+import React, {
+    createContext,
+    useContext,
+    useState,
+    useEffect,
+    useMemo,
+    useCallback,
+} from 'react';
 
 const ShoppingContext = createContext();
+const MIN_QTY = 1;
+
+const readStoredCart = () => {
+    if (typeof window === 'undefined') return [];
+    try {
+        const saved = window.localStorage.getItem('cart');
+        return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+        console.warn('Unable to read cart from storage:', error);
+        return [];
+    }
+};
+
+const getInitialCart = () => {
+    if (typeof window === 'undefined') return [];
+    return readStoredCart();
+};
 
 export const ShoppingProvider = ({ children }) => {
-    const [cart, setCart] = useState(() => {
-        const savedCart = localStorage.getItem('cart');
-        return savedCart ? JSON.parse(savedCart) : [];
-    });
-    const [cartItemCount, setCartItemCount] = useState(0);
+    const [cart, setCart] = useState(getInitialCart);
 
     useEffect(() => {
-        setCartItemCount(cart.length);
-        localStorage.setItem('cart', JSON.stringify(cart));
+        if (typeof window === 'undefined') return;
+        setCart(readStoredCart());
+    }, []);
+
+    const totalUnits = useMemo(
+        () => cart.reduce((sum, item) => sum + (item.quantity || MIN_QTY), 0),
+        [cart]
+    );
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem('cart', JSON.stringify(cart));
+        }
     }, [cart]);
 
-    const addToCart = (product) => {
-        setCart(currentCart => {
-            const itemIndex = currentCart.findIndex(item => item.num_parte === product.num_parte);
-            if (itemIndex !== -1) {
-                const newCart = [...currentCart];
-                newCart[itemIndex] = { ...newCart[itemIndex], quantity: newCart[itemIndex].quantity + 1 };
-                return newCart;
-            } else {
-                return [...currentCart, { ...product, quantity: 1 }];
+    const addToCart = useCallback((product, quantity = MIN_QTY) => {
+        const safeQuantity = Math.max(MIN_QTY, Number(quantity) || MIN_QTY);
+        setCart((currentCart) => {
+            const index = currentCart.findIndex((item) => item.num_parte === product.num_parte);
+            if (index !== -1) {
+                const next = [...currentCart];
+                const currentQty = next[index].quantity || MIN_QTY;
+                next[index] = { ...next[index], quantity: currentQty + safeQuantity };
+                return next;
             }
+            return [...currentCart, { ...product, quantity: safeQuantity }];
         });
-    };
-    
-    const removeFromCart = (product) => {
-        setCart(currentCart => {
-            return currentCart.filter(item => item.num_parte !== product.num_parte);
-        });
-    };
-    
-    const clearCart = () => {
-        setCart([]);
-    };
+    }, []);
 
-    const updateCartItemQuantity = (product, newQuantity) => {
-        if (newQuantity < 1) return;
-        setCart(currentCart => {
-            return currentCart.map(item =>
-                item.num_parte === product.num_parte ? { ...item, quantity: newQuantity } : item
-            );
-        });
-    };
-    
+    const removeFromCart = useCallback((product) => {
+        setCart((currentCart) =>
+            currentCart.filter((item) => item.num_parte !== product.num_parte)
+        );
+    }, []);
+
+    const clearCart = useCallback(() => {
+        setCart([]);
+    }, []);
+
+    const updateCartItemQuantity = useCallback((product, newQuantity) => {
+        const safeQuantity = Math.max(MIN_QTY, Number(newQuantity) || MIN_QTY);
+        setCart((currentCart) =>
+            currentCart.map((item) =>
+                item.num_parte === product.num_parte ? { ...item, quantity: safeQuantity } : item
+            )
+        );
+    }, []);
+
+    const cartItemCount = totalUnits;
+
+    const contextValue = useMemo(
+        () => ({
+            cart,
+            items: cart,
+            setCart,
+            addToCart,
+            removeFromCart,
+            removeItem: removeFromCart,
+            clearCart,
+            cartItemCount,
+            updateCartItemQuantity,
+            totalUnits,
+        }),
+        [cart, addToCart, removeFromCart, clearCart, cartItemCount, updateCartItemQuantity, totalUnits]
+    );
 
     return (
-        <ShoppingContext.Provider value={{ cart, setCart, addToCart, removeFromCart, clearCart, cartItemCount, setCartItemCount, updateCartItemQuantity }}>
-            {children}
-        </ShoppingContext.Provider>
+        <ShoppingContext.Provider value={contextValue}>{children}</ShoppingContext.Provider>
     );
 };
 

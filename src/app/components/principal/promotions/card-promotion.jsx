@@ -21,7 +21,7 @@ export default function CardPromotion({elements}) {
   }, []);
 
   return (
-    <section className='bg-gray-200 dark:bg-stone-900'>
+    <section className='bg-[rgb(var(--color-gray))]'>
       <Swiper
         slidesPerView={slidesPerView}
         spaceBetween={20}
@@ -38,7 +38,7 @@ export default function CardPromotion({elements}) {
               <Atropos className="aspect-w-1 aspect-h-1 min-h-[160px] w-full" activeOffset={10} shadowScale={0.8}>
                 <img
                   src={element.url}
-                  className="h-full w-full object-cover object-center group-hover:opacity-75 rounded-xl"
+                  className="h-full w-full object-cover object-center rounded-xl"
                 />
               </Atropos>
             </div>

@@ -40,10 +40,10 @@ export default function LangModeButton() {
     return (
         <div className="z-30">
             {isOpen && (
-                <div className="fixed bottom-24 md:bottom-40 left-20 2xl:bottom-32 md:-mb-1 md:left-20 2xl:left-24 md:right-auto -mb-2.5 bg-slate-100 text-white text-sm border-x-4 shadow-md border-amber-400 justify-between">
+                <div className="fixed bottom-24 left-20 md:-mb-1 md:left-20 2xl:left-24 md:right-auto -mb-2.5 bg-slate-100 text-white text-sm border-x-4 shadow-md border-amber-400 justify-between">
                     <div className="flex flex-row">
                         <button
-                            className="block p-0.5 text-sm animate-out hover:scale-110 transition-transform" 
+                            className="block p-0.5 text-sm animate-out hover:scale-110 transition-transform"
                             role="menuitem"
                             onClick={() => changeLanguage('es')}
                         >
@@ -77,7 +77,10 @@ export default function LangModeButton() {
             )}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className='fixed -left-0.5 md:right-auto md:-left-0.5 bottom-16 md:bottom-[16.5vh] hover:bg-gradient-to-b bg-gradient-to-t from-zinc-300 via-zinc-200 to-zinc-100 hover:scale-105 font-semibold p-2 m-4 rounded-full shadow-2xl border-slate-600 border-b animate-out focus:outline-none transition-all duration-500 ease-in-out'
+                className='bg-gradient-to-t from-zinc-300 via-zinc-200 to-zinc-100 hover:scale-105 font-semibold
+                rounded-full shadow-2xl border-slate-600 border-b animate-out focus:outline-none transition-all duration-500
+                ease-in-out p-3 rounded-full shadow-2xl border-slate-600 border-b animate-out
+                w-14 h-14 flex items-center justify-center transition-transform hover:scale-105'
             >
                 <TbWorld className='text-stone-600 m-0 h-9 w-9 2xl:w-12 2xl:h-12' />
             </button>

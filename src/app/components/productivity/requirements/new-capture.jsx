@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Select from 'react-select';
 import axios from 'axios';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 import FindProducts from '../sales/find-products';
 import TableCapture from './table-capture';
 import { MdDiscount } from "react-icons/md";
@@ -150,7 +151,7 @@ export default function NewCapture({ onCancelEdit }) {
     useEffect(() => {
         const fetchBrandOptions = async () => {
             try {
-                const response = await axios.get('/api/dataManage?type=getBrands');
+                const response = await axios.get(buildApiUrl('/getBrands'));
                 const options = response.data.map((brand) => ({
                     value: brand.idmarca,
                     label: brand.marca,
@@ -163,7 +164,7 @@ export default function NewCapture({ onCancelEdit }) {
 
         const fetchQuantityOptions = async () => {
             try {
-                const response = await axios.get('/api/dataManage?type=getQuantity');
+                const response = await axios.get(buildApiUrl('/getQuantity'));
                 const options = response.data.map((quantity) => ({
                     value: quantity.idCantidad,
                     label: quantity.cantidad,
@@ -176,7 +177,7 @@ export default function NewCapture({ onCancelEdit }) {
 
         const fetchProviderOptions = async () => {
             try {
-                const response = await axios.get('/api/dataManage?type=getProviders');
+                const response = await axios.get(buildApiUrl('/getProviders'));
                 const options = response.data
                     .filter(provider => provider.idproveedor > 1)
                     .map(provider => ({
@@ -417,7 +418,7 @@ export default function NewCapture({ onCancelEdit }) {
                     <div className="fixed z-40 inset-0 overflow-y-auto bg-stone-700 opacity-80">
                         <div className="flex items-center justify-center min-h-screen">
                             <div className='relative max-w-7xl sm:px-10 lg:px-20 bg-gradient-to-bl from-stone-100 via-slate-200 to-slate-300 dark:from-slate-700 dark:via-slate-800 dark:to-slate-950 p-3 sm:rounded-xl shadow-xl py-12'>
-                                <div className='absolute -top-5 right-1/2 translate-x-1/2 shadow bg-white dark:bg-black rounded-full p-3 dark:shadow-slate-300/40 cursor-pointer animate-out'>
+                                <div className='absolute -top-5 right-1/2 translate-x-1/2 shadow bg-[rgb(var(--color-card))] rounded-full p-3 dark:shadow-slate-300/40 cursor-pointer animate-out'>
                                     <GoAlertFill className='h-9 w-9 text-amber-500 dark:text-amber-400 hover:opacity-80'/>
                                 </div>
                                 <button onClick={handleCancel} className="absolute top-2 right-2 text-red-500 dark:text-red-400 text-xl z-10">

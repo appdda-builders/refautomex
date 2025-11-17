@@ -17,7 +17,8 @@ export default function OurScope() {
     ];
 
     return (
-    <div className="relative bg-gradient-to-b from-zinc-300 to-zinc-50 dark:from-black dark:to-stone-600 z-0 h-full min-h-screen w-full text-gray-50 overflow-hidden">
+    <div className="relative bg-gradient-to-b from-[rgb(var(--color-card))] via-[rgb(var(--color-gray))] to-[rgb(var(--color-gray-base))] 
+    z-0 h-full min-h-screen w-full text-gray-50 overflow-hidden">
         {bubblesData.map((bubble, index) => (
         <div 
             key={index}
@@ -28,9 +29,10 @@ export default function OurScope() {
         </div>
         ))}
         <div className='absolute z-10 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'>
-            <div className='flex flex-col text-center m-auto max-w-2xl bg-gradient-to-tr from-slate-300 via-zinc-200 to-white dark:from-black dark:via-stone-950 dark:to-stone-700 opacity-70 p-5 rounded-2xl shadow-2xl animate-up'>
+            <div className='flex flex-col text-center m-auto max-w-2xl
+            bg-gradient-to-tr from-[rgb(var(--color-gray))]/70 via-[rgb(var(--color-card))] to-[rgb(var(--color-bg))] p-5 rounded-2xl shadow-2xl animate-up'>
                 <p className='text-3xl lg:text-5xl py-2 gradient-text-title'>{t('about.scope.title')}</p>
-                <span className='text-xl lg:text-2xl text-gray-600 dark:text-stone-300'>{t('about.scope.leyend')}</span>
+                <span className='text-xl lg:text-2xl text-[rgb(var(--color-text))]'>{t('about.scope.leyend')}</span>
             </div>
         </div>
     </div>

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { useState, useEffect } from 'react';
 import Title from '../title';
 import { FaUsersViewfinder } from 'react-icons/fa6';
@@ -44,7 +45,9 @@ export default function Invoice() {
         setError(null);
         try {
             const formattedDate = typeof date === 'string' ? date : date.toISOString().split('T')[0];
-            const response = await axios.get(`/api/dataManage?type=getHistory&id=${formattedDate}&folio=${folio}`);
+            const response = await axios.get(buildApiUrl('/getHistory'), {
+                params: { id: formattedDate, folio },
+            });
             if (Array.isArray(response.data)) {
                 setSales(response.data);
             } else {

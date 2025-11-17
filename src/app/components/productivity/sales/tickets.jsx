@@ -315,7 +315,7 @@ export default function Tickets() {
     ];
 
     return (
-        <div className="bg-gradient-to-b min-h-screen from-white via-gray-100 to-gray-400 dark:from-black dark:via-slate-800 dark:to-stone-700 backdrop-blur-md pt-28">
+        <div className="bg-gradient-to-b min-h-screen from-[rgb(var(--color-card))] via-text-[rgb(var(--color-bg))] to-[rgb(var(--color-galaxy))] backdrop-blur-md pt-28">
             <Title
                 title='Genera tickets para clientes'
                 icon={MdSell}
@@ -325,7 +325,7 @@ export default function Tickets() {
             <div>
                 <div className="mx-auto max-w-[1700px] xl:px-8 mt-5 overflow-hidden">
                     <div className="grid grid-cols-1 lg:grid-cols-3 mx-auto gap-x-7 gap-y-6 lg:mx-0 px-2">
-                        <div className= {`lg:rounded-2xl my-5 pt-2 shadow w-auto overflow-hidden rounded-xl   ${folio ? 'bg-stone-500' : 'bg-gray-200 dark:bg-stone-700' }`}>
+                        <div className= {`lg:rounded-2xl my-5 pt-2 shadow shadow-[rgb(var(--color-gray-base))] w-auto overflow-hidden rounded-xl ${folio ? 'bg-stone-500' : 'bg-[rgb(var(--color-gray))]' }`}>
                             <FindProducts
                                 onAddProduct={handleAddProduct}
                                 onRemoveProduct={handleRemoveProduct}

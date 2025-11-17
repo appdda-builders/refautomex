@@ -1,58 +1,60 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MdDelete, MdAutorenew } from "react-icons/md";
+import { MdDelete } from "react-icons/md";
 import { IoText } from 'react-icons/io5';
 import Select from 'react-select';
 
 const customStyles = {
-    control: (provided, state) => ({
-        ...provided,
-        minHeight: '24px',
-        height: '24px',
-        fontSize: '12px',
-        backgroundColor: 'white',
-        borderColor: 'gray',
-        boxShadow: 'none',
-        '&:hover': {
-            borderColor: 'blue',
-        },
+    control: (base, state) => ({
+    ...base,
+    backgroundColor: 'rgb(var(--color-card))',
+    borderRadius: '9999px',
+    boxShadow: state.isFocused
+        ? '0 0 0 1px rgb(var(--color-galaxy))'
+        : '0 1px 2px rgb(var(--color-galaxy))',
+    borderColor: state.isFocused
+        ? 'rgb(var(--color-card))'
+        : 'rgb(var(--color-card))',
+    color: 'rgb(var(--color-text-base))',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+        boxShadow: '0 0 0 2px rgb(var(--color-galaxy))',
+    },
     }),
-    valueContainer: (provided) => ({
-        ...provided,
-        height: '24px',
-        padding: '0 6px',
-        color: 'white',
+    singleValue: (base) => ({
+    ...base,
+    color: 'rgb(var(--color-text))',
+    fontSize: '0.75rem',
+    fontWeight: '500',
     }),
-    input: (provided) => ({
-        ...provided,
-        margin: '0px',
-        color: 'black',
+    menu: (base) => ({
+    ...base,
+    backgroundColor: 'rgb(var(--color-card))',
+    borderRadius: '0.75rem',
+    boxShadow: 'rgb(var(--color-galaxy))',
+    zIndex: 50,
     }),
-    indicatorsContainer: (provided) => ({
-        ...provided,
-        height: '24px',
-        color: 'white',
+    option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected
+        ? 'rgb(var(--color-galaxy))'
+        : state.isFocused
+        ? 'rgb(var(--color-galaxy))'
+        : 'transparent',
+    color: 'rgb(var(--color-text))',
+    cursor: 'pointer',
+    fontSize: '0.75rem',
     }),
-    dropdownIndicator: (provided) => ({
-        ...provided,
-        padding: '0px',
-        color: 'white',
+    placeholder: (base) => ({
+    ...base,
+    color: 'rgba(156, 163, 175, 0.8)',
     }),
-    clearIndicator: (provided) => ({
-        ...provided,
-        padding: '0px',
-        color: 'white',
+    dropdownIndicator: (base, state) => ({
+    ...base,
+    color: 'rgb(var(--color-galaxy))',
+    '&:hover': { color: 'rgb(var(--color-galaxy))' },
     }),
-    singleValue: (provided) => ({
-        ...provided,
-        fontSize: '12px',
-        color: 'black',
-    }),
-    menu: (provided) => ({
-        ...provided,
-        zIndex: 9999,
-    }),
-    className: 'block w-full p-2 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-xs focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500'
 };
+
 
 export default function TableSales({ items, buttonConfigs, completeConfigs, onRemoveProduct, onUpdateProduct, handleMouseEnter, handleMouseLeave, onShowTextArea, visibleTooltip, discount, folio, onDiscountChange, onTogglePedido, setItems, handleAddNote, notes }) {
     const [quantities, setQuantities] = useState(() =>
@@ -251,8 +253,8 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
     const totalWithDiscount = subtotal - discountAmount;
 
     return (
-        <div className="h-[683px] bg-gray-100 dark:bg-stone-800 rounded-2xl my-5 flex shadow relative">
-            <div className='flex flex-col px-1 bg-gray-300 dark:bg-stone-900 rounded-l-2xl pt-5 relative'>
+        <div className="h-[683px] bg-[rgb(var(--color-bg))] rounded-2xl my-5 flex shadow shadow-[rgb(var(--color-gray-base))] relative">
+            <div className='flex flex-col px-1 bg-[rgb(var(--color-gray))] rounded-l-2xl pt-5 relative'>
                 {!folio ? (
                     buttonConfigs.map(({ icon: Icon, label, id, event, btnconf }) => (
                         <div
@@ -264,7 +266,7 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
                         >
                             <Icon />
                             {visibleTooltip[id] && (
-                                <div className="tooltip-content absolute left-full ml-3 top-1/2 transform -translate-y-1/2 opacity-90 dark:bg-gray-900 bg-gray-300 shadow dark:text-white text-black text-xs rounded px-2 py-1 z-10"
+                                <div className="tooltip-content absolute left-full ml-3 top-1/2 transform -translate-y-1/2 bg-[rgb(var(--color-gray))] shadow text-[rgb(var(--color-text))] text-xs rounded px-2 py-1 z-10"
                                     style={{ width: 'max-content', maxWidth: '16rem' }}>
                                     {label}
                                 </div>
@@ -282,7 +284,7 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
                         >
                             <Icon />
                             {visibleTooltip[id] && (
-                                <div className="tooltip-content absolute left-full ml-3 top-1/2 transform -translate-y-1/2 opacity-90 dark:bg-gray-900 bg-gray-300 shadow dark:text-white text-black text-xs rounded px-2 py-1 z-10"
+                                <div className="tooltip-content absolute left-full ml-3 top-1/2 transform -translate-y-1/2 bg-[rgb(var(--color-card))] shadow text-[rgb(var(--color-text))] text-xs rounded px-2 py-1 z-10"
                                     style={{ width: 'max-content', maxWidth: '16rem' }}>
                                     {label}
                                 </div>
@@ -292,8 +294,8 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
                 )}
             </div>
             <div className="flex flex-col overflow-x-scroll pt-5 lg:mx-1">
-                <table className="w-[845px] xl:w-[900px] text-sm text-left text-gray-500 dark:text-gray-400 shadow-sm">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                <table className="w-[845px] xl:w-[900px] text-sm text-left shadow-sm">
+                    <thead className="text-xs uppercase bg-[rgb(var(--color-gray))] text-[rgb(var(--color-text))]">
                         <tr>
                             <th className="p-3">REFACCIÓN</th>
                             <th className="p-3">CANTIDAD</th>
@@ -311,7 +313,7 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
                             const monto = (quantities[item.refaccion] || 1) * price;
                             return (
                                 <tr
-                                    className={`${item.isPedido ? 'bg-blue-200 dark:bg-blue-950' : item.existencia === 0 ? 'bg-red-200 dark:dark:bg-red-950' : 'bg-white dark:bg-gray-800'} border-b dark:border-gray-700 relative`}
+                                    className={`${item.isPedido ? 'bg-[rgb(var(--color-blue))] text-white' : item.existencia === 0 ? 'bg-[rgb(var(--color-error-base))]' : 'bg-[rgb(var(--color-card))]'} border-b border-[rgb(var(--color-gray))] relative text-[rgb(var(--color-text))]`}
                                     key={index}
                                 >
                                     <td className="p-4">
@@ -331,7 +333,7 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
                                             </div>
                                         </div>
                                         {warnings[item.refaccion] && (
-                                            <div className="absolute left-1/3 bottom-[1px] z-10 text-xs text-yellow-500 dark:text-yellow-300 bg-white dark:bg-slate-900 shadow p-[1.2px] rounded-md font-bold animate-out">
+                                            <div className="absolute left-54 bottom-2 z-10 text-xs text-[rgb(var(--color-error))] bg-[rgb(var(--color-card))]/70 shadow-md shadow-[rgb(var(--color-galaxy))] p-1 rounded-md font-bold animate-up">
                                                 {warnings[item.refaccion]}
                                             </div>
                                         )}
@@ -354,28 +356,28 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
                                             onFocus={() => handleDescriptionFocus(item)}
                                             disabled={!!folio}
                                             placeholder='Descripción'
-                                            className={`w-full px-2 py-1 border rounded text-xs focus:ring-blue-500 focus:border-blue-500 uppercase
-                                                ${item.descripcion.trim() === "" ? "border-red-400 bg-red-100 dark:border-red-200 dark:bg-red-300" : "border-gray-300 bg-gray-50"}
-                                                dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500`}
+                                            className={`w-full p-2 rounded-full text-xs uppercase
+                                                ${item.descripcion.trim() === "" ? "bg-red-100 placeholder-gray-800" : "border-gray-300"}
+                                                bg-[rgb(var(--color-bg))] placeholder-[rgb(var(--color-text))] text-[rgb(var(--color-text))] shadow-md shadow-[rgb(var(--color-galaxy))]`}
                                             />
                                         ) : (
                                             <span>{item.descripcion}</span>
                                         )}
                                     </td>
                                     <td className="p-4">
-                                    {item.isSeminew ? (
-                                        <input
-                                            type="number"
-                                            value={aIvas[item.refaccion] !== undefined ? aIvas[item.refaccion] : item.aIva}
-                                            onChange={(event) => handleAivaChange(item, event)}
-                                            onBlur={() => handleAivaBlur(item)}
-                                            onFocus={() => handleAivaFocus(item)}
-                                            disabled={!!folio}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                                        />
-                                    ) : (
-                                        <span>{aiva}</span>
-                                    )}
+                                        {item.isSeminew ? (
+                                            <input
+                                                type="number"
+                                                value={aIvas[item.refaccion] !== undefined ? aIvas[item.refaccion] : item.aIva}
+                                                onChange={(event) => handleAivaChange(item, event)}
+                                                onBlur={() => handleAivaBlur(item)}
+                                                onFocus={() => handleAivaFocus(item)}
+                                                disabled={!!folio}
+                                                className="w-full p-2 rounded-full text-xs bg-[rgb(var(--color-bg))] border-gray-300 text-[rgb(var(--color-text))] shadow-md shadow-[rgb(var(--color-galaxy))]"
+                                            />
+                                        ) : (
+                                            <span>{aiva}</span>
+                                        )}
                                     </td>
                                     <td className="p-4 relative">
                                         {item.isSeminew ? (
@@ -387,7 +389,7 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
                                                 onChange={(event) => handlePriceChange(item, event)}
                                                 onBlur={() => handlePriceBlur(item)}
                                                 onFocus={() => handlePriceFocus(item)}
-                                                className={`block w-full px-2 text-gray-900 border border-gray-300 rounded-lg text-xs focus:ring-blue-500 focus:border-blue-500 ${prices[item.refaccion] === "" ? "bg-red-200 dark:bg-red-100" : "bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"}`}
+                                                className={`block w-full p-2 text-[rgb(var(--color-text))] shadow-md shadow-[rgb(var(--color-galaxy))] rounded-full text-xs ${prices[item.refaccion] === "" ? "bg-red-200" : "bg-[rgb(var(--color-bg))]"}`}
                                                 disabled={!!folio}
                                             />
                                         )}
@@ -406,9 +408,9 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
                             );
                         })}
                         {onShowTextArea === 'block' && (
-                            <tr className="bg-gray-100 dark:bg-gray-800 border-b dark:border-gray-700 relative">
-                                <td className='gray-circle-button absolute translate-x-1/2 translate-y-1/2 left-4 -top-2'>
-                                    <IoText className="text-2xl text-blue-200" />
+                            <tr className="bg-[rgb(var(--color-card))] border-b border-[rgb(var(--color-galaxy))] relative">
+                                <td className='gray-circle-button bg-[rgb(var(--color-card))] shadow shadow-[rgb(var(--color-text))]/50 absolute translate-x-1/2 translate-y-1/2 left-4 -top-2 animate-pulse'>
+                                    <IoText className="text-2xl text-[rgb(var(--color-galaxy))]" />
                                     <span></span>
                                 </td>
                                 <td colSpan="6" className="p-4">
@@ -417,7 +419,7 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
                                     name="nota"
                                     value={notes}
                                     onChange={(e) => handleAddNote(e.target.value)}
-                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs text-blue-500 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 uppercase"
+                                    className="w-full p-1 border border-gray-300 rounded text-xs text-[rgb(var(--color-text))] focus:ring-blue-500 focus:border-blue-500 bg-[rgb(var(--color-bg))] uppercase"
                                     placeholder="Pagado por entregar (¿Que?)"
                                     rows="3"
                                     maxLength="80"
@@ -426,9 +428,9 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
                                 </td>
                             </tr>
                         )}
-                        <tr className="bg-slate-200 border-b dark:bg-gray-900 dark:border-gray-500">
+                        <tr className="border-b bg-[rgb(var(--color-card))] border-[rgb(var(--color-galaxy))] text-[rgb(var(--color-text))]">
                             <td className="py-4 px-3 font-bold">DESCUENTO:</td>
-                            <td className="py-4 px-1 font-bold text-md text-slate-500 dark:text-stone-300" colSpan="5">
+                            <td className="py-4 px-1 font-bold text-md" colSpan="5">
                                 {discountAmount.toFixed(2)} MXN
                             </td>
                             <td className="py-4 px-1">
@@ -437,21 +439,21 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
                                     onChange={onDiscountChange}
                                     options={discountOptions}
                                     styles={customStyles}
-                                    isDisabled={true} // {!!folio} Deshabilitar cuando hay folio
+                                    isDisabled={true}
                                 />
                             </td>
                         </tr>
-                        <tr className="bg-slate-200 border-b dark:bg-gray-900 dark:border-gray-500">
+                        <tr className="border-b bg-[rgb(var(--color-card))] border-[rgb(var(--color-galaxy))] text-[rgb(var(--color-text))]">
                             <td className="py-4 px-3 font-bold">SUBTOTAL:</td>
-                            <td className="py-4 px-1 font-bold text-md text-slate-500 dark:text-stone-300" colSpan="6">
+                            <td className="py-4 px-1 font-bold text-md" colSpan="6">
                                 {subtotal.toFixed(2)} MXN
                             </td>
                         </tr>
 
-                        <tr className="bg-slate-200 border-b dark:bg-gray-900 dark:border-gray-500">
+                        <tr className="border-b bg-[rgb(var(--color-card))] border-[rgb(var(--color-galaxy))] text-[rgb(var(--color-text))]">
                             <td className="py-4 px-3 font-bold">TOTAL:</td>
-                            <td className="py-4 px-1 font-bold text-xl text-green-600 dark:text-green-400" colSpan="6">
-                                {totalWithDiscount.toFixed(2)} MXN
+                            <td className="py-4 px-1 font-bold text-xl text-[rgb(var(--color-success))]" colSpan="6">
+                                $ {totalWithDiscount.toFixed(2)} MXN
                             </td>
                         </tr>
                     </tbody>

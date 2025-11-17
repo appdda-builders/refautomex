@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { useState, useEffect } from 'react';
 import Title from '../title';
 import { MdSell } from "react-icons/md";
@@ -89,7 +90,9 @@ export default function History() {
                     day: "2-digit"
                 }).format(new Date(date)).split('/').reverse().join('-'); // Convierte `DD/MM/YYYY` a `YYYY-MM-DD`
 
-            const response = await axios.get(`/api/dataManage?type=getHistory&id=${formattedDate}&idVenta=${idVenta}`);
+            const response = await axios.get(buildApiUrl('/getHistory'), {
+                params: { id: formattedDate, idVenta },
+            });
 
             if (Array.isArray(response.data)) {
                 setSales(response.data);

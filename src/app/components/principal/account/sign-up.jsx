@@ -1,24 +1,29 @@
+'use client';
 import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { userPool } from '@/app/lib/cognito-manager';
 import { TbCircleX } from 'react-icons/tb';
 import { Switch } from '@headlessui/react';
-import axios from 'axios';
-import { AiFillEye } from 'react-icons/ai';
-import RefautomexLogo from '@/app/components/refautomex-logo';
-import ReCAPTCHA from "react-google-recaptcha";
 import { useTranslation } from 'react-i18next';
 import { GoTasklist } from "react-icons/go";
+import { AiFillEye } from 'react-icons/ai';
+
+import RefautomexLogo from '@/app/components/refautomex-logo';
+import ReCAPTCHA from "react-google-recaptcha";
+import axios from 'axios';
 import GooglePlacesAutocomplete from './google-places';
-import '@/app/translations/i18next-translation';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
+import '@/app/translations/i18next-translation';
+
 
 function classNames(...classes) {
     return classes.filter(Boolean).join(' ');
 }
 
 export default function SignUp() {
-    const router = useRouter();
+    const searchParams = useSearchParams();
+    const lang = searchParams.get('lang') || 'es';
     const { i18n, t } = useTranslation();
     const [selectedLanguage, setSelectedLanguage] = useState('es');
     const recaptchaRef = React.createRef();
@@ -154,10 +159,10 @@ export default function SignUp() {
                     categoria: "G",
                     empleado: "0"
                 };
-                
+
                 setLoading(true);
 
-                try {           
+                try {
                     axios.post('/api/dataManage?type=newUser', user_data, {
                         headers: {
                             'Content-Type': 'application/json'
@@ -181,28 +186,18 @@ export default function SignUp() {
     };
 
     useEffect(() => {
-        const handleRouteChange = () => {
-            const lang = router.query.lang;
-            if (lang) {
-                i18n.changeLanguage(lang);
-                setSelectedLanguage(lang);
-            }
-        };
-        router.events.on('routeChangeComplete', handleRouteChange);
-
-        handleRouteChange();
-        return () => {
-            router.events.off('routeChangeComplete', handleRouteChange);
-        };
-    }, [router.query.lang, i18n, router.events]);
+        if (i18n.language !== lang) {
+            i18n.changeLanguage(lang);
+        }
+    }, [lang, i18n]);
 
     return (
         <div className="relative w-full h-auto flex flex-col justify-center items-center p-6">
-            <div className="relative h-full justify-center items-center bg-slate-200 dark:bg-slate-700 opacity-40 dark:opacity-50 w-full md:w-[650px] rounded-xl shadow-md dark:shadow-slate-300/10 pt-0 overflow-y-auto">
+            <div className="relative h-full justify-center items-center bg-[rgb(var(--color-card))]/50 w-full md:w-[650px] rounded-xl shadow shadow-[rgb(var(--color-text))]/10 pt-0 overflow-y-auto">
                 <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-1 lg:px-8">
                     <div className="sm:mx-auto sm:w-full sm:max-w-sm">
                         <RefautomexLogo classAttr={"h-24 md:h-32 w-auto object-contain p-2 md:p-3 mx-auto"} />
-                        <h2 className="text-center text-2xl leading-4 -mt-2 mb-1 tracking-tight text-stone-600 dark:text-stone-200 text-shadow">
+                        <h2 className="text-center text-2xl leading-4 -mt-2 mb-1 tracking-tight text-[rgb(var(--color-text))] text-shadow">
                             {t('account.register')}
                         </h2>
                     </div>
@@ -211,7 +206,7 @@ export default function SignUp() {
                     <div className="space-y-4 max-w-3xl mx-auto mt-1 px-12">
                         <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6 sm:pt-12">
                             <div className="sm:col-span-3 sm:col-start">
-                                <label htmlFor="name" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="name" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.name')}
                                 </label>
                                 <div className="mt-2">
@@ -223,12 +218,12 @@ export default function SignUp() {
                                         placeholder={t('account.name')}
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                        className="block w-full rounded-md border-0 p-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
                                 </div>
                             </div>
                             <div className="sm:col-span-3">
-                                <label htmlFor="lastname" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="lastname" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.lastname')}
                                 </label>
                                 <div className="mt-2">
@@ -240,12 +235,12 @@ export default function SignUp() {
                                         placeholder={t('account.lastname')}
                                         value={lastName}
                                         onChange={(e) => setLastName(e.target.value)}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                        className="block w-full rounded-md border-0 p-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
                                 </div>
                             </div>
                             <div className="sm:col-span-3">
-                                <label htmlFor="phone" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="phone" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.phone')}
                                 </label>
                                 <div className="mt-2">
@@ -257,12 +252,12 @@ export default function SignUp() {
                                         placeholder={t('account.phone')}
                                         value={phone}
                                         onChange={(e) => setPhone(e.target.value)}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                        className="block w-full rounded-md border-0 p-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
                                 </div>
                             </div>
                             <div className="sm:col-span-3">
-                                <label htmlFor="rfc" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="rfc" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     RFC
                                 </label>
                                 <div className="mt-2">
@@ -274,31 +269,31 @@ export default function SignUp() {
                                         placeholder='RFC'
                                         value={rfc}
                                         onChange={(e) => setRfc(e.target.value)}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" />
+                                        className="block w-full rounded-md border-0 p-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" />
                                 </div>
                             </div>
                             <div className="sm:col-span-3">
-                                <label htmlFor="birth_date" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="birth_date" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.birthdate')}
                                 </label>
                                 <div className="mt-2">
                                     <input type="date" name="birth_date" id="birth_date"
                                         value={birthDate}
                                         onChange={(e) => setBirthDate(e.target.value)}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" />
+                                        className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-[rgb(var(--color-text))] focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" />
                                 </div>
                             </div>
                             <div className="sm:col-span-3">
-                                <label htmlFor="gender" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="gender" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.gener')}
                                 </label>
                                 <div>
-                                    <select 
+                                    <select
                                         name="gender"
                                         id="gender"
                                         value={gender}
                                         onChange={(e) => setGender(e.target.value)}
-                                        className="mt-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                        className="mt-2 block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-[rgb(var(--color-text))] focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
                                         <option id="gender_0" value="" disabled>{t('account.gener')}</option>
                                         <option id="gender_1" value="M">Masculino</option>
                                         <option id="gender_2" value="F">Femenino</option>
@@ -307,7 +302,7 @@ export default function SignUp() {
                                 </div>
                             </div>
                             <div className="sm:col-span-full">
-                                <label htmlFor="email" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="email" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.mail')}
                                 </label>
                                 <div className="mt-2">
@@ -317,12 +312,12 @@ export default function SignUp() {
                                         value={email}
                                         onChange={(event) => setEmail(event.target.value)}
                                         placeholder={t('account.mail')}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                        className="block w-full rounded-md border-0 p-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
                                 </div>
                             </div>
                             <div className="sm:col-span-full">
-                                <label htmlFor="password" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="password" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.password')}
                                 </label>
                                 <div className="mt-2 relative">
@@ -337,13 +332,13 @@ export default function SignUp() {
                                             setPassword(event.target.value);
                                             validatePassword(event.target.value, verifyPassword);
                                         }}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" />
+                                        className="block w-full rounded-md border-0 p-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" />
                                     <div 
                                         className='absolute right-0 top-0 bg-blue-300 cursor-pointer m-1.5 p-1 rounded-full shadow-xl'
                                         onClick={() => setPasswordVisible(!passwordVisible)}>
                                         <AiFillEye />
                                     </div>
-                                    <label htmlFor="verifyPassword" className="block font-medium leading-6 mt-4 text-gray-900 dark:text-gray-200">
+                                    <label htmlFor="verifyPassword" className="block font-medium leading-6 mt-4 text-[rgb(var(--color-text))]">
                                         {t('account.verify')}
                                     </label>
                                     <input 
@@ -354,12 +349,12 @@ export default function SignUp() {
                                         placeholder={t('account.verify')}
                                         onChange={(event) => {
                                             setVerifyPassword(event.target.value);
-                                            validatePassword(password, event.target.value); 
+                                            validatePassword(password, event.target.value);
                                         }}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" 
+                                        className="block w-full rounded-md border-0 p-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" 
                                     />
                                 </div>
-                                <div className={`grid grid-cols-2 p-2 leading-3 text-xs mt-1.5 opacity-40 shadow bg-slate-200 dark:bg-slate-800 rounded-md -mx-10 sm:mx-0 ${isFocus ? '' : 'hidden'}`}>
+                                <div className={`grid grid-cols-2 p-2 leading-3 text-xs mt-1.5 opacity-40 shadow bg-[rgb(var(--color-card))] rounded-md -mx-10 sm:mx-0 ${isFocus ? '' : 'hidden'}`}>
                                     <p className={isValid.minLength ? 'text-green-500' : 'text-red-400'}>
                                         - {isValid.minLength ? 'La longitud es válida.' : 'Minimo 8 caracteres.'}
                                     </p>
@@ -383,7 +378,7 @@ export default function SignUp() {
                                     </p>
                                 </div>
                                 <div className="sm:col-span-full mt-3">
-                                    <label htmlFor="placeId" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                    <label htmlFor="placeId" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                         {t('account.address')}
                                     </label>
                                     <div className="mt-2 relative">
@@ -414,14 +409,14 @@ export default function SignUp() {
                                         />
                                     </Switch>
                                     </div>
-                                    <Switch.Label className="text-sm mt-3 leading-6 text-gray-600 dark:text-gray-50 font-bold">
+                                    <Switch.Label className="text-sm mt-3 leading-6 text-[rgb(var(--color-text))] font-bold">
                                         {t('account.agree')}
                                     </Switch.Label>
                                 </Switch.Group>
                             </div>
                         </div>
                         {alertMessage && !isLoading && (
-                            <div className="dark:text-red-200 text-red-700 px-6 py-2 border-0 rounded relative dark:bg-stone-800 bg-stone-200 max-w-xl mx-auto">
+                            <div className="dark:text-red-200 text-red-700 px-6 py-2 border-0 rounded relative bg-[rgb(var(--color-gray))] max-w-xl mx-auto">
                                 <span className="text-xl inline-block mr-5 align-middle">
                                     <i className="fas fa-bell" />
                                 </span>
@@ -459,16 +454,15 @@ export default function SignUp() {
                                 </button>
                             </div>
                             ) : null}
-                            <p className="my-5 text-center text-sm text-slate-700 dark:text-stone-200">
+                            <p className="my-5 text-center text-sm text-[rgb(var(--color-text))]">
                                 {t('account.haveAccount')}{' '}
-                                <Link href={{ pathname: "/section/account", query: { load: 'log-in', lang: selectedLanguage } }} className="font-semibold leading-6 dark:text-amber-300 text-amber-400 text-shadow">
+                                <Link href={{ pathname: "/section/account", query: { load: 'log-in', lang: selectedLanguage } }} className="font-semibold leading-6 text-[rgb(var(--color-refautomex))] text-shadow">
                                     {t('account.login')}
                                 </Link>
                                 <p className='text-gray-400 text-xs mt-4'>
                                     {t('account.support')} <a href="mailto:volkspaco@gmail.com" className="text-amber-400">volkspaco@gmail.com</a>
                                 </p>
                             </p>
-                            
                         </div>
                     </div>
                 </form>

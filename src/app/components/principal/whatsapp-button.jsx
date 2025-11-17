@@ -31,7 +31,7 @@ export default function WhatsAppButton (){
     <div className="z-30">
       {showLabel && (
         <>
-          <div className="fixed bottom-4 md:bottom-[11vh] left-22 bg-green-100 text-white text-sm p-0.5 border-x-4 shadow-md border-green-700 justify-between motion-safe:animate-bounce">
+          <div className="fixed bottom-6 left-20 bg-green-100 text-white text-sm p-0.5 border-x-4 shadow-md border-green-700 justify-between motion-safe:animate-bounce">
             <span className='my-auto text-green-700 font-bold xl:text-md 2xl:text-xl'>{t('index.video.contact')}</span>
             <button
               onClick={handleCloseLabel}
@@ -46,10 +46,13 @@ export default function WhatsAppButton (){
 
       <button
         onClick={handleWhatsAppClick}
-        className="fixed -left-0.5 bottom-0 md:bottom-[9vh] bg-gradient-to-b from-green-100 via-[#41e179] to-[#23c75c] hover:bg-gradient-to-br font-semibold p-2 m-4 rounded-full shadow-2xl border-slate-600 border-b animate-out"
+        className="bg-gradient-to-b from-green-100 via-[#41e179] to-[#23c75c] hover:bg-gradient-to-br
+                  font-semibold p-3 rounded-full shadow-2xl border-slate-600 border-b animate-out
+                  w-14 h-14 flex items-center justify-center transition-transform hover:scale-105"
       >
-        <FaWhatsapp className="text-white h-9 w-9 2xl:h-12 2xl:w-12" />
+        <FaWhatsapp className="text-white h-8 w-8 bg-transparent" />
       </button>
+
     </div>
   );
 };

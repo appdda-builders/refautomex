@@ -1,18 +1,23 @@
-import React, { useEffect, useState } from 'react';
+'use client';
+import { useTheme } from '@/app/lib/theme-context';
 
-export default function RefautomexLogo({classAttr}) {
-    const multimediaSrc = process.env.NEXT_PUBLIC_S3;
-    const [logo, setLogo] = useState(`${multimediaSrc}refautomex.svg`);
+export default function RefautomexLogo({ classAttr = '' }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const multimediaSrc = process.env.NEXT_PUBLIC_S3;
 
-    useEffect(() => {
-        const intervalId = setInterval(() => {
-            const darkModeEnabled = localStorage.getItem('darkMode') === 'true';
-            setLogo(darkModeEnabled ? `${multimediaSrc}refautomex_bn.svg` : `${multimediaSrc}refautomex.svg`);
-        }, 50);
-        return () => clearInterval(intervalId);
-    }, []);
-
-    return (
-        <img loading="lazy" className={classAttr} src={logo} alt="Refautomex" />
-    );
+  return (
+    <img
+      src={
+        isDark
+          ? `${multimediaSrc}refautomex_bn.svg`
+          : `${multimediaSrc}refautomex.svg`
+      }
+      alt="Refautomex Logo"
+      className={classAttr}
+      loading="eager"
+      decoding="async"
+      style={{ transition: "filter 0.3s ease, opacity 0.3s ease" }}
+    />
+  );
 }

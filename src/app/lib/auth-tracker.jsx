@@ -3,6 +3,7 @@ import { createContext, useState, useEffect } from 'react';
 import { userPool } from '@/app/lib/cognito-manager';
 import axios from 'axios';
 import { getStorageValue, setStorageValue } from '@/app/lib/storage-values';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 export const AuthContext = createContext();
 
@@ -41,7 +42,9 @@ export const AuthChecker = ({ children }) => {
             let fetchedUserData = getStorageValue(`user_${username}`);
             if (!fetchedUserData) {
                 try {
-                    const response = await axios.get(`/api/dataManage?type=getUser&id=${username}`);
+                    const response = await axios.get(buildApiUrl('/getUser'), {
+                        params: { id: username },
+                    });
                     fetchedUserData = response.data[0];
                     setStorageValue(`user_${username}`, fetchedUserData);
                 } catch (error) {

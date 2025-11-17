@@ -21,7 +21,7 @@ export default function App({ slides }) {
   }, []);
 
   return (
-    <section className='bg-gray-200 dark:bg-stone-700'>
+    <section className='bg-[rgb(var(--color-gray))]'>
       <Swiper
         slidesPerView={slidesPerView}
         spaceBetween={5}
@@ -37,7 +37,7 @@ export default function App({ slides }) {
             <div className="w-full h-full py-8 px-1 md:px-10">
               <div className="rounded-md overflow-visible w-full h-full">
                 <div className='relative w-full h-full'>
-                  <div className='absolute inset-0 bg-black dark:opacity-50 opacity-30 z-10 rounded-md'></div>
+                  <div className='absolute inset-0 bg-[rgb(var(--color-card))]/15 z-10 rounded-md'></div>
                   <img src={slide.url} alt={`Slide ${index}`} className="w-full h-[650px] 2xl:h-[850px] object-cover rounded-md" />
                 </div>
               </div>

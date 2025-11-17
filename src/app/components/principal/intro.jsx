@@ -32,14 +32,14 @@ export default function Intro() {
     ]
 
     return (
-        <div className="bg-gradient-to-b from-white via-slate-50 to-amber-100 dark:from-black dark:via-stone-950 dark:to-indigo-950 py-24 sm:py-32">
+        <div className="bg-gradient-to-b from-[rgb(var(--color-text-base))]/85 via-[rgb(var(--color-text-base))]/85 to-[rgb(var(--color-galaxy))]/85 py-24 sm:py-32">
             <div className="mx-auto max-w-7xl px-6 lg:px-8">
                 <div className="mx-auto max-w-5xl lg:text-center">
-                    <h2 className="text-lg font-bold leading-10 text-slate-500 dark:text-slate-300">{t('index.intro.subtitle')}</h2>
-                    <p className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight gradient-text">
+                    <h2 className="text-lg font-bold leading-10 text-[rgb(var(--color-text))]">{t('index.intro.subtitle')}</h2>
+                    <p className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight gradient-text-title">
                     {t('index.intro.title')}
                     </p>
-                    <p className="mt-6 text-lg leading-8 text-slate-700 dark:text-stone-300 italic">
+                    <p className="mt-6 text-lg leading-8 text-[rgb(var(--color-slate-base))] italic text-justify">
                     {t('index.intro.leyend')}
                     </p>
                 </div>
@@ -47,13 +47,13 @@ export default function Intro() {
                     <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-10 lg:max-w-none lg:grid-cols-2 lg:gap-y-16">
                         {features.map((feature) => (
                         <div key={feature.name} className="relative pl-16">
-                            <dt className="text-xl font-semibold leading-7 text-zinc-900 dark:text-zinc-50">
-                            <div className="absolute left-0 top-0 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400 hover:rounded-full hover:animate-pulse cursor-pointer">
+                            <dt className="text-xl font-semibold leading-7 text-[rgb(var(--color-slate-base))]">
+                            <div className="absolute left-0 top-0 flex h-12 w-12 items-center justify-center bg-amber-400 rounded-full animate-pulse cursor-pointer">
                                 <feature.icon className="h-8 w-8 text-white" aria-hidden="true" />
                             </div>
                             {feature.name}
                             </dt>
-                            <dd className="mt-2 text-base leading-7 text-gray-700 dark:text-stone-300">{feature.description}</dd>
+                            <dd className="mt-2 text-base leading-7 text-[rgb(var(--color-slate-base))] text-justify">{feature.description}</dd>
                         </div>
                         ))}
                     </dl>

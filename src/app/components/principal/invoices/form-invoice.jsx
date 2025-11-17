@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useContext, useEffect } from "react";
 import { AuthContext } from '@/app/lib/auth-tracker';
 import { MdOutlineNoAccounts, MdSwitchAccount } from "react-icons/md";

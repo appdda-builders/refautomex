@@ -1,3 +1,4 @@
+'use client';
 import RefautomexLogo from '@/app/components/refautomex-logo';
 import { CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
 import { useState, useEffect } from 'react';
@@ -7,6 +8,7 @@ import { AiFillEye } from 'react-icons/ai';
 import { TbWorldWww } from "react-icons/tb";
 import Link from 'next/link';
 import axios from 'axios';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 export default function LogIn() {
     const [email, setEmail] = useState('');
@@ -75,7 +77,9 @@ export default function LogIn() {
 
     const checkIfUserIsEmployee = async (token) => {
         try {
-            const response = await axios.get(`/api/dataManage?type=verifyEmployee&id=${token}`);
+            const response = await axios.get(buildApiUrl('/verifyEmployee'), {
+                params: { id: token },
+            });
             console.log('Empleado:', response.data.empleado);
             return response.data.empleado;
         } catch (error) {
@@ -88,22 +92,22 @@ export default function LogIn() {
     return (
         <>
             <div className="top-0 left-0 w-full h-full flex flex-col justify-center items-center">
-                <div className="relative bg-gray-200 dark:bg-slate-800 opacity-60 dark:opacity-50 w-full md:w-[500px] md:rounded-xl shadow-md dark:shadow-slate-300/10 lg:pt-10 pt-0">
-                    <Link href='/' className="bg-slate-50 dark:bg-stone-700 text-stone-900 dark:text-indigo-100 dark:hover:bg-stone-800 hover:bg-slate-100 cursor-pointer absolute top-4 left-3 items-center leading-none rounded-full flex lg:inline-flex" role="alert">
-                        <span className="flex rounded-full bg-yellow-200 dark:bg-purple-800 uppercase p-1 text-xs font-bold mr-3 shadow-md"><TbWorldWww size={30}/></span>
+                <div className="relative bg-[rgb(var(--color-card))]/50 w-full md:w-[500px] md:rounded-xl shadow shadow-[rgb(var(--color-text))]/10 lg:pt-10 pt-0">
+                    <Link href='/' className="bg-[rgb(var(--color-gray))] text-[rgb(var(--color-text))] hover:bg-[rgb(var(--color-card))] cursor-pointer absolute top-4 left-3 items-center leading-none rounded-full flex lg:inline-flex" role="alert">
+                        <span className="flex rounded-full bg-[rgb(var(--color-galaxy))] uppercase p-1 text-xs font-bold mr-3 shadow-md"><TbWorldWww size={30}/></span>
                         <span className="font-semibold mr-2 text-left flex-auto">Refautomex.com</span>
                     </Link>
                     <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:pb-10 lg:px-8">
                         <div className="sm:mx-auto sm:w-full sm:max-w-sm">
                             <RefautomexLogo classAttr={"h-24 md:h-32 w-auto object-contain p-2 md:p-3 mx-auto"} />
-                            <h2 className="text-center text-2xl leading-9 tracking-tight text-stone-600 dark:text-stone-200 text-shadow">
+                            <h2 className="text-center text-2xl leading-9 tracking-tight text-[rgb(var(--color-text))] text-shadow">
                                 Sistema de CALIDAD
                             </h2>
                         </div>
                         <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
                             <form className="space-y-6" method="POST" onSubmit={onSubmit}>
                                 <div>
-                                    <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                    <label htmlFor="email" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     Correo electrónico
                                     </label>
                                     <div className="mt-2">
@@ -114,17 +118,17 @@ export default function LogIn() {
                                         autoComplete="email"
                                         required
                                         onChange={event => setEmail(event.target.value)}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                        className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
                                     </div>
                                 </div>
                                 <div>
                                     <div className="flex items-center justify-between">
-                                    <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                    <label htmlFor="password" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                         Contraseña
                                     </label>
                                     <div className="text-sm">
-                                        <a href="section/account?load=recovery&lang=es" className="font-semibold dark:text-amber-300 text-amber-400 text-shadow">
+                                        <a href="section/account?load=recovery&lang=es" className="font-semibold text-[rgb(var(--color-refautomex))] text-shadow">
                                         Olvidé mi contraseña
                                         </a>
                                     </div>
@@ -137,9 +141,9 @@ export default function LogIn() {
                                             autoComplete="current-password"
                                             required
                                             onChange={event => setPassword(event.target.value)}
-                                            className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                            className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                         />
-                                        <div 
+                                        <div
                                             className='absolute right-0 top-0 bg-blue-300 cursor-pointer m-1.5 p-1 rounded-full shadow-xl'
                                             onClick={() => setPasswordVisible(!passwordVisible)}>
                                             <AiFillEye />

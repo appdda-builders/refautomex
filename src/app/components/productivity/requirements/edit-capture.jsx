@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import axios from 'axios';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 import FindProducts from '../sales/find-products';
 import TableCapture from './table-capture';
 
@@ -99,7 +100,7 @@ export default function EditCapture({ onCancelEdit }) {
     useEffect(() => {
         const fetchBrandOptions = async () => {
             try {
-                const response = await axios.get('/api/dataManage?type=getBrands');
+                const response = await axios.get(buildApiUrl('/getBrands'));
                 const options = response.data.map((brand) => ({
                     value: brand.idmarca,
                     label: brand.marca,
@@ -112,7 +113,7 @@ export default function EditCapture({ onCancelEdit }) {
 
         const fetchQuantityOptions = async () => {
             try {
-                const response = await axios.get('/api/dataManage?type=getQuantity');
+                const response = await axios.get(buildApiUrl('/getQuantity'));
                 const options = response.data.map((quantity) => ({
                     value: quantity.idCantidad,
                     label: quantity.cantidad,
@@ -125,7 +126,7 @@ export default function EditCapture({ onCancelEdit }) {
 
         const fetchSucursalOptions = async () => {
             try {
-                const response = await axios.get('/api/dataManage?type=getSucursal');
+                const response = await axios.get(buildApiUrl('/getSucursal'));
                 const options = response.data.map((sucursal) => ({
                     value: sucursal.idsucursal,
                     label: sucursal.sucursal,

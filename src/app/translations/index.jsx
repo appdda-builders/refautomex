@@ -14,7 +14,13 @@ export const index = {
         improve: {
             'title': 'VARIEDAD DE REFACCIONES',
             'description': 'Contamos con una amplia variedad de refacciones para tu auto, desde aceites, filtros, bujías, hasta partes de motor y carrocería. ¡Encuentra lo que necesitas!',
+            'history':'Ve tu historial de productos en tu cuenta.',
+            'leyend':"¿Aún no seleccionas productos nuevos para tu carrito? ¡Agrega más ahora!",
+            'location': 'Actualiza un domicilio de entrega o recoge en sucursal según sea tu preferencia, por favor conserva tu folio para cualquier aclaración o contáctanos via Whatsapp',
             'btnCaption': 'Productos',
+            'btnComplete': 'Cerrar',
+            'addOrder': 'Tu orden se agregó a tu historial en tu cuenta.',
+            'orderSuccess': '¡Gracias por tu compra!'
         },
         beginning: {
             'title': 'MEJORAMOS NUESTRAS OPERACIONES',
@@ -22,7 +28,7 @@ export const index = {
             'subtitle-1': 'Espacios Optimizados',
             'subtitle-2': 'Experiencia de productos',
             'btnCaption': 'Entérate',
-            'trackingOne': 'Mejores tiempos de atención',
+            'trackingOne': 'La mejor atención para tí',
             'titlePopOne': 'Espacios Optimizados',
             'trackingTwo': 'Calidad en el servicio',
             'titlePopTwo': 'Experiencia de productos',
@@ -71,7 +77,13 @@ export const index = {
         improve: {
             'title': 'VARIETY OF AUTO PARTS',
             'description': 'We have a wide variety of auto parts for your car, from oils, filters, spark plugs, to engine and body parts. Find what you need!',
+            'leyend':"Don't you have new products in your cart? Add more now!",
+            'history': 'See your history of products in your account.',
+            'location': 'update your location to deliver or pick up in the physical store, please keep your folio ticket in case of any doubt or contact us via WhatsApp',
             'btnCaption': 'Products',
+            'btnComplete': 'Close',
+            'addOrder': 'Your order added to your history in your account profile.',
+            'orderSuccess': '¡Thank you for checkout!'
         },
         beginning: {
             'title': 'WE IMPROVE OUR OPERATIONS',
@@ -79,7 +91,7 @@ export const index = {
             'subtitle-1': 'Optimized spaces',
             'subtitle-2': 'Product experience',
             'btnCaption': 'Find out',
-            'trackingOne': 'Better attention times',
+            'trackingOne': 'Better attention for you',
             'titlePopOne': 'Optimized Spaces',
             'trackingTwo': 'Quality in service',
             'titlePopTwo': 'Product experience',

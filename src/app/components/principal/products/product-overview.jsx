@@ -24,7 +24,7 @@ export default function ProductOverview ({prodOverview}) {
                 <img
                   key={index}
                   src={`${multimediaSrc}${image}`}
-                  className={`w-16 h-16 object-cover cursor-pointer rounded-xl mr-2 ${selectedImage === `${multimediaSrc}${image}` ? 'border-2 border-amber-400 dark:border-yellow-300' : 'border border-stone-300'}`}
+                  className={`w-16 h-16 object-cover cursor-pointer rounded-xl mr-2 ${selectedImage === `${multimediaSrc}${image}` ? 'border-2 border-amber-400' : 'border border-stone-300'}`}
                   onClick={() => setSelectedImage(`${multimediaSrc}${image}`)} // Actualizar la imagen seleccionada al hacer clic
                 />
               ))}
@@ -33,19 +33,19 @@ export default function ProductOverview ({prodOverview}) {
 
           <div className="flex-1 px-2 lg:px-12 my-auto">
             <div className='my-4'>
-              <div className='text-gray-700 dark:text-stone-200'>
-                <span className="lg:text-3xl text-xl font-bold mt-4 dark:text-white md:mt-0 max-w-[90%]">{prodOverview.descripcion}</span>
+              <div className='text-[rgb(var(--color-text))]'>
+                <span className="lg:text-3xl text-xl font-bold mt-4 text-[rgb(var(--color-text))] md:mt-0 max-w-[90%]">{prodOverview.descripcion}</span>
               </div>
             </div>
             <div className="my-4">
-              <div className='text-gray-700 dark:text-stone-200'>
+              <div className='text-[rgb(var(--color-text))]'>
                 <span className='italic font-serif'>Categoría : </span>
                 <span className="text-base px-2 uppercase">{prodOverview.grupo}</span>
               </div>
             </div>
             <div className="my-4">
-              <div className='text-gray-700 dark:text-stone-200 my-2'>
-                <h2 className="lg:text-3xl text-xl font-bold mt-4 dark:text-white md:mt-0">$ {Math.ceil(Number(prodOverview.precio)).toFixed(2)} MXN</h2>
+              <div className='text-[rgb(var(--color-text))] my-2'>
+                <h2 className="lg:text-3xl text-xl font-bold mt-4 text-[rgb(var(--color-text))] md:mt-0">$ {Math.ceil(Number(prodOverview.precio)).toFixed(2)} MXN</h2>
               </div>
             </div>
           </div>

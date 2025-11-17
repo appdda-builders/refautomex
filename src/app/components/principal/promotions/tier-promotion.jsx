@@ -11,10 +11,10 @@ export default function TierPromotion() {
     t('promotions.tierThree'),
   ]
   return (
-    <div className="bg-gradient-to-tl from-white via-slate-50 to-yellow-100 dark:from-black dark:via-stone-950 dark:to-blue-950 py-24 sm:py-32">
+    <div className="bg-gradient-to-tl from-[rgb(var(--color-bg))] via-[rgb(var(--color-card))] to-[rgb(var(--color-galaxy))] py-24 sm:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8 pt-10">
         <div className="mx-auto max-w-2xl sm:text-center">
-          <h2 className="text-4xl font-bold tracking-tight gradient-text sm:text-5xl">{t('promotions.title')}</h2>
+          <h2 className="text-4xl font-bold tracking-tight gradient-text-title sm:text-5xl">{t('promotions.title')}</h2>
           <p className="hidden mt-6 text-lg leading-8 text-gray-600 dark:text-gray-200">
             {t('promotions.account')}
           </p>

@@ -42,10 +42,10 @@ export default function OurTeam() {
                     }}
                 />
                 </div>
-            <div className="bg-black p-3 opacity-40 dark:opacity-60 relative left-auto w-full px-2 h-full flex justify-center">
+            <div className="bg-[rgb(var(--color-slate))]/70 p-3 relative left-auto w-full px-2 h-full flex justify-center">
                 <div className="mx-auto xl:max-w-7xl xl:mx-auto absolute bottom-72 sm:bottom-40 w-full px-2">
-                    <h2 className="font-bold tracking-tight gradient-text-light text-3xl md:text-4xl">{t('about.team.title')}</h2>
-                    <p className="mt-6 xl:pb-16 text-md sm:text-lg leading-8 text-gray-200 w-[90%]">
+                    <h2 className="font-bold tracking-tight gradient-text-light-white text-3xl md:text-4xl">{t('about.team.title')}</h2>
+                    <p className="mt-6 xl:pb-16 text-md sm:text-lg leading-8 text-gray-200 w-[90%] font-semibold">
                         {t('about.team.subtitle')}
                     </p>
                 </div>
@@ -53,7 +53,7 @@ export default function OurTeam() {
                     <dl className="mt-16 grid grid-cols-1 gap-8 sm:mt-24 sm:grid-cols-2">
                     {stats.map((stat) => (
                         <div key={stat.name} className="flex flex-col-reverse">
-                            <dt className="text-base leading-6 text-gray-200 dark:text-stone-300 italic">{stat.name}</dt>
+                            <dt className="text-base leading-6 text-white italic">{stat.name}</dt>
                             <dd className="text-xl md:text-2xl font-bold leading-9 tracking-tight text-white">{stat.value}</dd>
                         </div>
                     ))}

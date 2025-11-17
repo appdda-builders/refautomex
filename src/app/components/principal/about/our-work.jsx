@@ -57,11 +57,11 @@ import '@/app/translations/i18next-translation';
   },
 ]
     return (
-      <div className="bg-slate-200 dark:bg-zinc-900 h-full min-h-screen py-12 flex justify-center items-center">
+      <div className="bg-[rgb(var(--color-card))] h-full min-h-screen py-12 flex justify-center items-center">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl lg:mx-0">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-700 dark:text-stone-300 sm:text-4xl mt-3">{t('about.work.title')}</h2>
-            <p className="mt-2 text-lg leading-8 text-gray-600 dark:text-gray-400">
+            <h2 className="text-3xl font-bold tracking-tight text-[rgb(var(--color-gray-base))] sm:text-4xl mt-3">{t('about.work.title')}</h2>
+            <p className="mt-2 text-lg leading-8 text-[rgb(var(--color-text))]">
               {t('about.work.subtitle')}
             </p>
           </div>
@@ -70,25 +70,25 @@ import '@/app/translations/i18next-translation';
               <article key={post.id} className="flex max-w-xl flex-col items-center justify-between">
                 <div className="flex items-center gap-x-4 text-xs">
                   <div
-                    className="cursor-pointer relative z-10 rounded-full bg-gray-50 dark:bg-gray-500 dark:hover:bg-stone-600 px-3 py-1.5 font-medium text-gray-600 dark:text-gray-100 hover:bg-stone-100 shadow"
+                    className="cursor-pointer relative z-10 rounded-full bg-[rgb(var(--color-gray))] px-3 py-1.5 font-medium text-[rgb(var(--color-text))] hover:bg-stone-100 shadow"
                   >
                     {post.category}
                   </div>
                 </div>
                 <div className="group relative">
-                  <h3 className="mt-3 text-lg font-semibold leading-6 text-gray-900 dark:text-white group-hover:text-gray-600 dark:group-hover:text-stone-400">
+                  <h3 className="mt-3 text-lg font-semibold leading-6 text-[rgb(var(--color-text))] group-hover:text-gray-500 ">
                       <span className="absolute inset-0" />
                       {post.title}
                   </h3>
                 </div>
-                <div className="relative mt-8 flex items-center gap-x-4">
+                <div className="relative mt-5 flex items-center gap-x-4">
                   <img src={post.author.imageUrl} alt="" className="h-10 w-10 rounded-full bg-gray-50" />
                   <div className="text-sm leading-6">
-                    <p className="font-semibold text-gray-900 dark:text-gray-200">
+                    <p className="font-semibold text-[rgb(var(--color-gray-base))]">
                         <span className="absolute inset-0" />
                         {post.author.name}
                     </p>
-                    <p className="text-gray-600 dark:text-gray-400">{post.author.role}</p>
+                    <p className="text[rgb(var(--color-text))]">{post.author.role}</p>
                   </div>
                 </div>
               </article>

@@ -12,6 +12,7 @@ import AddRegistry from './add-registry';
 import Labels from './labels';
 import { useReactToPrint } from 'react-to-print';
 import axios from 'axios';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 export default function Warehouse() {
     const [items, setItems] = useState([]);
@@ -114,7 +115,7 @@ export default function Warehouse() {
                 idsucursal: item.idsucursal,
                 num_parte: item.refaccion
             };
-            const response = await axios.get('/api/dataManage', {
+            const response = await axios.get(buildApiUrl('/dataManage'), {
                 params: {
                     type: 'verifyLocation',
                     params: JSON.stringify(params),

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { useState, useEffect } from 'react';
 import Title from '../title';
 import { MdPolicy } from "react-icons/md";
@@ -259,7 +260,7 @@ export default function Capture() {
 
     const fetchInvoices = async () => {
         try {
-            const response = await axios.get(`/api/dataManage?type=getInvoicesCaptured`);
+            const response = await axios.get(buildApiUrl('/getInvoicesCaptured'));
             if (Array.isArray(response.data)) {
                 setCapturedInvoices(response.data[0]);
             } else {
@@ -274,7 +275,7 @@ export default function Capture() {
 
     const fetchData = async () => {
         try {
-            const response = await axios.get(`/api/dataManage?type=getAllProviders`);
+            const response = await axios.get(buildApiUrl('/getAllProviders'));
             if (Array.isArray(response.data)) {
                 setProviders(response.data);
             } else {

@@ -1,8 +1,10 @@
+'use client';
 import React, { useState, useEffect, useRef } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
 import GooglePlacesAutocomplete from '@/app/components/principal/account/google-places';
 import Select from 'react-select';
 import axios from 'axios';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 export default function FormData({ t, formState, setFormState, account }) {
   const [isCaptchaValid, setIsCaptchaValid] = useState(false);
@@ -172,7 +174,7 @@ export default function FormData({ t, formState, setFormState, account }) {
     useEffect(() => {
         const fetchCFDI = async () => {
         try {
-            const response = await axios.get('/api/dataManage?type=getCFDI');
+            const response = await axios.get(buildApiUrl('/getCFDI'));
             const formattedCFDIOptions = response.data.map(cfdi => ({
             value: cfdi.idcfdi,
             label: cfdi.cfdi // e.g., "Gastos en general"
@@ -185,7 +187,7 @@ export default function FormData({ t, formState, setFormState, account }) {
 
         const fetchRegimen = async () => {
         try {
-            const response = await axios.get('/api/dataManage?type=getRegimen');
+            const response = await axios.get(buildApiUrl('/getRegimen'));
             // Label format: "{id} | {regimen}" so we can extract the regimen (after the pipe)
             const formattedRegOptions = response.data.map(regimen => ({
             value: regimen.idregimen,

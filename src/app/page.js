@@ -5,6 +5,16 @@ import Slider from '@/app/components/principal/slider';
 import Intro from '@/app/components/principal/intro';
 import Features from '@/app/components/principal/features';
 
+export const metadata = {
+  title: {
+    default: "Refautomex",
+  },
+  description: "Refacciones automotrices de México",
+  icons: {
+    icon: "/favicon.ico",
+  },
+};
+
 export default function Home() {
   const multimediaSrc = process.env.NEXT_PUBLIC_S3;
   const slides = [
