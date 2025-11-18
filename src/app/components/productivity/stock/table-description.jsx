@@ -10,6 +10,7 @@ import { buildApiUrl } from '@/app/lib/refautomex-api';
 export default function TableDescription({ items, buttonConfigs, onRemoveProduct, onUpdateProduct, handleMouseEnter, handleMouseLeave, visibleTooltip, onEditClick }) {
     const [QuantityOptions, setQuantityOptions] = useState([]);
     const listRef = useRef();
+    const printRef = useRef(null);
 
     const handleQuantityChange = (product, selectedOption) => {
         const newQuantity = selectedOption.value;
@@ -23,7 +24,8 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
     };
 
     const handleListPrint = useReactToPrint({
-        content: () => listRef.current,
+        content: () => printRef.current,
+        contentRef: printRef,
         onAfterPrint: () => {
             // Opcional: alguna acción después de imprimir
             console.log('Etiquetas impresas');
@@ -66,8 +68,8 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
     }, []);
 
     return (
-        <div className="h-[690px] bg-[rgb(var(--color-card))] rounded-2xl my-5 flex shadow relative">
-            <div className='flex flex-col px-1 bg-[rgb(var(--color-card-white))] rounded-l-2xl pt-5 relative'>
+        <div className="h-[87vh] bg-[rgb(var(--color-card))] rounded-2xl my-5 flex shadow shadow-[rgb(var(--color-galaxy))] relative">
+            <div className='flex flex-col px-1 bg-[rgb(var(--color-bg))] rounded-l-2xl pt-5 relative'>
                 {buttonConfigs.map(({ icon: Icon, label, id, event, btnconf }) => (
                     <div
                         key={id}
@@ -88,7 +90,7 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
             </div>
             <div className="flex flex-col overflow-x-scroll w-full">
                 <table ref={listRef} className="w-full text-sm text-left text-[rgb(var(--color-text))] shadow-sm">
-                    <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-card))]">
+                    <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-slate))] sticky top-0 z-10">
                         <tr>
                             <th className="p-1">REFACCIÓN</th>
                             <th className="p-1">DESCRIPCIÓN</th>
@@ -114,7 +116,7 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                         {items.map((item, index) => {
                             return (
                                 <tr
-                                    className={`${item.isPedido ? 'bg-blue-200' : item.existencia === 0 ? 'bg-[rgb(var(--color-error-base))]' : 'bg-[rgb(var(--color-card-white))]'} border-b border-[rgb(var(--color-border))] relative`}
+                                    className={`${item.isPedido ? 'bg-blue-200' : item.existencia === 0 ? 'bg-[rgb(var(--color-error-base))]' : 'bg-[rgb(var(--color-card))]'} border-b border-[rgb(var(--color-border))] relative`}
                                     key={index}
                                 >
                                     <td className="p-2">
@@ -182,6 +184,42 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                         </tr>
                     </tbody>
                 </table>
+                <div className="absolute left-[-9999px] top-0" aria-hidden="true">
+                    <table
+                        ref={printRef}
+                        className="w-[900px] text-sm text-black border border-gray-400 border-collapse"
+                    >
+                        <thead>
+                            <tr className="bg-gray-200 text-left">
+                                <th className="border border-gray-400 px-3 py-2 uppercase tracking-wide text-xs">Refacción</th>
+                                <th className="border border-gray-400 px-3 py-2 uppercase tracking-wide text-xs">Descripción</th>
+                                <th className="border border-gray-400 px-3 py-2 uppercase tracking-wide text-xs">Localización</th>
+                                <th className="border border-gray-400 px-3 py-2 uppercase tracking-wide text-xs">Existencia</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {items.map((product, index) => (
+                                <tr
+                                    key={`print-${product.refaccion}`}
+                                    className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                                >
+                                    <td className="border border-gray-300 px-3 py-1 uppercase text-xs font-semibold">
+                                        {product.refaccion}
+                                    </td>
+                                    <td className="border border-gray-300 px-3 py-1 text-xs">
+                                        {product.descripcion}
+                                    </td>
+                                    <td className="border border-gray-300 px-3 py-1 text-xs">
+                                        {product.localizacion || '-'}
+                                    </td>
+                                    <td className="border border-gray-300 px-3 py-1 text-xs text-center">
+                                        {product.existencia}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

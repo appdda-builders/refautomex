@@ -309,7 +309,7 @@ export default function Warehouse() {
                         </div>
                     )}
                     <div className="grid grid-cols-1 lg:grid-cols-3 mx-auto gap-x-10 gap-y-6 lg:mx-0 px-2 xl:px-0">
-                        <div className="bg-[rgb(var(--color-card-white))] lg:rounded-2xl my-5 py-2 shadow w-auto overflow-hidden rounded-xl ">
+                        <div className="bg-[rgb(var(--color-card))] lg:rounded-2xl my-5 py-2 shadow shadow-[rgb(var(--color-galaxy))] w-auto overflow-hidden rounded-xl ">
                             <FindProducts
                                 ref={findProductsRef}
                                 onAddProduct={handleAddProduct}
