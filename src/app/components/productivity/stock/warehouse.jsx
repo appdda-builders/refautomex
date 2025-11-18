@@ -211,7 +211,7 @@ export default function Warehouse() {
                 };
 
                 // Llamada al backend para cada producto modificado
-                const response = await axios.patch('/api/dataManage?type=patchTableProducts', params, {
+                const response = await axios.patch(buildApiUrl('/patchTableProducts'), params, {
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -282,7 +282,7 @@ export default function Warehouse() {
     ];
 
     return (
-        <div className="bg-gradient-to-b min-h-screen from-white via-gray-100 to-gray-400 dark:from-black dark:via-slate-800 dark:to-stone-700 backdrop-blur-md pt-28">
+        <div className="bg-gradient-to-b min-h-screen from-[rgb(var(--color-bg))] via-[rgb(var(--color-card))] to-[rgb(var(--color-gray))] backdrop-blur-md pt-28">
             <Title
                 title='Gestión de Almacén y productos'
                 icon={FaBoxesPacking}
@@ -292,7 +292,7 @@ export default function Warehouse() {
             <div className={isEditing || isAdding ? 'hidden' : 'block'}>
             <div className="mx-auto max-w-[1700px] xl:px-8 mt-5 overflow-hidden">
                     <div className="grid grid-cols-1 lg:grid-cols-3 mx-auto gap-x-10 gap-y-6 lg:mx-0 px-2 xl:px-0">
-                        <div className="bg-gray-200 dark:bg-stone-700 lg:rounded-2xl my-5 py-2 shadow w-auto overflow-hidden rounded-xl ">
+                        <div className="bg-[rgb(var(--color-card-white))] lg:rounded-2xl my-5 py-2 shadow w-auto overflow-hidden rounded-xl ">
                             <FindProducts
                                 ref={findProductsRef}
                                 onAddProduct={handleAddProduct}

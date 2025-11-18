@@ -26,10 +26,9 @@ function ProvidersSections({ providers, capturedInvoices, activeProvider, onProv
                 }
 
                 return (
-                    <div className='overflow-hidden'>
+                    <div className='overflow-hidden' key={provider.id || provider.empresa || index}>
                         <div
-                            key={index}
-                            className='relative isolate flex items-left gap-x-6 overflow-hidden bg-gray-50 dark:bg-stone-900 px-6 py-2.5 sm:px-3.5 sm:before:flex-1 border-b border-gray-700 dark:border-gray-200 cursor-pointer'
+                            className='relative isolate flex items-left gap-x-6 overflow-hidden bg-[rgb(var(--color-card))] px-6 py-2.5 sm:px-3.5 sm:before:flex-1 border-b border-[rgb(var(--color-border))] cursor-pointer'
                             onClick={() => onProviderClick(provider.id)}
                         >
                             <div
@@ -41,17 +40,17 @@ function ProvidersSections({ providers, capturedInvoices, activeProvider, onProv
                                         clipPath:
                                             'polygon(54.8% 41.9%, 97.2% 73.2%, 100% 34.9%, 92.5% 0.4%, 87.5% 0%, 75% 28.6%, 58.5% 54.6%, 50.1% 56.8%, 46.9% 44%, 48.3% 17.4%, 24.7% 53.9%, 0% 27.9%, 11.9% 74.2%, 24.9% 54.1%, 68.6% 100%, 74.8% 81.9%)',
                                     }}
-                                    className="aspect-[577/310] w-[36.0625rem] bg-gradient-to-r from-[#f47207] dark:from-[#071bf4] to-[#ffc936] dark:to-[#a726bb] opacity-50"
+                                    className="aspect-[577/310] w-[36.0625rem] bg-gradient-to-r from-[rgb(var(--color-galaxy))] to-[rgb(var(--color-amber))] opacity-50"
                                 />
                             </div>
                             <div className="flex flex-wrap items-center gap-x-10 gap-y-2">
-                                <strong className="font-semibold dark:text-white text-black text-xl">{provider.empresa}</strong>
-                                <FaCircleNodes size={10} className='text-amber-600 dark:text-indigo-400 animate-spin'/>
-                                <p className="text-sm/6 text-gray-900 dark:text-slate-100">
+                                <strong className="font-semibold text-[rgb(var(--color-text))] text-xl">{provider.empresa}</strong>
+                                <FaCircleNodes size={10} className='text-[rgb(var(--color-amber))] animate-spin'/>
+                                <p className="text-sm/6 text-[rgb(var(--color-text))]">
                                     Deuda al proveedor:
                                 </p>
                                 <p
-                                    className="flex-none rounded-full bg-green-500 dark:bg-green-900 px-3.5 py-1 text-sm font-semibold text-white shadow-sm hover:bg-gray-700 hover:dark:bg-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
+                                    className="flex-none rounded-full bg-green-600 px-3.5 py-1 text-sm font-semibold text-white shadow-sm hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
                                 >
                                     $ {providerInvoices.reduce((acc, invoice) => acc + parseFloat(invoice.total || 0), 0).toFixed(2)}
                                 </p>
@@ -83,10 +82,9 @@ function PolicySections({ policies, capturedPolicies, activePolicy, onPolicyClic
                 }
 
                 return (
-                    <div className='overflow-hidden'>
+                    <div className='overflow-hidden' key={policy.id || policy.empresa || index}>
                         <div
-                            key={index}
-                            className='relative isolate flex items-left gap-x-6 overflow-hidden bg-gray-50 dark:bg-stone-900 px-6 py-2.5 sm:px-3.5 sm:before:flex-1 border-b border-gray-700 dark:border-gray-200 cursor-pointer'
+                            className='relative isolate flex items-left gap-x-6 overflow-hidden bg-[rgb(var(--color-card))] px-6 py-2.5 sm:px-3.5 sm:before:flex-1 border-b border-[rgb(var(--color-border))] cursor-pointer'
                             onClick={() => onProviderClick(policy.id)}
                         >
                             <div
@@ -98,17 +96,17 @@ function PolicySections({ policies, capturedPolicies, activePolicy, onPolicyClic
                                         clipPath:
                                             'polygon(54.8% 41.9%, 97.2% 73.2%, 100% 34.9%, 92.5% 0.4%, 87.5% 0%, 75% 28.6%, 58.5% 54.6%, 50.1% 56.8%, 46.9% 44%, 48.3% 17.4%, 24.7% 53.9%, 0% 27.9%, 11.9% 74.2%, 24.9% 54.1%, 68.6% 100%, 74.8% 81.9%)',
                                     }}
-                                    className="aspect-[577/310] w-[36.0625rem] bg-gradient-to-r from-[#f47207] dark:from-[#071bf4] to-[#ffc936] dark:to-[#a726bb] opacity-50"
+                                    className="aspect-[577/310] w-[36.0625rem] bg-gradient-to-r from-[rgb(var(--color-galaxy))] to-[rgb(var(--color-amber))] opacity-50"
                                 />
                             </div>
                             <div className="flex flex-wrap items-center gap-x-10 gap-y-2">
-                                <strong className="font-semibold dark:text-white text-black text-xl">{policy.empresa}</strong>
-                                <FaCircleNodes size={10} className='text-amber-600 dark:text-indigo-400 animate-spin'/>
-                                <p className="text-sm/6 text-gray-900 dark:text-slate-100">
+                                <strong className="font-semibold text-[rgb(var(--color-text))] text-xl">{policy.empresa}</strong>
+                                <FaCircleNodes size={10} className='text-[rgb(var(--color-amber))] animate-spin'/>
+                                <p className="text-sm/6 text-[rgb(var(--color-text))]">
                                     Deuda al proveedor:
                                 </p>
                                 <p
-                                    className="flex-none rounded-full bg-green-500 dark:bg-green-900 px-3.5 py-1 text-sm font-semibold text-white shadow-sm hover:bg-gray-700 hover:dark:bg-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
+                                    className="flex-none rounded-full bg-green-600 px-3.5 py-1 text-sm font-semibold text-white shadow-sm hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
                                 >
                                     $ {providerInvoices.reduce((acc, invoice) => acc + parseFloat(invoice.total || 0), 0).toFixed(2)}
                                 </p>
@@ -142,8 +140,8 @@ function DetailsSection({ capturedInvoices }) {
     };
 
     return (
-        <table className="w-full lg:w-[1200px] text-sm text-left text-gray-800 dark:text-gray-200 mx-auto">
-            <thead className="text-xs text-gray-800 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-200">
+        <table className="w-full lg:w-[1200px] text-sm text-left text-[rgb(var(--color-text))] mx-auto">
+            <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-card))]">
                 <tr>
                     <th scope="col" className="p-1.5">No Factura</th>
                     <th scope="col" className="py-2 px-8">Proveedor</th>
@@ -163,7 +161,7 @@ function DetailsSection({ capturedInvoices }) {
                 return (
                     <tr
                         key={index}
-                        className={`py-1 border border-b-stone-700 border-b-2 dark:border-gray-700 ${diffDays <= 0 ? 'bg-red-200 dark:bg-red-900' : 'bg-stone-200 dark:bg-stone-600'}`}
+                        className={`py-1 border border-b-stone-700 border-b-2 border-[rgb(var(--color-border))] ${diffDays <= 0 ? 'bg-[rgb(var(--color-error-base))]' : 'bg-[rgb(var(--color-card))]'}`}
                     >
                         <td className="py-1 px-6">{invoice.num_factura}</td>
                         <td className="py-1 px-6">{invoice.empresa}</td>
@@ -188,7 +186,7 @@ const createTooltip = (icon, label, id, visibleTooltip, setVisibleTooltip) => {
     const hide = () => setVisibleTooltip(null);
     const tooltip = visibleTooltip === id ? (
         <div
-            className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 opacity-90 dark:bg-gray-900 bg-gray-300 shadow dark:text-white text-black text-xs rounded px-2 py-1 z-10"
+        className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 opacity-90 bg-[rgb(var(--color-card))] shadow text-[rgb(var(--color-text))] text-xs rounded px-2 py-1 z-10"
             style={{ width: 'max-content', maxWidth: '16rem' }}
         >
             {label}
@@ -296,7 +294,7 @@ export default function Capture() {
     const total = capturedInvoices && capturedInvoices.length > 0 ? capturedInvoices.reduce((acc, item) => acc + parseFloat(item.total), 0) : 0;
 
     return (
-        <div className="bg-gradient-to-b min-h-screen from-white via-gray-100 to-gray-400 dark:from-black dark:via-slate-800 dark:to-stone-700 backdrop-blur-md pt-28">
+        <div className="bg-gradient-to-b min-h-screen from-[rgb(var(--color-bg))] via-[rgb(var(--color-card))] to-[rgb(var(--color-gray))] backdrop-blur-md pt-28">
             <Title
                 title='Reporte de compras'
                 icon={HiClipboardDocumentList}
@@ -307,9 +305,9 @@ export default function Capture() {
                 <div>
                     <div className="mx-auto max-w-7xl px-6 lg:px-8 mt-2">
                         <div className="mx-auto grid max-w-2xl grid-cols-1 gap-x-8 gap-y-6 lg:mx-0 lg:max-w-none">
-                            <div className="relative h-[500px] 2xl:h-[650px] bg-gray-200 dark:bg-stone-800 rounded-2xl my-2 flex justify-center shadow">
-                                <div className='flex flex-col px-1 bg-gray-300 dark:bg-stone-900 rounded-l-2xl pt-5 relative w-16'>
-                                    <div className='bg-slate-100 dark:bg-stone-600 rounded-full shadow w-max absolute top-2 flex flex-col sm:ml-0.5'>
+                            <div className="relative h-[500px] 2xl:h-[650px] bg-[rgb(var(--color-bg))] rounded-2xl my-2 flex justify-center shadow">
+                                <div className='flex flex-col px-1 bg-[rgb(var(--color-card))] rounded-l-2xl pt-5 relative w-16'>
+                                    <div className='bg-[rgb(var(--color-card))] rounded-full shadow w-max absolute top-2 flex flex-col sm:ml-0.5'>
                                         <div
                                             className='relative p-3 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 color-cultured cursor-pointer inline-block'
                                             onMouseEnter={buy.show}
@@ -325,7 +323,7 @@ export default function Capture() {
                                             {policy.tooltip}
                                         </div>
                                     </div>
-                                    <div className='bg-amber-100 dark:bg-violet-800 rounded-full shadow w-max absolute top-28 flex flex-col sm:ml-0.5'>
+                                    <div className='bg-[rgb(var(--color-card))] rounded-full shadow w-max absolute top-28 flex flex-col sm:ml-0.5'>
                                         <div
                                             className='green-circle-button relative'
                                             onMouseEnter={add.show}
@@ -367,11 +365,11 @@ export default function Capture() {
                                     />
                                     )}
                                     <div
-                                    className="relative text-3xl isolate flex items-left gap-x-6 overflow-hidden bg-slate-300 dark:bg-stone-600 px-6 py-2.5 sm:px-3.5 sm:before:flex-1 m-2 dark:text-white cursor-pointer rounded-xl shadow-md"
+                                    className="relative text-3xl isolate flex items-left gap-x-6 overflow-hidden bg-[rgb(var(--color-card))] px-6 py-2.5 sm:px-3.5 sm:before:flex-1 m-2 text-[rgb(var(--color-text))] cursor-pointer rounded-xl shadow-md"
                                     >
                                         Total:
                                         <p
-                                            className="flex-none rounded-full bg-green-500 dark:bg-green-900 px-3.5 py-1 text-xl font-semibold text-white shadow-sm hover:bg-gray-700 hover:dark:bg-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
+                                            className="flex-none rounded-full bg-green-600 px-3.5 py-1 text-xl font-semibold text-white shadow-sm hover:bg-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
                                         >
                                             $ {total.toFixed(2)}
                                         </p>

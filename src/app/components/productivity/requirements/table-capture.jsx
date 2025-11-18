@@ -54,7 +54,7 @@ const customStyles = {
         ...provided,
         zIndex: 9999,
     }),
-    className: 'block w-full p-2 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-xs focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500'
+    className: 'block w-full p-2 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60'
 };
 
 const TableCapture = forwardRef(({
@@ -398,10 +398,10 @@ const confirmDiscount = (productRef, discountId) => {
     const totalWithDiscount = subtotal - totalDiscount;
 
     return (
-        <div className="h-[690px] bg-stone-100 dark:bg-slate-800 rounded-2xl my-5 flex shadow relative justify-center">
+        <div className="h-[690px] bg-[rgb(var(--color-card))] rounded-2xl my-5 flex shadow relative justify-center">
             <div className="flex flex-col overflow-x-scroll pt-5 lg:mx-1">
-                <table className="w-[845px] text-sm text-left text-gray-500 dark:text-gray-400 shadow-sm">
-                    <thead className="text-xs text-gray-700 uppercase bg-stone-200 dark:bg-gray-700 dark:text-gray-400">
+                <table className="w-[845px] text-sm text-left text-[rgb(var(--color-text))] shadow-sm">
+                    <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-card-white))]">
                         <tr>
                             <th className="p-3">REFACCIÓN</th>
                             <th className="p-3">DESCRIPCIÓN</th>
@@ -423,7 +423,7 @@ const confirmDiscount = (productRef, discountId) => {
                             return (
                                 <>
                                     <tr
-                                        className='bg-slate-50 dark:bg-gray-800 border-b dark:border-gray-700 relative'
+                                        className='bg-[rgb(var(--color-card-white))] border-b border-[rgb(var(--color-border))] relative'
                                         key={index}
                                     >
                                         {item.appliedDiscount !== null && (
@@ -435,7 +435,7 @@ const confirmDiscount = (productRef, discountId) => {
                                                 </div>
                                             </div>
                                             {warnings[item.refaccion] && (
-                                                <div className="absolute left-1/3 bottom-[1px] z-10 text-xs text-yellow-500 dark:text-yellow-300 bg-white dark:bg-slate-900 shadow p-[1.2px] rounded-md font-bold animate-out">
+                                                <div className="absolute left-1/3 bottom-[1px] z-10 text-xs text-[rgb(var(--color-amber))] bg-[rgb(var(--color-bg))] shadow p-[1.2px] rounded-md font-bold animate-out">
                                                     {warnings[item.refaccion]}
                                                 </div>
                                             )}
@@ -443,7 +443,7 @@ const confirmDiscount = (productRef, discountId) => {
                                         <td className="p-4">
                                             <span>{item.descripcion}</span>
                                             {error && (
-                                                <div className="absolute left-1/3 bottom-[1px] z-10 text-xs text-red-500 dark:text-red-300 bg-white dark:bg-slate-900 shadow p-[1.2px] rounded-md font-bold animate-out">
+                                                <div className="absolute left-1/3 bottom-[1px] z-10 text-xs text-[rgb(var(--color-error))] bg-[rgb(var(--color-bg))] shadow p-[1.2px] rounded-md font-bold animate-out">
                                                     {error}
                                                 </div>
                                             )}
@@ -492,7 +492,7 @@ const confirmDiscount = (productRef, discountId) => {
                                                 ));
                                                 }
                                             }}
-                                            className="block w-full p-1 text-gray-900 border border-gray-500 rounded-md bg-gray-50 text-xs focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                            className="block w-full p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60"
                                             disabled={!!folio}
                                         />
 
@@ -505,7 +505,7 @@ const confirmDiscount = (productRef, discountId) => {
                                                 <div className='bg-yellow-500 rounded-full shadow h-5 w-5 flex items-center justify-center'>
                                                     <RiCoinsFill />
                                                 </div>
-                                                <span className='bg-gray-200 rounded-md mt-2 p-1'>Descuento</span>
+                                                <span className='bg-[rgb(var(--color-card))] rounded-md mt-2 p-1'>Descuento</span>
                                             </div>
                                         </td>
                                         <td className="p-4">{monto.toFixed(2)}</td>
@@ -527,7 +527,7 @@ const confirmDiscount = (productRef, discountId) => {
                                         const entry = discountHistory[discountIndex]; // vincular con el mismo índice
 
                                         return (
-                                            <tr key={discountRow.id} className="bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600">
+                                            <tr key={discountRow.id} className="bg-[rgb(var(--color-card))] border-b border-[rgb(var(--color-border))]">
                                                 <td colSpan="2" className="p-4 text-right font-bold">
                                                     Descuento Decimal:
                                                     <br />(0.0 - 1)
@@ -540,8 +540,8 @@ const confirmDiscount = (productRef, discountId) => {
                                                         max="1"
                                                         value={discountRow.value}
                                                         disabled={discountRow.confirmed || discountRow.isGeneral}
-                                                        className={`block w-full p-1 text-gray-900 border border-gray-500 rounded-md text-xs focus:ring-blue-500 focus:border-blue-500 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 no-spin ${
-                                                            discountRow.isGeneral ? 'dark:bg-gray-500 bg-gray-200 cursor-not-allowed' : 'bg-gray-50 dark:bg-gray-700'
+                                                        className={`block w-full p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-md text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 bg-[rgb(var(--color-card))] no-spin ${
+                                                            discountRow.isGeneral ? 'bg-[rgb(var(--color-gray))] cursor-not-allowed' : 'bg-[rgb(var(--color-card))]'
                                                         }`}
                                                         onChange={(e) => handleDiscountChange(item.refaccion, discountRow.id, e.target.value)}
                                                     />
@@ -549,14 +549,14 @@ const confirmDiscount = (productRef, discountId) => {
                                                         <div className="flex justify-center items-center my-1">
                                                             <button
                                                                 onClick={() => confirmDiscount(item.refaccion, discountRow.id)}
-                                                                className='text-xs text-amber-500 dark:text-amber-300 bg-white dark:bg-slate-600 shadow p-1 rounded-md font-bold animate-out cursor-pointer'
+                                                                className='text-xs text-[rgb(var(--color-amber))] bg-[rgb(var(--color-bg))] shadow p-1 rounded-md font-bold animate-out cursor-pointer'
                                                             >
                                                                 <FaUnlock />
                                                             </button>
                                                         </div>
                                                     ) : (
                                                         <div className="flex justify-center items-center my-1">
-                                                            <div className='text-xs text-slate-500 dark:text-slate-300 bg-slate-300 dark:bg-slate-900 shadow p-1 rounded-md font-bold'>
+                                                            <div className='text-xs text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] shadow p-1 rounded-md font-bold'>
                                                                 <FaLock />
                                                             </div>
                                                         </div>
@@ -570,10 +570,10 @@ const confirmDiscount = (productRef, discountId) => {
                                                 </td>
                                                 <td colSpan="2" className="p-2 text-right">
                                                     <div className="flex flex-col">
-                                                        <span className="text-xs text-gray-700 dark:text-gray-300">
+                                                        <span className="text-xs text-[rgb(var(--color-text))]">
                                                             Anterior: {entry?.previous?.toFixed(2) || "0.00"} MXN
                                                         </span>
-                                                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                                                        <span className="text-xs font-bold text-[rgb(var(--color-amber))]">
                                                             Descontado: {entry?.discountedAmount?.toFixed(2) || "0.00"} MXN
                                                         </span>
                                                     </div>
@@ -595,7 +595,7 @@ const confirmDiscount = (productRef, discountId) => {
                             );
                         })}
                         {onShowTextArea === 'block' && (
-                            <tr className="bg-gray-100 dark:bg-gray-800 border-b dark:border-gray-700 relative">
+                            <tr className="bg-[rgb(var(--color-card))] border-b border-[rgb(var(--color-border))] relative">
                                 <td className='gray-circle-button absolute translate-x-1/2 translate-y-1/2 left-4 -top-2'>
                                     <IoText className="text-2xl text-blue-200" />
                                     <span></span>
@@ -606,7 +606,7 @@ const confirmDiscount = (productRef, discountId) => {
                                     name="nota"
                                     value={notes}
                                     onChange={(e) => handleAddNote(e.target.value)}
-                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs text-blue-500 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 uppercase"
+                                    className="w-full px-2 py-1 border border-[rgb(var(--color-border))] rounded text-xs text-blue-500 focus:ring-blue-500 focus:border-blue-500 bg-[rgb(var(--color-card))] uppercase text-[rgb(var(--color-text))] placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60"
                                     placeholder="Pagado por entregar (¿Que?)"
                                     rows="3"
                                     maxLength="80"
@@ -615,31 +615,31 @@ const confirmDiscount = (productRef, discountId) => {
                                 </td>
                             </tr>
                         )}
-                        <tr className="bg-slate-200 border-b dark:bg-gray-900 dark:border-gray-500">
+                        <tr className="bg-[rgb(var(--color-card-white))] border-b border-[rgb(var(--color-border))]">
                             <td className="py-4 px-3 font-bold">NETO:</td>
-                            <td className="py-4 px-1 font-bold text-md text-slate-500 dark:text-stone-300"
+                            <td className="py-4 px-1 font-bold text-md text-[rgb(var(--color-text))]"
                                 colSpan="8">
                                 {neto.toFixed(2)} MXN
                             </td>
                         </tr>
-                        <tr className="bg-slate-200 border-b dark:bg-gray-900 dark:border-gray-500">
+                        <tr className="bg-[rgb(var(--color-card-white))] border-b border-[rgb(var(--color-border))]">
                             <td className="py-4 px-3 font-bold">DESCUENTO TOTAL:</td>
-                            <td className="py-4 px-1 font-bold text-md text-slate-500 dark:text-stone-300"
+                            <td className="py-4 px-1 font-bold text-md text-[rgb(var(--color-text))]"
                                 colSpan="8">
                                 {totalDiscount.toFixed(2)} MXN
                             </td>
                         </tr>
-                        <tr className="bg-slate-200 border-b dark:bg-gray-900 dark:border-gray-500">
+                        <tr className="bg-[rgb(var(--color-card-white))] border-b border-[rgb(var(--color-border))]">
                             <td className="py-4 px-3 font-bold">SUBTOTAL:</td>
-                            <td className="py-4 px-1 font-bold text-md text-slate-500 dark:text-stone-300"
+                            <td className="py-4 px-1 font-bold text-md text-[rgb(var(--color-text))]"
                                 colSpan="8">
                                 {subtotal.toFixed(2)} MXN
                             </td>
                         </tr>
 
-                        <tr className="bg-slate-200 border-b dark:bg-gray-900 dark:border-gray-500">
+                        <tr className="bg-[rgb(var(--color-card-white))] border-b border-[rgb(var(--color-border))]">
                             <td className="py-4 px-3 font-bold">TOTAL:</td>
-                            <td className="py-4 px-1 font-bold text-xl text-green-600 dark:text-green-400"
+                            <td className="py-4 px-1 font-bold text-xl text-green-600"
                                 colSpan="8">
                                 {totalWithDiscount.toFixed(2)} MXN
                             </td>

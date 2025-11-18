@@ -273,14 +273,14 @@ export default function NewCapture({ onCancelEdit }) {
                 <div className="mb-6 flex justify-end gap-4">
                 </div>
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                    <div className="order-2 lg:order-1 w-full bg-slate-100 dark:bg-slate-800 shadow rounded-md p-3 flex flex-col justify-center items-center">
-                        <h2 className="text-2xl/7 p-2 font-bold text-gray-900 dark:text-white sm:truncate sm:text-3xl sm:tracking-tight mb-1 border-b-2 border-slate-300 w-full">
+                    <div className="order-2 lg:order-1 w-full bg-[rgb(var(--color-card))] shadow rounded-md p-3 flex flex-col justify-center items-center">
+                        <h2 className="text-2xl/7 p-2 font-bold text-[rgb(var(--color-text))] sm:truncate sm:text-3xl sm:tracking-tight mb-1 border-b-2 border-slate-300 w-full">
                             Aplicar Descuento
                         </h2>
                         <div className="mt-1 flex flex-col justify-between sm:mt-0 sm:flex-row sm:flex-wrap sm:space-x-6">
                             <div className='flex items-center my-1'>
-                                <div className="mt-2 flex items-center text-sm text-gray-500 dark:text-white">
-                                    <MdDiscount aria-hidden="true" className="mr-1.5 size-5 shrink-0 text-gray-400 dark:text-white" />
+                                <div className="mt-2 flex items-center text-sm text-[rgb(var(--color-text))] opacity-80">
+                                    <MdDiscount aria-hidden="true" className="mr-1.5 size-5 shrink-0 text-[rgb(var(--color-text))]" />
                                     DESCUENTO SUGERIDO: {sugestedDiscount === 0 || !sugestedDiscount ? "0.0" : sugestedDiscount}
                                     {sugestedDiscount > 0 && (
                                         <button
@@ -296,7 +296,7 @@ export default function NewCapture({ onCancelEdit }) {
                             </div>
                             <div className='flex items-center my-1'>
                                 <div className="mt-2 flex items-center text-sm text-gray-500">
-                                    <MdDiscount aria-hidden="true" className="mr-1.5 size-5 shrink-0 text-gray-400 dark:text-white" />
+                                    <MdDiscount aria-hidden="true" className="mr-1.5 size-5 shrink-0 text-[rgb(var(--color-text))]" />
                                     <input
                                         type="number"
                                         step="0.01"
@@ -346,7 +346,7 @@ export default function NewCapture({ onCancelEdit }) {
                 </div>
                 <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-3 my-3">
                     <div className="">
-                        <label className="block text-sm 2xl:text-lg font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm 2xl:text-lg font-medium text-[rgb(var(--color-text))]">
                             Num Factura
                         </label>
                         <input
@@ -361,7 +361,7 @@ export default function NewCapture({ onCancelEdit }) {
                     </div>
 
                     <div className="">
-                        <label className="block text-sm 2xl:text-lg font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm 2xl:text-lg font-medium text-[rgb(var(--color-text))]">
                             Proveedor
                         </label>
                         <Select
@@ -376,7 +376,7 @@ export default function NewCapture({ onCancelEdit }) {
                     </div>
 
                     <div className="">
-                        <label className="block text-sm 2xl:text-lg font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm 2xl:text-lg font-medium text-[rgb(var(--color-text))]">
                             Fecha Compra
                             {/* LA FECHA PAGO ES EL RESULTADO SE SUMAR LOS DIAS DE LA BASE DE DATOS A LA FECHA DE LA COMPRA,
                             SI LA FECHA DE LA COMPRA NO TIENE DIAS DE PLAZO ENTONCES FECHA_CAPTURA = FECHA_PAGO */}
@@ -417,19 +417,19 @@ export default function NewCapture({ onCancelEdit }) {
                     {showModal && (
                     <div className="fixed z-40 inset-0 overflow-y-auto bg-stone-700 opacity-80">
                         <div className="flex items-center justify-center min-h-screen">
-                            <div className='relative max-w-7xl sm:px-10 lg:px-20 bg-gradient-to-bl from-stone-100 via-slate-200 to-slate-300 dark:from-slate-700 dark:via-slate-800 dark:to-slate-950 p-3 sm:rounded-xl shadow-xl py-12'>
-                                <div className='absolute -top-5 right-1/2 translate-x-1/2 shadow bg-[rgb(var(--color-card))] rounded-full p-3 dark:shadow-slate-300/40 cursor-pointer animate-out'>
-                                    <GoAlertFill className='h-9 w-9 text-amber-500 dark:text-amber-400 hover:opacity-80'/>
+                            <div className='relative max-w-7xl sm:px-10 lg:px-20 bg-gradient-to-bl from-[rgb(var(--color-card))] via-[rgb(var(--color-card-white))] to-[rgb(var(--color-gray))] p-3 sm:rounded-xl shadow-xl py-12'>
+                                <div className='absolute -top-5 right-1/2 translate-x-1/2 shadow bg-[rgb(var(--color-card))] rounded-full p-3 cursor-pointer animate-out'>
+                                    <GoAlertFill className='h-9 w-9 text-amber-500 hover:opacity-80'/>
                                 </div>
-                                <button onClick={handleCancel} className="absolute top-2 right-2 text-red-500 dark:text-red-400 text-xl z-10">
+                                <button onClick={handleCancel} className="absolute top-2 right-2 text-red-500 text-xl z-10">
                                     <IoMdCloseCircle className='h-7 w-7 animate-out' />
                                 </button>
                                 <div className="relative overflow-y-auto h-[140px]">
                                     <div className="flex flex-col items-center justify-center">
-                                        <h2 className="text-2xl/7 p-2 font-bold text-gray-900 dark:text-white sm:truncate sm:text-3xl sm:tracking-tight mb-1 border-b-2 border-slate-300 w-full">
+                                        <h2 className="text-2xl/7 p-2 font-bold text-[rgb(var(--color-text))] sm:truncate sm:text-3xl sm:tracking-tight mb-1 border-b-2 border-slate-300 w-full">
                                             ¿Está seguro de cancelar la captura?
                                         </h2>
-                                        <p className="text-gray-500 dark:text-gray-400">Si cancela la captura, perderán todos los cambios realizados.</p>
+                                        <p className="text-[rgb(var(--color-text))] opacity-80">Si cancela la captura, perderán todos los cambios realizados.</p>
                                     </div>
                                     <div className="flex justify-center px-6 lg:px-8 mt-0.5 sm:mt-3">
                                         <a href='/productivity?load=capture'

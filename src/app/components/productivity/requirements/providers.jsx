@@ -53,7 +53,7 @@ export default function Providers() {
     const nonEmployees = filteredUsers.filter(user => user.empleado !== 1);
 
     return (
-        <div className="bg-gradient-to-b min-h-screen from-white via-gray-100 to-gray-400 dark:from-black dark:via-slate-800 dark:to-stone-700 backdrop-blur-md pt-28">
+        <div className="bg-gradient-to-b min-h-screen from-[rgb(var(--color-bg))] via-[rgb(var(--color-card))] to-[rgb(var(--color-gray))] backdrop-blur-md pt-28">
             <Title
                 title='Proveedores'
                 icon={HiClipboardDocumentList}
@@ -69,18 +69,18 @@ export default function Providers() {
                         onChange={handleSearchChange}
                         className="mb-4 p-2 border border-gray-300 rounded-md w-full"
                     />
-                    <h2 className="text-2xl font-bold text-slate-500 dark:text-white mb-4">Empleados Activos</h2>
+                    <h2 className="text-2xl font-bold text-[rgb(var(--color-text))] mb-4">Empleados Activos</h2>
                     <dl className="grid grid-cols-1 gap-x-6 gap-y-5 lg:max-w-none lg:grid-cols-3 lg:gap-y-8">
                         {employees.map((user) => (
-                            <div key={user.email} className="relative p-4 shadow-md rounded-xl animate-out bg-gray-50 dark:bg-slate-600">
+                            <div key={user.email} className="relative p-4 shadow-md rounded-xl animate-out bg-[rgb(var(--color-card))]">
                                 <span className="absolute flex h-5 w-5 top-0 -left-2">
                                     <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${user.empleado === 1 ? 'bg-green-500' : 'bg-red-500'}`}></span>
                                     <GrStatusGoodSmall className={`relative inline-flex rounded-full h-5 w-5 ${user.empleado === 1 ? 'text-green-500' : 'text-red-500'}`}/>
                                 </span>
-                                <dt className="text-xl font-bold leading-7 text-slate-500 pl-16 dark:text-white">
+                                <dt className="text-xl font-bold leading-7 text-[rgb(var(--color-text))] pl-16">
                                     <div className="absolute left-6 top-6 flex h-10 w-10 items-center justify-center rounded-full shadow-2xl">
                                         {!imgErrors[user.idusuario] ? (
-                                            <div className="flex h-9 w-9 items-center justify-center bg-slate-50 dark:bg-stone-900 border border-slate-300 dark:border-stone-600 hover:bg-slate-100 hover:border-amber-300 dark:hover:border-amber-400 animate-out shadow-lg rounded-full overflow-hidden">
+                                            <div className="flex h-9 w-9 items-center justify-center bg-[rgb(var(--color-card))] border border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-card-white))] hover:border-[rgb(var(--color-amber))] animate-out shadow-lg rounded-full overflow-hidden">
                                                 <img
                                                     src={`${multimediaSrc}usr/${user.idusuario}.jpg`}
                                                     onError={() => handleImageError(user.idusuario)}
@@ -94,23 +94,23 @@ export default function Providers() {
                                     </div>
                                     {user.nombre}
                                 </dt>
-                                <dd className="mt-2 pl-16 text-base leading-7 text-gray-500 dark:text-slate-300 truncate">{user.email}</dd>
-                                <dd className="mt-2 pl-16 text-base leading-7 text-gray-500 dark:text-slate-300">{user.sucursal}</dd>
+                                <dd className="mt-2 pl-16 text-base leading-7 text-[rgb(var(--color-text))] truncate">{user.email}</dd>
+                                <dd className="mt-2 pl-16 text-base leading-7 text-[rgb(var(--color-text))]">{user.sucursal}</dd>
                             </div>
                         ))}
                     </dl>
-                    <h2 className="text-2xl font-bold text-slate-500 dark:text-white mt-8 mb-4">Otros Usuarios</h2>
+                    <h2 className="text-2xl font-bold text-[rgb(var(--color-text))] mt-8 mb-4">Otros Usuarios</h2>
                     <dl className="grid grid-cols-1 gap-x-6 gap-y-5 lg:max-w-none lg:grid-cols-3 lg:gap-y-8">
                         {nonEmployees.map((user) => (
-                            <div key={user.email} className="relative p-4 shadow-md rounded-xl animate-out bg-gray-50 dark:bg-slate-600">
+                            <div key={user.email} className="relative p-4 shadow-md rounded-xl animate-out bg-[rgb(var(--color-card))]">
                                 <span className="absolute flex h-5 w-5 top-0 -left-2">
                                     <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${user.empleado === 1 ? 'bg-green-500' : 'bg-red-500'}`}></span>
                                     <GrStatusGoodSmall className={`relative inline-flex rounded-full h-5 w-5 ${user.empleado === 1 ? 'text-green-500' : 'text-red-500'}`}/>
                                 </span>
-                                <dt className="text-xl font-bold leading-7 text-slate-500 pl-16 dark:text-white">
+                                <dt className="text-xl font-bold leading-7 text-[rgb(var(--color-text))] pl-16">
                                     <div className="absolute left-6 top-6 flex h-10 w-10 items-center justify-center rounded-full shadow-2xl">
                                         {!imgErrors[user.idusuario] ? (
-                                            <div className="flex h-9 w-9 items-center justify-center bg-slate-50 dark:bg-stone-900 border border-slate-300 dark:border-stone-600 hover:bg-slate-100 hover:border-amber-300 dark:hover:border-amber-400 animate-out shadow-lg rounded-full overflow-hidden">
+                                            <div className="flex h-9 w-9 items-center justify-center bg-[rgb(var(--color-card))] border border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-card-white))] hover:border-[rgb(var(--color-amber))] animate-out shadow-lg rounded-full overflow-hidden">
                                                 <img
                                                     src={`${multimediaSrc}usr/${user.idusuario}.jpg`}
                                                     onError={() => handleImageError(user.idusuario)}
@@ -124,8 +124,8 @@ export default function Providers() {
                                     </div>
                                     {user.nombre}
                                 </dt>
-                                <dd className="mt-2 pl-16 text-base leading-7 text-gray-500 dark:text-slate-300 truncate">{user.email}</dd>
-                                <dd className="mt-2 pl-16 text-base leading-7 text-gray-500 dark:text-slate-300">{user.sucursal}</dd>
+                                <dd className="mt-2 pl-16 text-base leading-7 text-[rgb(var(--color-text))] truncate">{user.email}</dd>
+                                <dd className="mt-2 pl-16 text-base leading-7 text-[rgb(var(--color-text))]">{user.sucursal}</dd>
                             </div>
                         ))}
                     </dl>

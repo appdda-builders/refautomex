@@ -162,17 +162,17 @@ export default function LogIn() {
                         </div>
                     </div>
                     {alertMessage && (
-                        <div className="md:rounded-xl bg-gradient-to-br from-orange-400 to-amber-200 dark:from-indigo-950 dark:to-indigo-600 text-center py-4 lg:px-4">
-                            <div className="px-6 md:px-4 p-2 bg-transparent items-center text-stone-900 dark:text-indigo-100 leading-none lg:rounded-full flex lg:inline-flex md:animate-out" role="alert">
+                        <div className="md:rounded-xl bg-gradient-to-br from-[rgb(var(--color-galaxy))] to-[rgb(var(--color-amber))] text-center py-4 lg:px-4">
+                            <div className="px-6 md:px-4 p-2 bg-transparent items-center text-[rgb(var(--color-text))] leading-none lg:rounded-full flex lg:inline-flex md:animate-out" role="alert">
                                 <span className="flex rounded-full bg-red-400 uppercase px-2 py-1 text-xs font-bold mr-3 shadow">Error</span>
                                 <span className="font-semibold mr-2 text-left flex-auto">{alertMessage}</span>
                             </div>
                         </div>
                     )}
                     {alertSuccess && (
-                        <div className="md:rounded-xl bg-gradient-to-br from-orange-400 to-amber-200 dark:from-indigo-950 dark:to-indigo-600 text-center py-4 lg:px-4">
-                            <div className="px-6 md:px-4 p-2 bg-transparent items-center text-stone-900 dark:text-indigo-100 leading-none lg:rounded-full flex lg:inline-flex" role="alert">
-                                <span className="flex rounded-full dark:bg-amber-500 bg-indigo-500 text-white uppercase px-2 py-1 text-xs font-bold mr-3 shadow">Warning</span>
+                        <div className="md:rounded-xl bg-gradient-to-br from-[rgb(var(--color-galaxy))] to-[rgb(var(--color-amber))] text-center py-4 lg:px-4">
+                            <div className="px-6 md:px-4 p-2 bg-transparent items-center text-[rgb(var(--color-text))] leading-none lg:rounded-full flex lg:inline-flex" role="alert">
+                                <span className="flex rounded-full bg-amber-500 text-white uppercase px-2 py-1 text-xs font-bold mr-3 shadow">Warning</span>
                                 <span className="inline-block m-2 text-justify italic">
                                     <b>{alertSuccess}</b>
                                 </span>

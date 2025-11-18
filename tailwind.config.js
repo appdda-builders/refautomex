@@ -1,4 +1,4 @@
-export default {
+const config = {
   darkMode: 'selector',
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
@@ -8,3 +8,5 @@ export default {
   theme: { extend: {} },
   plugins: [],
 };
+
+export default config;

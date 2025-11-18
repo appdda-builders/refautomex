@@ -215,7 +215,7 @@ export default function FormData({ t, formState, setFormState, account }) {
         <div className="grid grid-cols-1 gap-x-8 gap-y-3">
             {/* Name */}
             <div className="sm:col-span-2">
-            <label htmlFor="name" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+            <label htmlFor="name" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                 {t('invoice.name')}
             </label>
             <div className="mt-2.5">
@@ -238,7 +238,7 @@ export default function FormData({ t, formState, setFormState, account }) {
 
             {/* RFC */}
             <div className="sm:col-span-2">
-            <label htmlFor="rfc" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+            <label htmlFor="rfc" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                 {t('invoice.rfc')}
             </label>
             <div className="mt-2.5">
@@ -261,7 +261,7 @@ export default function FormData({ t, formState, setFormState, account }) {
 
             {/* Email */}
             <div className="sm:col-span-2">
-            <label htmlFor="email" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+            <label htmlFor="email" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                 {t('invoice.email')}
             </label>
             <div className="mt-2.5">
@@ -284,7 +284,7 @@ export default function FormData({ t, formState, setFormState, account }) {
 
             {/* Phone */}
             <div className="sm:col-span-2">
-            <label htmlFor="phone" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+            <label htmlFor="phone" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                 {t('invoice.phone')}
             </label>
             <div className="mt-2.5">
@@ -307,7 +307,7 @@ export default function FormData({ t, formState, setFormState, account }) {
 
             {/* Address (Google Places) */}
             <div className="sm:col-span-2">
-            <label htmlFor="direction" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+            <label htmlFor="direction" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                 {t('invoice.direction')}
             </label>
             <div className="mt-2.5">
@@ -323,7 +323,7 @@ export default function FormData({ t, formState, setFormState, account }) {
 
             {/* CP */}
             <div className="sm:col-span-2">
-            <label htmlFor="PC" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+            <label htmlFor="PC" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                 {t('invoice.PC')}
             </label>
             <div className="mt-2.5">
@@ -345,8 +345,8 @@ export default function FormData({ t, formState, setFormState, account }) {
             </div>
 
             {/* CFDI */}
-            <div className="sm:col-span-2 border-t-2 dark:border-gray-500 pt-6">
-            <label htmlFor="CFDI" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+            <div className="sm:col-span-2 border-t-2 border-[rgb(var(--color-border))] pt-6">
+            <label htmlFor="CFDI" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                 {t('invoice.CFDI')}
             </label>
             <div className={`mt-2.5 ${invalidWrapper(!!errorMessages.CFDI)}`}>
@@ -365,7 +365,7 @@ export default function FormData({ t, formState, setFormState, account }) {
 
             {/* Regimen */}
             <div className="sm:col-span-2">
-            <label htmlFor="regimen" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+            <label htmlFor="regimen" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                 {t('invoice.regime')}
             </label>
             <div className={`mt-2.5 ${invalidWrapper(!!errorMessages.regime)}`}>
@@ -384,10 +384,10 @@ export default function FormData({ t, formState, setFormState, account }) {
 
             {/* Ticket */}
             <div className="sm:col-span-2">
-                <label htmlFor="ticket" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+                <label htmlFor="ticket" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                     {t('invoice.ticket')}
                 </label>
-                <span className='text-stone-600 dark:text-stone-200 text-xs'>Completo i.e: T-000001, contáctanos en caso necesario.</span>
+                <span className='text-[rgb(var(--color-text))] opacity-80 text-xs'>Completo i.e: T-000001, contáctanos en caso necesario.</span>
                 <div className="mt-2.5">
                     <input
                     type="text"

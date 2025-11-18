@@ -480,16 +480,16 @@ app.patch('/api/patchUser', (req, res) => {
 app.patch('/api/patchProduct', (req, res) => {
     const {
         refaccion, idsucursal, localizacion, descripcion, existencia, costo, precio,
-        utilidad, mod_ini, mod_fin, idmarca
+        utilidad, mod_ini, mod_fin, idmarca, rutas
     } = req.body;
 
     console.log('Request data:', req.body); // Para depurar los datos enviados
 
     // Query para llamar al procedimiento almacenado
-    const query = `CALL UpdateProductAndDetail(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+    const query = `CALL UpdateProductAndDetail(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
     const params = [
         refaccion, idsucursal, localizacion, descripcion, existencia, costo,
-        precio, utilidad, mod_ini, mod_fin, idmarca
+        precio, utilidad, mod_ini, mod_fin, idmarca, rutas
     ];
 
     // Ejecutar el procedimiento almacenado

@@ -6,7 +6,7 @@ import { BiSolidUserCircle } from 'react-icons/bi';
 import { MdEdit, MdSave } from 'react-icons/md';
 import { useTranslation } from 'react-i18next';
 import GooglePlacesAutocomplete from '@/app/components/principal/account/google-places';
-import AWS from 'aws-sdk';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import axios from 'axios';
 import { FaStarHalfAlt } from 'react-icons/fa';
 
@@ -60,7 +60,7 @@ export default function Settings() {
         setEditable(!isEditable);
     };
 
-    const handleSaveImage = () => {
+    const handleSaveImage = async () => {
         setMediaUploading(true);
         setIsSaving(true);
         if (!profile) {
@@ -70,32 +70,31 @@ export default function Settings() {
             return;
         }
 
-        AWS.config.update({
-            accessKeyId: access_key_id,
-            secretAccessKey: secret_access_key,
-            region: 'us-east-1'
+        const s3 = new S3Client({
+            region: 'us-east-1',
+            credentials: {
+                accessKeyId: access_key_id,
+                secretAccessKey: secret_access_key,
+            },
         });
 
-        const s3 = new AWS.S3();
-
-        let file_data = {
+        const uploadParams = {
             Bucket: 'refautomex',
             Key: `usr/${idUsuario}.jpg`,
             Body: profile,
-            ContentType: 'image/jpeg'
+            ContentType: 'image/jpeg',
         };
 
-        s3.upload(file_data, function(err, data) {
-            if (err) {
-                setProfileError('Error al subir imagen. Por favor intenta de nuevo.');
-                console.error('Error al subir imagen:', err);
-            } else {
-                setProfileSuccess('Imagen guardada correctamente.');
-                console.log('Imagen guardada:', data);
-            }
+        try {
+            await s3.send(new PutObjectCommand(uploadParams));
+            setProfileSuccess('Imagen guardada correctamente.');
+        } catch (err) {
+            setProfileError('Error al subir imagen. Por favor intenta de nuevo.');
+            console.error('Error al subir imagen:', err);
+        } finally {
             setMediaUploading(false);
             setIsSaving(false);
-        });
+        }
     };
 
     const patchUserInfo = async (e) => {
@@ -157,7 +156,7 @@ export default function Settings() {
         };
 
         try {
-            const response = await axios.patch(`/api/dataManage?type=patchUser&id=${idUsuario}`, user_data, {
+            const response = await axios.patch(buildApiUrl('/patchUser'), user_data, {
                 headers: {
                     'Content-Type': 'application/json'
                 }
@@ -214,17 +213,17 @@ export default function Settings() {
                     </div>
                 </div>
             )}
-            <div className="bg-gradient-to-b min-h-screen from-white via-gray-50 to-gray-200 dark:from-black dark:via-stone-900 dark:to-gray-600 backdrop-blur-md pt-28">
+            <div className="bg-gradient-to-b min-h-screen from-[rgb(var(--color-bg))] via-[rgb(var(--color-card))] to-[rgb(var(--color-galaxy))] backdrop-blur-md pt-28">
                 <form className="space-y-8" onSubmit={patchUserInfo}>
-                    <div className="space-y-4 max-w-3xl mx-auto px-12 divide-y dark:divide-gray-200 divide-stone-500">
+                    <div className="space-y-4 max-w-3xl mx-auto px-12 divide-y divide-[rgb(var(--color-border))]">
                         <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                             <div className="sm:col-span-full sm:col-start mt-4 flex flex-col justify-center items-center">
-                                <label htmlFor="profile" className="block text-xl font-bold leading-6 text-gray-900 bg-slate-200 dark:bg-stone-600 dark:text-gray-100 p-4 rounded-full">
+                                <label htmlFor="profile" className="block text-xl font-bold leading-6 text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] p-4 rounded-full">
                                     {t('account.photo')}
                                 </label>
                                 <div className="mt-2 mx-auto flex flex-col justify-center items-center relative ">
                                     <div className="flex flex-col justify-end h-[340px] sm:h-[300px]">
-                                        <div className="flex h-52 w-52 items-center justify-center bg-slate-50 dark:bg-stone-900 border border-slate-300 dark:border-stone-600 hover:bg-slate-100 hover:border-amber-300 dark:hover:border-amber-400 animate-out shadow-lg rounded-full overflow-hidden">
+                                        <div className="flex h-52 w-52 items-center justify-center bg-[rgb(var(--color-card))] border border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-card-white))] hover:border-[rgb(var(--color-amber))] animate-out shadow-lg rounded-full overflow-hidden">
                                             {profile ? (
                                                 <img
                                                     src={URL.createObjectURL(profile)}
@@ -233,14 +232,14 @@ export default function Settings() {
                                                 />
                                             ) : (
                                                 userData && !imageError ? (
-                                                    <img 
+                                                    <img
                                                         src={`${multimediaSrc}usr/${userData.idusuario}.jpg`}
                                                         alt="profile"
                                                         className="w-full h-full object-cover"
                                                         onError={handleImageError}
                                                     />
                                                 ) : (
-                                                    <BiSolidUserCircle className="w-32 h-32 my-auto animate-up dark:text-zinc-100" />
+                                                    <BiSolidUserCircle className="w-32 h-32 my-auto animate-up text-[rgb(var(--color-text))]" />
                                                 )
                                             )}
                                         </div>
@@ -265,7 +264,7 @@ export default function Settings() {
                                 </div>
                             </div>
                             <div className='sm:col-span-full'>
-                                <div className="flex flex-row justify-between items-center mx-auto max-w-3xl px-6 lg:px-8 bg-slate-200 dark:bg-stone-600 dark:text-gray-100 py-2 rounded-md">
+                                <div className="flex flex-row justify-between items-center mx-auto max-w-3xl px-6 lg:px-8 bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] py-2 rounded-md shadow shadow-[rgb(var(--color-galaxy))]">
                                     <p className='font-bold text-xl '>{t('account.info')}</p>
                                     <div className='w-10 h-10 flex justify-center items-center'>
                                         <button onClick={toggleEdit} className="h-10 w-10 inline-flex justify-center items-center rounded-full bg-amber-400 shadow-md text-white">
@@ -279,7 +278,7 @@ export default function Settings() {
                                 </div>
                             </div>
                             <div className="sm:col-span-3 sm:col-start">
-                                <label htmlFor="name" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="name" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.name')}
                                 </label>
                                 <div className="mt-2">
@@ -297,7 +296,7 @@ export default function Settings() {
                                 </div>
                             </div>
                             <div className="sm:col-span-3">
-                                <label htmlFor="lastname" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="lastname" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.lastname')}
                                 </label>
                                 <div className="mt-2">
@@ -315,7 +314,7 @@ export default function Settings() {
                                 </div>
                             </div>
                             <div className="sm:col-span-3">
-                                <label htmlFor="phone" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="phone" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.phone')}
                                 </label>
                                 <div className="mt-2">
@@ -333,7 +332,7 @@ export default function Settings() {
                                 </div>
                             </div>
                             <div className="sm:col-span-3">
-                                <label htmlFor="rfc" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="rfc" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     RFC
                                 </label>
                                 <div className="mt-2">
@@ -351,7 +350,7 @@ export default function Settings() {
                                 </div>
                             </div>
                             <div className="sm:col-span-3">
-                                <label htmlFor="birthDate" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="birthDate" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.birthdate')}
                                 </label>
                                 <div className="mt-2">
@@ -365,7 +364,7 @@ export default function Settings() {
                                 </div>
                             </div>
                             <div className="sm:col-span-3">
-                                <label htmlFor="gender" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="gender" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.gener')}
                                 </label>
                                 <div>
@@ -386,7 +385,7 @@ export default function Settings() {
                                 </div>
                             </div>
                             <div className="sm:col-span-full">
-                                <label htmlFor="email" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="email" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.mail')}
                                 </label>
                                 <div className="mt-2">
@@ -403,7 +402,7 @@ export default function Settings() {
                             </div>
                             {isEditable && (
                             <div className="sm:col-span-full">
-                                <label htmlFor="placeId" className="block font-medium leading-6 text-gray-900 dark:text-gray-200">
+                                <label htmlFor="placeId" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.address')}
                                 </label>
                                 <div className="mt-2 relative">
@@ -424,7 +423,7 @@ export default function Settings() {
                                     </div>
                                 </div>
                             ) : (
-                                <button type="submit" className='cursor-pointer bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer'>
+                                <button type="submit" className='cursor-pointer bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105'>
                                     {isLoading ? t('account.btnUpdating') : t('account.btnUpdate')}
                                 </button>
                             )}

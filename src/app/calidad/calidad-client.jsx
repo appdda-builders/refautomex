@@ -12,7 +12,7 @@ import ShiftModeButton from '@/app/components/principal/shiftmode-button';
 export default function CalidadClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated } = useContext(AuthContext);
+  const { isAuthenticated, authStatusChecked } = useContext(AuthContext);
 
   const lang = searchParams.get('lang') || 'es';
   const load = searchParams.get('load') || 'log-in';
@@ -27,10 +27,10 @@ export default function CalidadClient() {
   }, [load]);
 
   useEffect(() => {
-    if (isAuthenticated === true) {
-      router.replace(`/productivity?lang=${lang}`);
+    if (authStatusChecked && isAuthenticated === true) {
+      router.replace(`/productivity?load=${load}&lang=${lang}`);
     }
-  }, [isAuthenticated, lang, router]);
+  }, [authStatusChecked, isAuthenticated, lang, load, router]);
 
   if (isAuthenticated === true) return <Spinner />;
 

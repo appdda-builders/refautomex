@@ -416,7 +416,7 @@ export default function SignUp() {
                             </div>
                         </div>
                         {alertMessage && !isLoading && (
-                            <div className="dark:text-red-200 text-red-700 px-6 py-2 border-0 rounded relative bg-[rgb(var(--color-gray))] max-w-xl mx-auto">
+                            <div className="text-red-700 px-6 py-2 border-0 rounded relative bg-[rgb(var(--color-gray))] max-w-xl mx-auto">
                                 <span className="text-xl inline-block mr-5 align-middle">
                                     <i className="fas fa-bell" />
                                 </span>

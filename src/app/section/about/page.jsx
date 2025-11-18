@@ -1,7 +1,8 @@
 import About from "./about";
 
-export function generateMetadata({ searchParams }) {
-    const lang = searchParams.lang || "es";
+export async function generateMetadata({ searchParams }) {
+    const params = await searchParams;
+    const lang = (params && params.lang) || "es";
     return {
         title: lang === "en" ? "Refautomex | About" : "Refautomex | Nosotros",
         description:

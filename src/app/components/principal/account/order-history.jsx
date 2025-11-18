@@ -66,16 +66,16 @@ export default function OrderHistory(){
                                 <img className="h-24 w-24 object-cover object-center group-hover:opacity-75" src={product.imageUrl} alt={product.name} />
                             </div>
                             <div className="flex-1 px-4">
-                                <p className="text-lg font-semibold dark:text-gray-50">{product.name}</p>
-                                <p className="text-gray-600 dark:text-gray-300">{product.description}</p>
+                                <p className="text-lg font-semibold text-[rgb(var(--color-text))]">{product.name}</p>
+                                <p className="text-[rgb(var(--color-text))] opacity-80">{product.description}</p>
                                 <div className="flex mt-2">
                                     <button className="text-yellow-500 hover:underline">View Product</button>
                                     <button className="text-yellow-500 hover:underline ml-4">Buy Again</button>
                                 </div>
                             </div>
                             <div className="text-right">
-                                <div className="text-lg dark:text-gray-50">{product.price}</div>
-                                <div className="text-sm shadow text-gray-500 dark:text-gray-200 p-1.5 bg-gray-100 dark:bg-slate-500 rounded-full">{product.status}</div>
+                                <div className="text-lg text-[rgb(var(--color-text))]">{product.price}</div>
+                                <div className="text-sm shadow text-[rgb(var(--color-text))] p-1.5 bg-[rgb(var(--color-card))] rounded-full">{product.status}</div>
                             </div>
                         </div>
                     ))*/}

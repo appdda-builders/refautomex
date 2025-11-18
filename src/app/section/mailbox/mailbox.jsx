@@ -98,14 +98,14 @@ export default function Mailbox() {
     };
 
     return (
-        <div className="isolate bg-white dark:bg-slate-950 px-6 py-24 sm:py-32 lg:px-8">
+        <div className="isolate bg-[rgb(var(--color-bg))] px-6 py-24 sm:py-32 lg:px-8">
             <MetaHead title="Mailbox"/>
             <div
                 className="absolute inset-x-0 top-[-10rem] -z-10 transform-gpu overflow-hidden blur-3xl sm:top-[-20rem]"
                 aria-hidden="true"
             >
                 <div
-                className="relative left-1/2 -z-10 aspect-[1155/678] w-[36.125rem] max-w-none -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr dark:from-[#ff80b5] dark:to-[#9089fc] from-[#083a82] to-[#fce989] opacity-30 sm:left-[calc(50%-40rem)] sm:w-[72.1875rem]"
+                className="relative left-1/2 -z-10 aspect-[1155/678] w-[36.125rem] max-w-none -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[rgb(var(--color-blue))] to-[rgb(var(--color-galaxy))] opacity-30 sm:left-[calc(50%-40rem)] sm:w-[72.1875rem]"
                 style={{
                     clipPath:
                     'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)',
@@ -113,8 +113,8 @@ export default function Mailbox() {
                 />
             </div>
             <div className="mx-auto max-w-2xl text-center mt-10">
-                <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-slate-100 sm:text-4xl">{t('mailbox.title')}</h2>
-                <p className="mt-2 text-lg leading-8 text-gray-600 dark:text-gray-50">
+                <h2 className="text-3xl font-bold tracking-tight text-[rgb(var(--color-text))] sm:text-4xl">{t('mailbox.title')}</h2>
+                <p className="mt-2 text-lg leading-8 text-[rgb(var(--color-text))] opacity-80">
                 {t('mailbox.subtitle')}
                 </p>
                 <div role="alert" className="mt-4 text-xl bg-zinc-200 shadow-md opacity-90 p-2 rounded-md w-full">
@@ -125,7 +125,7 @@ export default function Mailbox() {
             <form onSubmit={handleSubmit} method="POST" className="mx-auto mt-10 max-w-xl sm:mt-14">
                 <div className="grid grid-cols-1 gap-x-8 gap-y-6">
                 <div className="sm:col-span-2">
-                    <label htmlFor="full-name" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+                    <label htmlFor="full-name" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                     {t('mailbox.name')}
                     </label>
                     <div className="mt-2.5">
@@ -133,13 +133,13 @@ export default function Mailbox() {
                         className={`
                         ${errorMessages.name ? "bg-red-200" : ""}
                         ${isSuccessfull ? "bg-stone-400 bg-opacity-70" : ""}
-                        block w-full rounded-md border-0 py-2 p-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6
+                        block w-full rounded-md border-0 py-2 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-[rgb(var(--color-border))] placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-[rgb(var(--color-bg))]
                         `}
                     />
                     </div>
                 </div>
                 <div className="sm:col-span-2">
-                    <label htmlFor="email" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+                    <label htmlFor="email" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                     {t('mailbox.email')}
                     </label>
                     <div className="mt-2.5">
@@ -147,13 +147,13 @@ export default function Mailbox() {
                         className={`
                         ${errorMessages.email ? "bg-red-200" : ""}
                         ${isSuccessfull ? "bg-stone-400 bg-opacity-70" : ""}
-                        block w-full rounded-md border-0 py-2 p-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6
+                        block w-full rounded-md border-0 py-2 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-[rgb(var(--color-border))] placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-[rgb(var(--color-bg))]
                         `}
                     />
                     </div>
                 </div>
                 <div className="sm:col-span-2">
-                    <label htmlFor="message" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+                    <label htmlFor="message" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                     {t('mailbox.message')}
                     </label>
                     <div className="mt-2.5">
@@ -163,7 +163,7 @@ export default function Mailbox() {
                         className={`
                         ${errorMessages.message ? "bg-red-200" : ""}
                         ${isSuccessfull ? "bg-stone-400 bg-opacity-70" : ""}
-                        block w-full rounded-md border-0 py-2 p-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6
+                        block w-full rounded-md border-0 py-2 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-[rgb(var(--color-border))] placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-[rgb(var(--color-bg))]
                         `}
                     />
                     </div>
@@ -175,7 +175,7 @@ export default function Mailbox() {
                         onChange={setAgreed}
                         disabled={isSuccessfull}
                         className={classNames(
-                        agreed ? 'bg-amber-400' : 'bg-gray-200',
+                        agreed ? 'bg-amber-400' : 'bg-[rgb(var(--color-card))]',
                         'flex w-8 flex-none cursor-pointer rounded-full p-px ring-1 ring-inset ring-gray-900/5 transition-colors duration-200 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
                         )}
                     >
@@ -190,7 +190,7 @@ export default function Mailbox() {
                         />
                     </Switch>
                     </div>
-                    <Switch.Label className="text-sm leading-6 text-gray-600 dark:text-gray-50 font-bold">
+                    <Switch.Label className="text-sm leading-6 text-[rgb(var(--color-text))] font-bold">
                     {t('mailbox.agree')}
                     </Switch.Label>
                 </Switch.Group>

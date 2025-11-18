@@ -1,8 +1,58 @@
+'use client';
 import { MdDelete, MdAddPhotoAlternate } from 'react-icons/md';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Select from 'react-select';
 import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
+import heic2any from 'heic2any';
+
+const getAbsoluteApiUrl = (path) => {
+    const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    return new URL(buildApiUrl(path), base);
+};
+const sanitizeFileName = (name = '') => {
+    const cleaned = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9._-]/g, '');
+    return cleaned || 'imagen.jpg';
+};
+
+const slugifyRefaccion = (value = '') => value.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'producto';
+
+const getFileExtension = (file) => {
+    if (file?.name) {
+        const match = file.name.toLowerCase().match(/\.([a-z0-9]+)$/);
+        if (match) return match[1];
+    }
+    if (file?.type) {
+        if (file.type.includes('jpeg')) return 'jpg';
+        if (file.type.includes('png')) return 'png';
+        if (file.type.includes('webp')) return 'webp';
+        if (file.type.includes('gif')) return 'gif';
+    }
+    return 'jpg';
+};
+
+const buildStandardFilename = ({ refaccion, timestamp, index, extension }) => {
+    const slug = slugifyRefaccion(refaccion);
+    return sanitizeFileName(`upload_${slug}_${timestamp}_${index}.${extension}`);
+};
+
+const parseRoutes = (raw) => {
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (typeof raw === 'string' && raw.trim()) {
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+};
+
+const buildImageSrc = (multimediaSrc = '', route) => {
+    if (!route) return `${multimediaSrc}productos/no-img.png`;
+    return route.startsWith('http') ? route : `${multimediaSrc}${route}`;
+};
 
 export default function EditRegistry({ prodOverview, onCancelEdit, setProdOverview }) {
     const multimediaSrc = process.env.NEXT_PUBLIC_S3;
@@ -26,12 +76,70 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
     });
 
     const defaultProdOverview = {
-        rutas: ['productos/no-img.png'],
+        rutas: [],
     };
 
     const currentProduct = prodOverview || defaultProdOverview;
-    const rutasArray = currentProduct.rutas && currentProduct.rutas.length > 0 ? currentProduct.rutas : ['productos/no-img.png'];
-    const [selectedImage, setSelectedImage] = useState(`${multimediaSrc}productos/no-img.png`);
+    const normalizedRoutes = parseRoutes(currentProduct.rutas);
+    const [imageRoutes, setImageRoutes] = useState(normalizedRoutes);
+    const [pendingImages, setPendingImages] = useState([]);
+    const pendingImagesRef = useRef([]);
+    const [selectedImage, setSelectedImage] = useState(
+        normalizedRoutes.length > 0
+            ? buildImageSrc(multimediaSrc, normalizedRoutes[0])
+            : `${multimediaSrc}productos/no-img.png`
+    );
+    const [mediaUploading, setMediaUploading] = useState(false);
+    const [imageFeedback, setImageFeedback] = useState({ error: '', success: '' });
+    const fileInputRef = useRef(null);
+
+    const revokePreviewUrl = (image) => {
+        if (image?.previewUrl) {
+            URL.revokeObjectURL(image.previewUrl);
+        }
+    };
+
+    useEffect(() => {
+        pendingImagesRef.current = pendingImages;
+    }, [pendingImages]);
+
+    useEffect(() => {
+        return () => {
+            pendingImagesRef.current.forEach(revokePreviewUrl);
+        };
+    }, []);
+
+    useEffect(() => {
+        const updatedRoutes = parseRoutes(prodOverview?.rutas);
+        setImageRoutes(updatedRoutes);
+        setPendingImages(prev => {
+            prev.forEach(revokePreviewUrl);
+            return [];
+        });
+        const initialImage = updatedRoutes.length > 0
+            ? buildImageSrc(multimediaSrc, updatedRoutes[0])
+            : `${multimediaSrc}productos/no-img.png`;
+        setSelectedImage(initialImage);
+    }, [prodOverview, multimediaSrc]);
+
+    useEffect(() => {
+        const existingUrls = imageRoutes.map(route => buildImageSrc(multimediaSrc, route));
+        const pendingUrls = pendingImages.map(image => image.previewUrl);
+        const placeholder = `${multimediaSrc}productos/no-img.png`;
+        const knownUrls = new Set([...existingUrls, ...pendingUrls, placeholder]);
+
+        if (knownUrls.has(selectedImage)) {
+            return;
+        }
+
+        if (existingUrls.length > 0) {
+            setSelectedImage(existingUrls[0]);
+        } else if (pendingUrls.length > 0) {
+            setSelectedImage(pendingUrls[0]);
+        } else {
+            setSelectedImage(placeholder);
+        }
+    }, [imageRoutes, pendingImages, multimediaSrc, selectedImage]);
 
     const handleBrandChange = (selectedOption) => {
         setProdOverview(prevState => ({ ...prevState, idmarca: selectedOption.value }));
@@ -50,6 +158,169 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
         const price = Math.round(cost * currentProduct.utilidad);
         setProdOverview(prevState => ({ ...prevState, precio: price }));
         setProdOverview(prevState => ({ ...prevState, costo : cost }));
+    };
+
+    const normalizeImageFile = async (file) => {
+        if (!file) throw new Error('Archivo inválido.');
+        if (!file.type || !file.type.startsWith('image/')) {
+            throw new Error('Selecciona únicamente archivos de imagen.');
+        }
+        if (file.type === 'image/heic' || file.type === 'image/heif') {
+            const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg' });
+            const newFile = new File([convertedBlob], `${file.name.split('.')[0]}.jpg`, { type: 'image/jpeg' });
+            return { file: newFile, contentType: 'image/jpeg' };
+        }
+        return { file, contentType: file.type || 'image/jpeg' };
+    };
+
+    const updateRoutesState = (routes = []) => {
+        setImageRoutes(routes.filter(Boolean));
+    };
+
+    const handleImageInputChange = async (event) => {
+        const files = Array.from(event.target.files || []);
+        if (files.length === 0) return;
+
+        setMediaUploading(true);
+        setImageFeedback({ error: '', success: '' });
+
+        try {
+            const preparedFiles = [];
+            const timestamp = Date.now();
+            const refaccionSlug = currentProduct.refaccion || 'producto';
+            for (let i = 0; i < files.length; i += 1) {
+                const file = files[i];
+                const { file: normalizedFile } = await normalizeImageFile(file);
+                const extension = getFileExtension(normalizedFile);
+                const standardName = buildStandardFilename({
+                    refaccion: refaccionSlug,
+                    timestamp,
+                    index: i + 1,
+                    extension,
+                });
+                preparedFiles.push({
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                    file: normalizedFile,
+                    name: standardName,
+                    previewUrl: URL.createObjectURL(normalizedFile),
+                });
+            }
+            setPendingImages(prev => [...prev, ...preparedFiles]);
+            if (preparedFiles[0]) {
+                setSelectedImage(preparedFiles[0].previewUrl);
+            }
+            setImageFeedback({ error: '', success: 'Imagen agregada. Guarda el producto para subirla.' });
+        } catch (error) {
+            console.error('Error preparando imágenes:', error);
+            setImageFeedback({ error: 'No se pudo preparar la imagen. Intenta nuevamente.', success: '' });
+        } finally {
+            setMediaUploading(false);
+            if (event.target) {
+                event.target.value = '';
+            }
+        }
+    };
+
+    const clearPendingImages = () => {
+        setPendingImages(prev => {
+            prev.forEach(revokePreviewUrl);
+            return [];
+        });
+    };
+
+    const handleRemovePendingImage = (imageId) => {
+        setPendingImages(prev => {
+            const target = prev.find(image => image.id === imageId);
+            if (target) {
+                revokePreviewUrl(target);
+            }
+            return prev.filter(image => image.id !== imageId);
+        });
+    };
+
+    const uploadPendingImages = async () => {
+        const uploadedKeys = [];
+        for (const pending of pendingImages) {
+            const refaccion = currentProduct.refaccion || 'producto';
+            const formData = new FormData();
+            formData.append('file', pending.file);
+            formData.append('refaccion', refaccion);
+            formData.append('filename', pending.name);
+
+            const response = await fetch('/api/upload-product-image', {
+                method: 'POST',
+                body: formData,
+            });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Error al subir la imagen.');
+            }
+            const data = await response.json();
+            if (!data.key) {
+                throw new Error('Respuesta inválida al subir la imagen.');
+            }
+            uploadedKeys.push(data.key);
+        }
+        return uploadedKeys;
+    };
+
+    const deleteUploadedKeys = async (keys = []) => {
+        if (!keys.length) return;
+        await Promise.all(
+            keys.map(async (key) => {
+                try {
+                    await fetch(`/api/upload-product-image?key=${encodeURIComponent(key)}`, {
+                        method: 'DELETE',
+                    });
+                } catch (error) {
+                    console.error('Error eliminando imagen subida:', error);
+                }
+            })
+        );
+    };
+
+    const triggerImageUpload = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
+        }
+    };
+
+    const promoteExistingImage = (route) => {
+        setImageRoutes(prev => {
+            const without = prev.filter(r => r !== route);
+            return [route, ...without];
+        });
+        setProdOverview(prev => {
+            const nextRoutes = [route, ...prev.rutas.filter(r => r !== route)];
+            return { ...prev, rutas: nextRoutes };
+        });
+    };
+
+    const promotePendingImage = (imageId) => {
+        setPendingImages(prev => {
+            const target = prev.find(image => image.id === imageId);
+            if (!target) return prev;
+            const without = prev.filter(image => image.id !== imageId);
+            return [target, ...without];
+        });
+    };
+
+    const handleExistingImageClick = (route) => {
+        if (!route) return;
+        promoteExistingImage(route);
+        setSelectedImage(buildImageSrc(multimediaSrc, route));
+    };
+
+    const handlePendingImageClick = (imageId, previewUrl) => {
+        promotePendingImage(imageId);
+        setSelectedImage(previewUrl);
+    };
+
+    const handleRemoveImage = (route) => {
+        if (!route) return;
+        const updatedRoutes = imageRoutes.filter(existingRoute => existingRoute !== route);
+        updateRoutesState(updatedRoutes);
+        setImageFeedback({ error: '', success: 'Imagen eliminada de la lista. Guarda para aplicar cambios.' });
     };
 
     const validateSubmit = async () => {
@@ -88,19 +359,27 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                 idsucursal: currentProduct.idsucursal,
                 num_parte: prodOverview.refaccion
             };
-            // Llamada al backend
-            const response = await axios.get(buildApiUrl('/dataManage'), {
-                params: {
-                    type: 'verifyLocation', // Tipo de operación
-                    params: JSON.stringify(params), // Convertir a JSON
-                },
+            const url = getAbsoluteApiUrl('/dataManage');
+            url.searchParams.set('type', 'verifyLocation');
+            url.searchParams.set('params', JSON.stringify(params));
+
+            const response = await fetch(url.toString(), {
+                method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
                 },
+                cache: 'no-store',
             });
-            // Verificar respuesta del servidor
-            if (response.data.exists) {
-                newErrorMessages.localizacion = response.data.message; // Mensaje dinámico del servidor
+            if (response.status === 404) {
+                console.warn('verifyLocation endpoint no disponible. Se omitirá la validación remota.');
+                return { isValid, newErrorMessages };
+            }
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+            const data = await response.json();
+            if (data.exists) {
+                newErrorMessages.localizacion = data.message || 'Localización ya ocupada.';
                 isValid = false;
             }
         } catch (error) {
@@ -124,45 +403,63 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
             return;
         }
 
-        // Preparar datos para actualizar
-        const update_data = {
-            refaccion: currentProduct.refaccion,
-            sucursal: currentProduct.sucursal,
-            localizacion: prodOverview.localizacion,
-            descripcion: prodOverview.descripcion,
-            existencia: prodOverview.existencia,
-            costo: parseFloat(prodOverview.costo).toFixed(2),
-            precio: parseFloat(prodOverview.precio).toFixed(2),
-            utilidad: prodOverview.utilidad,
-            mod_ini: prodOverview.mod_ini,
-            mod_fin: prodOverview.mod_fin,
-            idmarca: prodOverview.idmarca,
-            idsucursal: currentProduct.idsucursal,
-        };
-
-        // Intentar enviar la actualización
+        let uploadedKeys = [];
         try {
-            const response = await axios.patch(`/api/dataManage?type=patchProduct`, update_data, {
+            if (pendingImages.length > 0) {
+                setMediaUploading(true);
+                setImageFeedback({ error: '', success: 'Subiendo imágenes pendientes...' });
+                uploadedKeys = await uploadPendingImages();
+            }
+
+            const existing = imageRoutes.filter(Boolean);
+            const mergedRoutes = [...existing, ...uploadedKeys];
+
+            console.log('Merged routes before patch:', mergedRoutes);
+            const update_data = {
+                refaccion: currentProduct.refaccion,
+                sucursal: currentProduct.sucursal,
+                localizacion: prodOverview.localizacion,
+                descripcion: prodOverview.descripcion,
+                existencia: prodOverview.existencia,
+                costo: parseFloat(prodOverview.costo).toFixed(2),
+                precio: parseFloat(prodOverview.precio).toFixed(2),
+                utilidad: prodOverview.utilidad,
+                mod_ini: prodOverview.mod_ini,
+                mod_fin: prodOverview.mod_fin,
+                idmarca: prodOverview.idmarca,
+                idsucursal: currentProduct.idsucursal,
+                rutas: JSON.stringify(mergedRoutes),
+            };
+
+            console.log('PatchProduct payload:', update_data);
+            const response = await axios.patch(buildApiUrl('/patchProduct'), update_data, {
                 headers: {
                     'Content-Type': 'application/json',
                 },
             });
-            console.log('Respuesta del servidor:', response.data);
+            console.log('PatchProduct response:', response.status, response.data);
             setSuccessMessage('Registro actualizado exitosamente.');
             setErrorMessages({});
+            clearPendingImages();
+            updateRoutesState(mergedRoutes);
+            setProdOverview(prev => ({
+                ...(prev || {}),
+                rutas: mergedRoutes,
+            }));
+            setImageFeedback({ error: '', success: '' });
         } catch (error) {
+            if (uploadedKeys.length > 0) {
+                await deleteUploadedKeys(uploadedKeys);
+            }
             setErrorMessage('Hubo un error al guardar los datos. Intenta de nuevo.');
+            setImageFeedback({ error: 'No se pudieron guardar las imágenes. Revisa la conexión e intenta nuevamente.', success: '' });
             console.error('Error submitting the form:', error);
+        } finally {
+            setMediaUploading(false);
         }
     };
 
     useEffect(() => {
-        if (!currentProduct.rutas || currentProduct.rutas.length === 0 || !currentProduct.rutas[0]) {
-            setSelectedImage(`${multimediaSrc}productos/no-img.png`);
-        } else {
-            setSelectedImage(`${multimediaSrc}${rutasArray[0]}`);
-        }
-
         const fetchBrand = async () => {
             try {
                 const response = await axios.get(buildApiUrl('/getBrands'));
@@ -198,6 +495,14 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
             <div className="md:px-20 py-10">
                 <div className="flex flex-col xl:flex-row">
                     <div className="flex-1 flex flex-col xl:flex-row items-center my-auto">
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={handleImageInputChange}
+                        />
                         <div className="overflow-hidden rounded-3xl shadow-xl bg-gray-200 h-[250px] w-[250px] sm:h-[350px] sm:w-[350px] xl:w-[400px] xl:h-[400px]">
                             <img
                                 src={selectedImage}
@@ -206,48 +511,96 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                             />
                         </div>
                         <div className="flex flex-row xl:flex-col justify-center items-center xl:m-10 m-2">
-                            <div
-                                className='flex justify-center items-center my-2 opacity-80 hover:opacity-100 w-16 h-16 object-cover cursor-pointer rounded-xl mr-2 dark:bg-stone-950 bg-stone-300 border-stone-500 border border-dashed hover:animate-out'
-                                onClick={() => setSelectedImage(`${multimediaSrc}productos/no-img.png`)}
+                            <button
+                                type="button"
+                                onClick={triggerImageUpload}
+                                disabled={mediaUploading}
+                                className='flex justify-center items-center my-2 opacity-80 hover:opacity-100 w-16 h-16 object-cover cursor-pointer rounded-xl mr-2 bg-[rgb(var(--color-card))] border-[rgb(var(--color-border))] border border-dashed hover:animate-out disabled:cursor-not-allowed disabled:opacity-50'
+                                title='Agregar fotos'
                             >
                                 <MdAddPhotoAlternate className='h-10 w-10' />
-                            </div>
-                            {rutasArray.map((ruta, index) => {
-                                const imagePath = ruta ? `${multimediaSrc}${ruta}` : `${multimediaSrc}productos/no-img.png`;
-                                return (
-                                    <div key={index} className='relative'>
+                            </button>
+                            <div className='flex flex-col'>
+                                {imageRoutes.map((ruta, index) => {
+                                    const imagePath = buildImageSrc(multimediaSrc, ruta);
+                                    return (
+                                        <div key={`existing-${index}`} className='relative inline-block'>
+                                            <img
+                                                src={imagePath}
+                                                alt={`product ${index + 1}`}
+                                                className={`w-16 h-16 object-cover cursor-pointer my-2 rounded-xl mr-2 ${selectedImage === imagePath ? 'border-2 border-[rgb(var(--color-amber))]' : 'border border-[rgb(var(--color-border))]'}`}
+                                                onClick={() => handleExistingImageClick(ruta)}
+                                            />
+                                            <button
+                                                type="button"
+                                                className='absolute -top-1 -right-1 bg-red-100 text-red-600 rounded-full border border-gray-400 p-1'
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    handleRemoveImage(ruta);
+                                                }}
+                                                aria-label='Eliminar imagen'
+                                            >
+                                                <MdDelete className='h-3 w-3' />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                                {pendingImages.length > 0 && (
+                                    <p className='text-xs text-[rgb(var(--color-text))] mt-2 mb-1'>
+                                        Nuevas imágenes (se subirán al guardar):
+                                    </p>
+                                )}
+                                {pendingImages.map((image) => (
+                                    <div key={image.id} className='relative inline-block'>
                                         <img
-                                            src={imagePath}
-                                            alt={`product ${index + 1}`}
-                                            className={`w-16 h-16 object-cover cursor-pointer my-2 rounded-xl mr-2 ${selectedImage === imagePath ? 'border-2 border-amber-400 dark:border-yellow-300' : 'border border-stone-300'}`}
-                                            onClick={() => setSelectedImage(imagePath)}
+                                            src={image.previewUrl}
+                                            alt='pending product'
+                                            className={`w-16 h-16 object-cover cursor-pointer my-2 rounded-xl mr-2 ${selectedImage === image.previewUrl ? 'border-2 border-[rgb(var(--color-amber))]' : 'border border-[rgb(var(--color-border))]'}`}
+                                            onClick={() => handlePendingImageClick(image.id, image.previewUrl)}
                                         />
-                                        <MdDelete className='absolute top-0 right-0 bg-red-100 text-red-600 rounded-full border border-gray-400' />
+                                        <button
+                                            type="button"
+                                            className='absolute -top-1 -right-1 bg-red-100 text-red-600 rounded-full border border-gray-400 p-1'
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                handleRemovePendingImage(image.id);
+                                            }}
+                                            aria-label='Eliminar imagen pendiente'
+                                        >
+                                            <MdDelete className='h-3 w-3' />
+                                        </button>
                                     </div>
-                                );
-                            })}
+                                ))}
+                            </div>
+                            {(mediaUploading || imageFeedback.error || imageFeedback.success) && (
+                                <div className='w-full text-center text-xs text-[rgb(var(--color-text))] my-2'>
+                                    {mediaUploading && <p className='text-[rgb(var(--color-amber))]'>Procesando imágenes...</p>}
+                                    {imageFeedback.error && <p className='text-[rgb(var(--color-error))]'>{imageFeedback.error}</p>}
+                                    {imageFeedback.success && <p className='text-[rgb(var(--color-success))]'>{imageFeedback.success}</p>}
+                                </div>
+                            )}
                         </div>
                     </div>
                     <div className="flex-1 px-2 2xl:px-20 my-auto">
                         <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                             <div className="sm:col-span-2">
-                                <label htmlFor="first-name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-white">
+                                <label htmlFor="first-name" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     Refacción
                                 </label>
-                                <div className="mt-2 bg-slate-200 dark:bg-stone-700 dark:text-white animate-up rounded-md p-1 shadow">
+                                <div className="mt-2 bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] animate-up rounded-md p-1 shadow">
                                     {currentProduct.refaccion}
                                 </div>
                             </div>
                             <div className="sm:col-span-2">
-                                <label htmlFor="first-name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-white">
+                                <label htmlFor="first-name" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     Sucursal
                                 </label>
-                                <div className="mt-2 bg-slate-200 dark:bg-stone-700 dark:text-white animate-up rounded-md p-1 shadow">
+                                <div className="mt-2 bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] animate-up rounded-md p-1 shadow">
                                     {currentProduct.sucursal}
                                 </div>
                             </div>
                             <div className="sm:col-span-2">
-                                <label htmlFor="location" className="block text-sm font-medium leading-6 text-gray-900 dark:text-white">
+                                <label htmlFor="location" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     Localizaci&oacute;n
                                 </label>
                                 <div className="mt-2">
@@ -257,18 +610,18 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                         type="text"
                                         autoComplete="location"
                                         value={currentProduct.localizacion}
-                                        className={`block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase`}
+                                        className={`block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase`}
                                         onChange={(e) => setProdOverview(prevState => ({ ...prevState, localizacion: e.target.value }))}
                                     />
                                     {errorMessages.localizacion && (
-                                        <span className="text-red-600 dark:text-red-400 text-sm">
+                                        <span className="text-[rgb(var(--color-error))] text-sm">
                                             {errorMessages.localizacion}
                                         </span>
                                     )}
                                 </div>
                             </div>
                             <div className="col-span-full">
-                                <label htmlFor="descripcion" className="block text-sm font-medium leading-6 text-gray-900 dark:text-white">
+                                <label htmlFor="descripcion" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     Descripci&oacute;n
                                 </label>
                                 <div className="mt-2">
@@ -278,18 +631,18 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                     type="text"
                                     autoComplete="descripcions"
                                     value={currentProduct.descripcion}
-                                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase"
+                                    className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase"
                                     onChange={(e) => setProdOverview(prevState => ({ ...prevState, descripcion: e.target.value }))}
                                     />
                                     {errorMessages.descripcion && (
-                                        <span className="text-red-600 dark:text-red-400 text-sm">
+                                        <span className="text-[rgb(var(--color-error))] text-sm">
                                             {errorMessages.descripcion}
                                         </span>
                                     )}
                                 </div>
                             </div>
                             <div className="sm:col-span-2">
-                                <label htmlFor="last-name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-white">
+                                <label htmlFor="last-name" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     Existencia
                                 </label>
                                 <div className="mt-2">
@@ -303,14 +656,14 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                         classNamePrefix="react-select"
                                     />
                                     {errorMessages.existencia && (
-                                        <span className="text-red-600 dark:text-red-400 text-sm">
+                                        <span className="text-[rgb(var(--color-error))] text-sm">
                                             {errorMessages.existencia}
                                         </span>
                                     )}
                                 </div>
                             </div>
                             <div className="sm:col-span-2">
-                                <label htmlFor="last-name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-white">
+                                <label htmlFor="last-name" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     Modelo
                                 </label>
                                 <div className="mt-2 flex items-center justify-center">
@@ -344,7 +697,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                 </div>
                             </div>
                             <div className="sm:col-span-2">
-                                <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900 dark:text-white">
+                                <label htmlFor="email" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     Marca de auto
                                 </label>
                                 <div className="mt-2">
@@ -358,14 +711,14 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                         classNamePrefix="react-select"
                                     />
                                     {errorMessages.idmarca && (
-                                        <span className="text-red-600 dark:text-red-400 text-sm">
+                                        <span className="text-[rgb(var(--color-error))] text-sm">
                                             {errorMessages.idmarca}
                                         </span>
                                     )}
                                 </div>
                             </div>
                             <div className="sm:col-span-2">
-                                <label htmlFor="last-name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-white">
+                                <label htmlFor="last-name" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     Utilidad
                                 </label>
                                 <div className="mt-2">
@@ -381,7 +734,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                 </div>
                             </div>
                             <div className="sm:col-span-2">
-                                <label htmlFor="costo" className="block text-sm font-medium leading-6 text-gray-900 dark:text-white">
+                                <label htmlFor="costo" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     Costo de proveedor
                                 </label>
                                 <div className="mt-2">
@@ -392,20 +745,20 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                     autoComplete="costo"
                                     value={currentProduct.costo}
                                     onChange={handleCostChange}
-                                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                    className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />
                                     {errorMessages.costo && (
-                                        <span className="text-red-600 dark:text-red-400 text-sm">
+                                        <span className="text-[rgb(var(--color-error))] text-sm">
                                             {errorMessages.costo}
                                         </span>
                                     )}
                                 </div>
                             </div>
                             <div className="sm:col-span-2">
-                                <label htmlFor="last-name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-white">
+                                <label htmlFor="last-name" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     Precio Público Mínimo
                                 </label>
-                                <div className="mt-2 bg-slate-200 dark:bg-stone-700 dark:text-white animate-up rounded-md p-1 shadow">
+                                <div className="mt-2 bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] animate-up rounded-md p-1 shadow">
                                     {currentProduct.precio}
                                 </div>
                             </div>
@@ -413,9 +766,9 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                     </div>
                 </div>
                 <div>
-                    {successMessage && <div className="text-green-600 dark:text-green-400">{successMessage}</div>}
+                    {successMessage && <div className="text-[rgb(var(--color-success))]">{successMessage}</div>}
                     {errorMessages && (
-                        <div className="text-red-600 dark:text-red-400">
+                        <div className="text-[rgb(var(--color-error))]">
                             {errorMessages.num_parte}
                         </div>
                     )}
@@ -425,7 +778,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                         <button
                         onClick={onCancelEdit}
                         type="button"
-                        className="bg-gradient-to-bl hover:bg-gradient-to-tr bg-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out dark:text-slate-300">
+                        className="bg-gradient-to-bl hover:bg-gradient-to-tr bg-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out text-[rgb(var(--color-text))]">
                         Regresar
                         </button>
                         <button

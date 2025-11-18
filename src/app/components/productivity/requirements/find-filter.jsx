@@ -21,24 +21,24 @@ export default function FindFilter({ isOpen, onClose, onFilter }) {
 
     return (
         <div className="fixed inset-0 bg-black opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg w-96">
-                <h2 className="text-lg font-semibold dark:text-white">Filtrar Proveedores</h2>
+            <div className="bg-[rgb(var(--color-card-white))] rounded-lg p-6 shadow-lg w-96 text-[rgb(var(--color-text))]">
+                <h2 className="text-lg font-semibold">Filtrar Proveedores</h2>
                 {/* Tabs */}
                 <div className="flex justify-center mt-2 mb-4">
                     <button
-                        className={`px-4 py-2 ${activeTab === 'provider' ? 'bg-amber-500 text-white' : 'bg-gray-300 dark:bg-gray-700 text-black dark:text-white'} rounded-l-lg`}
+                        className={`px-4 py-2 rounded-l-lg ${activeTab === 'provider' ? 'bg-amber-500 text-white' : 'bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))]'}`}
                         onClick={() => setActiveTab('provider')}
                     >
                         Proveedor
                     </button>
                     <button
-                        className={`px-4 py-2 ${activeTab === 'refaccion' ? 'bg-amber-500 text-white' : 'bg-gray-300 dark:bg-gray-700 text-black dark:text-white'}`}
+                        className={`px-4 py-2 ${activeTab === 'refaccion' ? 'bg-amber-500 text-white' : 'bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))]'}`}
                         onClick={() => setActiveTab('refaccion')}
                     >
                         Refacción
                     </button>
                     <button
-                        className={`px-4 py-2 ${activeTab === 'date' ? 'bg-amber-500 text-white' : 'bg-gray-300 dark:bg-gray-700 text-black dark:text-white'} rounded-r-lg`}
+                        className={`px-4 py-2 rounded-r-lg ${activeTab === 'date' ? 'bg-amber-500 text-white' : 'bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))]'}`}
                         onClick={() => setActiveTab('date')}
                     >
                         Fecha
@@ -48,10 +48,10 @@ export default function FindFilter({ isOpen, onClose, onFilter }) {
                 {/* Tab Content */}
                 {activeTab === 'provider' && (
                     <div>
-                        <label className="block text-sm dark:text-gray-300">Proveedor:</label>
+                        <label className="block text-sm">Proveedor:</label>
                         <input
                             type="text"
-                            className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
+                            className="w-full p-2 border rounded bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))]"
                             value={providerName}
                             onChange={(e) => setProviderName(e.target.value)}
                         />
@@ -59,10 +59,10 @@ export default function FindFilter({ isOpen, onClose, onFilter }) {
                 )}
                 {activeTab === 'refaccion' && (
                     <div>
-                        <label className="block text-sm dark:text-gray-300">Refacción:</label>
+                        <label className="block text-sm">Refacción:</label>
                         <input
                             type="text"
-                            className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
+                            className="w-full p-2 border rounded bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))]"
                             value={refaccion}
                             onChange={(e) => setRefaccion(e.target.value)}
                         />
@@ -70,11 +70,11 @@ export default function FindFilter({ isOpen, onClose, onFilter }) {
                 )}
                 {activeTab === 'date' && (
                     <div>
-                        <label className="block text-sm dark:text-gray-300">Fechas de Captura:</label>
+                        <label className="block text-sm">Fechas de Captura:</label>
                         <div className="flex gap-2">
                             <input
                                 type="date"
-                                className="flex-1 p-2 border rounded dark:bg-gray-700 dark:text-white"
+                                className="flex-1 p-2 border rounded bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))]"
                                 value={captureDate}
                                 onChange={(e) => setCaptureDate(e.target.value)}
                             />
@@ -85,13 +85,13 @@ export default function FindFilter({ isOpen, onClose, onFilter }) {
                 {/* Buttons */}
                 <div className="mt-6 flex justify-end gap-4">
                     <button
-                        className="px-4 py-2 bg-gray-300 dark:bg-gray-700 rounded text-black dark:text-white"
+                        className="px-4 py-2 bg-[rgb(var(--color-card))] rounded text-[rgb(var(--color-text))]"
                         onClick={onClose}
                     >
                         Cancelar
                     </button>
                     <button
-                        className="px-4 py-2 bg-blue-500 dark:bg-blue-700 text-white rounded"
+                        className="px-4 py-2 bg-blue-500 text-white rounded"
                         onClick={handleApplyFilter}
                     >
                         Filtrar

@@ -15,7 +15,7 @@ const createTooltip = (icon, label, id, visibleTooltip, setVisibleTooltip) => {
     const hide = () => setVisibleTooltip(null);
     const tooltip = visibleTooltip === id ? (
         <div
-            className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 opacity-90 dark:bg-gray-900 bg-gray-300 shadow dark:text-white text-black text-xs rounded px-2 py-1 z-10"
+            className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 opacity-90 bg-[rgb(var(--color-card))] shadow text-[rgb(var(--color-text))] text-xs rounded px-2 py-1 z-10"
             style={{ width: 'max-content', maxWidth: '16rem' }}
         >
             {label}
@@ -80,9 +80,20 @@ export default function Invoice() {
         setIsModalOpen(false);
     };
 
-    const formatDate = (dateString) => {
-        const [year, month, day] = dateString.split('-');
-        const date = new Date(year, month - 1, day);
+    const formatDate = (dateInput) => {
+        if (!dateInput) return '';
+
+        const date =
+            typeof dateInput === 'string'
+                ? new Date(dateInput)
+                : dateInput instanceof Date
+                ? dateInput
+                : new Date(dateInput);
+
+        if (Number.isNaN(date.getTime())) {
+            return '';
+        }
+
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         return date.toLocaleDateString('es-MX', options);
     };
@@ -94,7 +105,7 @@ export default function Invoice() {
     };
 
     return (
-        <div className="bg-gradient-to-b min-h-screen from-white via-gray-100 to-gray-400 dark:from-black dark:via-slate-800 dark:to-stone-700 backdrop-blur-md pt-28">
+        <div className="bg-gradient-to-b min-h-screen from-[rgb(var(--color-bg))] via-[rgb(var(--color-card))] to-[rgb(var(--color-gray))] backdrop-blur-md pt-28">
             <Title
                 title='Facturación a clientes'
                 icon={FaUsersViewfinder}
@@ -102,11 +113,11 @@ export default function Invoice() {
                 path='/productivity'
             />
             <div>
-                <div className="mx-auto max-w-7xl px-6 lg:px-8 mt-5 flex justify-center dark:text-blue-200 text-amber-900 text-xl items center uppercase font-semibold italic">{formatDate(currentDate)}</div>
+                <div className="mx-auto max-w-7xl px-6 lg:px-8 mt-5 flex justify-center text-[rgb(var(--color-text))] text-xl items center uppercase font-semibold italic">{formatDate(currentDate)}</div>
                 <div className="mx-auto max-w-7xl px-6 lg:px-8 mt-5">
                     <div className="mx-auto grid max-w-2xl grid-cols-1 gap-x-8 gap-y-6 lg:mx-0 lg:max-w-none">
-                        <div className="relative h-[470px] bg-gray-200 dark:bg-stone-800 rounded-2xl my-5 flex justify-center shadow">
-                            <div className='flex flex-col px-1 bg-gray-300 dark:bg-stone-900 rounded-l-2xl pt-5'>
+                        <div className="relative h-[470px] bg-[rgb(var(--color-card-white))] rounded-2xl my-5 flex justify-center shadow">
+                            <div className='flex flex-col px-1 bg-[rgb(var(--color-card))] rounded-l-2xl pt-5'>
                                 <div
                                     className='blue-circle-button relative'
                                     onClick={() => setIsModalOpen(true)}
@@ -132,12 +143,12 @@ export default function Invoice() {
                             </div>
                             <div className='w-full h-full overflow-scroll'>
                                 {!sales || sales.length === 0 ? (
-                                    <div className="flex justify-center items-center h-full text-gray-700 dark:text-gray-200">
+                                    <div className="flex justify-center items-center h-full text-[rgb(var(--color-text))]">
                                         ¡No hay facturas pendientes!
                                     </div>
                                 ) : (
-                                    <table className="w-full lg:w-[1200px] text-sm text-left text-gray-500 dark:text-gray-400 mx-auto">
-                                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                    <table className="w-full lg:w-[1200px] text-sm text-left text-[rgb(var(--color-text))] mx-auto">
+                                        <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-card))]">
                                             <tr>
                                                 <th scope="col" className="p-1.5">STATUS</th>
                                                 <th scope="col" className="py-2 px-8">FOLIO</th>
@@ -149,22 +160,22 @@ export default function Invoice() {
                                         <tbody>
                                             {Array.isArray(sales) && sales.map((item, index) => (
                                                 <>
-                                                    <tr className="bg-white border-b dark:bg-gray-800 dark:border-gray-700" key={index}>
+                                                    <tr className="bg-[rgb(var(--color-card-white))] border-b border-[rgb(var(--color-border))]" key={index}>
                                                         <td className="py-4 px-5 relative">
                                                             <span className="relative flex h-5 w-5">
                                                                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${item.status === 'A' ? 'bg-green-500' : 'bg-red-500'}`}></span>
                                                                 <GrStatusGoodSmall className={`relative inline-flex rounded-full h-5 w-5 ${item.status === 'A' ? 'text-green-500' : 'text-red-500'}`}/>
                                                             </span>
                                                         </td>
-                                                        <td className="py-4 px-5 m-1 cursor-pointer font-medium bg-amber-100 dark:bg-indigo-900 dark:text-white" onClick={() => toggleDetails(item.folio)}>
+                                                        <td className="py-4 px-5 m-1 cursor-pointer font-medium bg-[rgb(var(--color-card))]" onClick={() => toggleDetails(item.folio)}>
                                                             {item.folio}
                                                         </td>
                                                         <td className="py-4 px-8 font-bold text-lg">$ {item.total_venta}</td>
                                                         <td className="py-4 px-8 relative flex justify-center items-center">
-                                                            <div className="absolute left-0 translate-y-2.5 translate-x-6 lg:-translate-x-4 top-1/4 mx-3 text-md xl:text-lg leading-6 xl:pr-1 flex rounded-3xl justify-center items-center shadow dark:shadow-slate-100/10 dark:text-white bg-white dark:bg-slate-300/10 cursor-pointer">
+                                                            <div className="absolute left-0 translate-y-2.5 translate-x-6 lg:-translate-x-4 top-1/4 mx-3 text-md xl:text-lg leading-6 xl:pr-1 flex rounded-3xl justify-center items-center shadow text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] cursor-pointer">
                                                                 {!imgError && item.idusuario ? (
-                                                                    <div className="flex h-9 w-9 items-center justify-center bg-slate-50 dark:bg-stone-900 border border-slate-300 dark:border-stone-600 hover:bg-slate-100 hover:border-amber-300 dark:hover:border-amber-400 animate-out shadow-lg rounded-full overflow-hidden">
-                                                                        <img src={`${multimediaSrc}usr/${item.idusuario}.jpg`} onError={() => setImgError(true)} className="w-full h-full object-cover bg-gray-50" />
+                                                                    <div className="flex h-9 w-9 items-center justify-center bg-[rgb(var(--color-card))] border border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-card-white))] hover:border-[rgb(var(--color-amber))] animate-out shadow-lg rounded-full overflow-hidden">
+                                                                        <img src={`${multimediaSrc}usr/${item.idusuario}.jpg`} onError={() => setImgError(true)} className="w-full h-full object-cover bg-[rgb(var(--color-card-white))]" />
                                                                     </div>
                                                                 ) : (
                                                                     <BiSolidUserCircle className="w-6 h-6 rounded-full shadow-xl border border-indigo-100 my-auto animate-out" />
@@ -181,11 +192,11 @@ export default function Invoice() {
                                                         </td>
                                                     </tr>
                                                     {expandedFolio === item.folio && (
-                                                        <tr className="bg-gray-100 dark:bg-gray-700">
+                                                        <tr className="bg-[rgb(var(--color-card))]">
                                                             <td colSpan="6" className="py-1 pb-3 px-1">
                                                                 <div>
-                                                                    <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400 mt-2 shadow">
-                                                                        <thead className="text-xs text-gray-700 dark:text-white uppercase bg-gray-300 dark:bg-gray-600">
+                                                                    <table className="w-full text-sm text-left text-[rgb(var(--color-text))] mt-2 shadow">
+                                                                        <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-card))]">
                                                                             <tr>
                                                                                 <th scope="col" className="py-2 px-4">NÚMERO DE PARTE</th>
                                                                                 <th scope="col" className="py-2 px-4">DESCRIPCIÓN</th>
@@ -195,7 +206,7 @@ export default function Invoice() {
                                                                         </thead>
                                                                         <tbody>
                                                                             {item.details && item.details.map((detail, i) => (
-                                                                                <tr key={i} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                                                                                <tr key={i} className="bg-[rgb(var(--color-card-white))] border-b border-[rgb(var(--color-border))]">
                                                                                     <td className="py-2 px-4">{detail.num_parte}</td>
                                                                                     <td className="py-2 px-4">{detail.descripcion}</td>
                                                                                     <td className="py-2 px-4">{detail.cantidad}</td>
@@ -210,9 +221,9 @@ export default function Invoice() {
                                                     )}
                                                 </>
                                             ))}
-                                            <tr className="bg-stone-200 border-b dark:bg-stone-600 dark:border-gray-700">
+                                            <tr className="bg-[rgb(var(--color-card-white))] border-b border-[rgb(var(--color-border))]">
                                                 <td className="py-4 px-6 font-bold" colSpan="3">TOTAL:</td>
-                                                <td className="py-4 px-6 font-bold text-lg dark:text-white text-black" colSpan="2">$ {total.toFixed(2)}</td>
+                                                <td className="py-4 px-6 font-bold text-lg text-[rgb(var(--color-text))]" colSpan="2">$ {total.toFixed(2)}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -223,11 +234,11 @@ export default function Invoice() {
                 </div>
             </div>
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black opacity-50">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-80">
-                        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Buscar en histórico</h2>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-[rgb(var(--color-card-white))] p-6 rounded-lg shadow-lg w-80 text-[rgb(var(--color-text))]">
+                        <h2 className="text-xl font-semibold mb-4">Buscar en histórico</h2>
                         <div className="mb-4">
-                            <label htmlFor="startDate" className="block text-gray-700 dark:text-gray-300 mb-2">Fecha:</label>
+                            <label htmlFor="startDate" className="block mb-2">Fecha:</label>
                             <input
                                 type="date"
                                 id="startDate"
@@ -235,19 +246,19 @@ export default function Invoice() {
                                 max={new Date().toISOString().split('T')[0]}
                                 value={selectedDate}
                                 onChange={(e) => setSelectedDate(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                className="w-full px-3 py-2 border border-[rgb(var(--color-border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(var(--color-bg))] text-[rgb(var(--color-text))]"
                                 required
                             />
                         </div>
                         <div className="mb-4">
-                            <label htmlFor="folio" className="block text-gray-700 dark:text-gray-300 mb-2">Folio:</label>
+                            <label htmlFor="folio" className="block mb-2">Folio:</label>
                             <input
                                 type="text"
                                 id="folio"
                                 name="folio"
                                 value={folio}
                                 onChange={(e) => setFolio(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                className="w-full px-3 py-2 border border-[rgb(var(--color-border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(var(--color-bg))] text-[rgb(var(--color-text))]"
                                 placeholder="Ingrese el número de folio"
                             />
                         </div>

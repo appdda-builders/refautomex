@@ -3,11 +3,28 @@ import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import Spinner from '@/app/components/principal/spinner';
-import { CgMoreO } from 'react-icons/cg';
 import { FaDeleteLeft, FaStar } from "react-icons/fa6";
-import { LuListRestart, LuListPlus } from "react-icons/lu";
-import { IoBagAdd, IoBagRemove, IoCloseCircle } from "react-icons/io5";
+import { LuListPlus } from "react-icons/lu";
 import { TiInfo } from "react-icons/ti";
+import { IoClose } from "react-icons/io5";
+
+const parseProductRoutes = (raw) => {
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (typeof raw === 'string' && raw.trim()) {
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+};
+
+const resolveProductImage = (ruta, multimediaSrc = '') => {
+    if (!ruta) return `${multimediaSrc}productos/no-img.png`;
+    return ruta.startsWith('http') ? ruta : `${multimediaSrc}${ruta}`;
+};
 
 function filterProductsByCategory(products, searchTerm, searchType) {
     const searchWords = searchTerm.toLowerCase().split(/\s+/);
@@ -51,11 +68,11 @@ function filterProductsByCategory(products, searchTerm, searchType) {
     }
 
     result.dataProducts = result.dataProducts.map(product => {
-        const rutas = JSON.parse(product.rutas || '[]');
+        const rutas = parseProductRoutes(product.rutas);
         return {
             ...product,
             rutas,
-            ruta: rutas.length > 0 ? rutas[0] : 'productos/no-img.png'
+            ruta: rutas.length > 0 ? rutas[0] : '',
         };
     });
 
@@ -67,7 +84,7 @@ const createTooltip = (icon, label, id, visibleTooltip, setVisibleTooltip) => {
     const hide = () => setVisibleTooltip(null);
     const tooltip = visibleTooltip === id ? (
         <div
-            className="absolute right-full -bottom-8 -left-4 opacity-90 dark:bg-gray-900 bg-gray-300 shadow dark:text-white text-black text-xs rounded px-2 py-1 z-10"
+            className="absolute right-full -bottom-8 -left-4 opacity-90 bg-[rgb(var(--color-card))] shadow text-[rgb(var(--color-text))] text-xs rounded px-2 py-1 z-10"
             style={{ width: 'max-content', maxWidth: '16rem' }}
         >
             {label}
@@ -84,11 +101,11 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
     const multimediaSrc = process.env.NEXT_PUBLIC_S3;
     const [images, setImages] = useState([]);
     const [error, setError] = useState(null);
-    const [alertProduct, setAlertProduct] = useState(null);
     const [showCards, setShowCards] = useState(true);
     const [searchType, setSearchType] = useState('descripcion');
     const [visibleTooltip, setVisibleTooltip] = useState(null);
     const [filteredProducts, setFilteredProducts] = useState([]);
+    const [stockAlerts, setStockAlerts] = useState({});
     const deleteTooltip = createTooltip(FaDeleteLeft, 'Eliminar', 'delete', visibleTooltip, setVisibleTooltip);
 
     const handleSearchChange = (event) => {
@@ -137,9 +154,7 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
         if (folio) return;
 
         if (!isWarehouse && !isCapture && product.existencia === 0) {
-            setAlertProduct(product.num_parte);
-        } else {
-            setAlertProduct(null);
+            setStockAlerts((prev) => ({ ...prev, [product.num_parte]: true }));
         }
 
         onAddProduct({
@@ -169,6 +184,15 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
     const handleRemoveClick = (product) => {
         if (folio) return;
         onRemoveProduct(product.num_parte);
+    };
+
+    const dismissStockAlert = (numParte, event) => {
+        event?.stopPropagation();
+        setStockAlerts((prev) => {
+            const next = { ...prev };
+            delete next[numParte];
+            return next;
+        });
     };
 
     const handleAddAllClick = () => {
@@ -201,8 +225,8 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
     const isProductAdded = (product) => addedItems.some(item => item.refaccion === product.num_parte);
 
     return (
-        <div className="relative">
-            <div className='flex flex-1 justify-center items-start m-0.5 mt-10 w-auto'>
+        <div className="relative w-full max-w-[480px] lg:max-w-[520px] mx-auto overflow-x-hidden">
+            <div className='flex justify-center items-start m-0.5 mt-10 w-full'>
                 <input
                     type="text"
                     name="client-search"
@@ -221,7 +245,7 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
                     />
                     {deleteTooltip.tooltip}
                 </div>
-                <div className='absolute -top-11 md:right-0 -mt-1 mb-1 flex rounded-3xl '>
+                <div className='absolute -top-11 right-0 -mt-1 mb-1 flex rounded-3xl '>
                     <span className='italic font-sans mx-1 my-auto text-sm text-[rgb(var(--color-text))]'>
                         {searchTerm.length === 0 ? 'TODOS' : searchTerm.toUpperCase()}
                     </span>
@@ -230,7 +254,7 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
                     </span>
                 </div>
                 {isWarehouse && searchTerm && (
-                    <div className='absolute -top-11 right-0 md:left-0 -mt-1 mb-1 flex gap-2'>
+                    <div className='absolute -top-11 right-0 -mt-1 mb-1 flex gap-2'>
                         <button
                             onClick={handleAddAllClick}
                             className="bg-violet-700 text-white rounded-full p-3 self-center flex items-center gap-1"
@@ -240,119 +264,91 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
                     </div>
                 )}
             </div>
-            <div className='bg-[rgb(var(--color-card))] flex flex-1 sm:justify-center px-3 cursor-pointer' onClick={handleTypeClick}>
+            <div className='bg-[rgb(var(--color-card))] flex justify-center px-3 cursor-pointer' onClick={handleTypeClick}>
                 <span className='px-2 my-0.5 rounded-full bg-[rgb(var(--color-bg))] shadow shadow-[rgb(var(--color-galaxy))] animate-out italic'>POR: {searchType.toUpperCase()}</span>
             </div>
-            <div className='flex flex-1 justify-center overflow-y-auto h-[570px] w-auto'>
+            <div className='flex justify-center overflow-y-auto h-[570px] w-full max-w-[520px] mx-auto'>
             {isLoading ? (
                 <Spinner />
             ) : (
                 showCards && (
                     <div className="relative min-h-[30rem] w-full grow [container-type:inline-size] max-lg:mx-auto max-lg:max-w-sm">
-                        <div className="absolute left-1/2 top-10 z-10 flex items-center space-x-1 bg-[rgb(var(--color-slate))] p-1 rounded-full transform -translate-x-1/2">
+                        <div className="absolute left-1/2 top-6 z-10 flex items-center space-x-1 bg-[rgb(var(--color-slate))] p-1 rounded-full transform -translate-x-1/2">
                             <FaStar className="w-3 h-3 text-amber-400 animate-bounce"/>
                             <p className="text-xs font-medium text-gray-300">Refacciones</p>
                         </div>
-                        <div className="absolute inset-x-2 sm:inset-x-1 xl:inset-x-10 bottom-0 top-3 rounded-t-[12cqw] overflow-x-hidden overflow-y-auto border-x-[3cqw] border-t-[3cqw] border-[rgb(var(--color-slate))] bg-[rgb(var(--color-gray))] pt-5 shadow-2xl">
+                        <div className="absolute inset-x-2 sm:inset-x-1 xl:inset-x-10 bottom-0 top-3 rounded-t-[12cqw] overflow-x-hidden overflow-y-auto border-x-[1cqw] border-t-[1cqw] shadow shadow-[rgb(var(--color-galaxy))] border-[rgb(var(--color-slate))] bg-[rgb(var(--color-gray))] pt-5 ">
                             <div className="p-1 mt-5">
                                 <div className="pb-3 pt-1 sm:pl-2 px-1 flex flex-col items-center justify-center">
                                     {filteredProducts
                                         .filter(product => !isMissing || product.existencia === 0)
                                         .slice(0, 25)
                                         .map((product) => {
-                                        const imageUrl = product.ruta ? `${multimediaSrc}${product.ruta}` : `${multimediaSrc}productos/no-img.png`;
+                                        const imageUrl = resolveProductImage(product.ruta, multimediaSrc);
+                                        const isAdded = isProductAdded(product);
                                         return (
                                             <div
-                                              key={product.num_parte}
-                                              className="flex flex-col md:flex-row w-full pb-4 relative bg-[rgb(var(--color-bg))] rounded-sm cursor-pointer md:-mx-3 mb-3 shadow shadow-[rgb(var(--color-galaxy))] p-2"
-                                            >
-                                              {alertProduct === product.num_parte && (
-                                                <div
-                                                  className="flex items-center bg-yellow-500 text-white text-sm font-bold mx-3 py-0.5 my-1 rounded-2xl"
-                                                  role="alert"
+                                                key={product.num_parte}
+                                                onClick={() =>
+                                                    isAdded ? handleRemoveClick(product) : handleAddClick(product)
+                                                }
+                                                className={`flex items-center gap-2 w-full relative rounded-xl cursor-pointer md:-mx-3 mb-3 shadow shadow-[rgb(var(--color-galaxy))] p-3 transition-all duration-200 ${
+                                                    isAdded
+                                                    ? 'bg-[rgb(var(--color-gray))] ring-2 ring-[rgb(var(--color-gray-base))]'
+                                                    : 'bg-[rgb(var(--color-bg))]'
+                                                }`}
                                                 >
-                                                  <TiInfo className="text-2xl mx-2" />
-                                                  <p>Sin existencia {product.num_parte}</p>
-                                                  <button
-                                                    onClick={() => setAlertProduct(null)}
-                                                    className="text-sm font-semibold underline absolute bg-gray-200 animate-out rounded-full -right-3 -top-1"
-                                                  >
-                                                    <IoCloseCircle className="text-2xl text-red-400" />
-                                                  </button>
+                                                <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 overflow-hidden rounded-xl bg-white shadow shadow-[rgb(var(--color-galaxy))]">
+                                                    <img
+                                                    src={imageUrl}
+                                                    alt={product.descripcion}
+                                                    className="w-full h-full object-contain object-center"
+                                                    />
                                                 </div>
-                                              )}
-                                          
-                                              {/* ==== Imagen a la izquierda ==== */}
-                                              <div className="relative md:w-1/3 w-full h-auto overflow-hidden rounded-xl shadow-md group">
-                                                <img
-                                                  src={imageUrl}
-                                                  alt={product.descripcion}
-                                                  onClick={() =>
-                                                    isProductAdded(product)
-                                                      ? handleRemoveClick(product)
-                                                      : handleAddClick(product)
-                                                  }
-                                                  className="w-full h-full object-cover object-center group-hover:opacity-80 transition-opacity duration-300 rounded-xl"
-                                                />
-                                          
-                                                {/* ==== Botones flotantes sobre la imagen ==== */}
-                                                <div className="absolute top-1 right-2 flex flex-col gap-2 z-10">
-                                                  {isProductAdded(product) ? (
-                                                    <div
-                                                      onClick={() => handleRemoveClick(product)}
-                                                      className="cursor-pointer text-sm font-bold leading-6 p-2 shadow bg-stone-100 hover:bg-zinc-200 rounded-full"
-                                                    >
-                                                      <IoBagRemove className="text-red-600" />
+                                                <div className="flex flex-col flex-1 gap-2">
+                                                    <div className="flex flex-col flex-1">
+                                                        <div className="text-sm sm:text-base text-[rgb(var(--color-text))] min-h-[4.5rem] max-h-[4.5rem] overflow-y-auto">
+                                                            {product.descripcion}
+                                                        </div>
+                                                        <div className="flex flex-row justify-between text-left my-2">
+                                                            <p className="sm:text-sm font-bold text-[rgb(var(--color-refautomex))] bg-[rgb(var(--color-gray))]/20 rounded-full px-2 shadow shadow-[rgb(var(--color-galaxy))]">
+                                                                {product.num_parte}
+                                                            </p>
+                                                            <p className="sm:text-sm font-bold text-[rgb(var(--color-refautomex))] bg-[rgb(var(--color-gray))]/20 rounded-full px-2 shadow shadow-[rgb(var(--color-galaxy))] truncate">
+                                                                {product.localizacion}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex flex-row justify-between h-full">
+                                                            <p className="text-lg font-bold text-[rgb(var(--color-success))] mt-1">
+                                                                ${' '}
+                                                                {(Number(product.precio)).toFixed(2)} MXN
+                                                            </p>
+                                                            <span
+                                                                className={`${
+                                                                product.existencia === 0 ? 'bg-[rgb(var(--color-error-base))]' : 'bg-[rgb(var(--color-galaxy))]'
+                                                                } text-[rgb(var(--color-text))] text-sm rounded-full h-8 w-8 flex items-center justify-center shadow shadow-[rgb(var(--color-galaxy))]`}
+                                                            >
+                                                                {product.existencia}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                  ) : (
-                                                    <div
-                                                      onClick={() => handleAddClick(product)}
-                                                      className="cursor-pointer text-sm font-bold leading-6 p-2 shadow bg-stone-100 hover:bg-zinc-200 rounded-full"
-                                                    >
-                                                      <IoBagAdd className="text-amber-500" />
+                                                    {stockAlerts[product.num_parte] && product.existencia === 0 && (
+                                                    <div className="absolute left-4 right-4 bottom-2 rounded-full bg-amber-400/90 text-[rgb(var(--color-card))] text-xs font-semibold flex items-center justify-center gap-1 py-1 shadow-lg shadow-amber-500/40">
+                                                        <TiInfo className="text-base" />
+                                                        <span>Sin existencia</span>
+                                                        <button
+                                                        type="button"
+                                                        onClick={(e) => dismissStockAlert(product.num_parte, e)}
+                                                        className="ml-2 text-[rgb(var(--color-card))] hover:text-white"
+                                                        aria-label="Cerrar alerta"
+                                                        >
+                                                        <IoClose className="text-base" />
+                                                        </button>
                                                     </div>
-                                                  )}
-                                          
-                                                  <div className="cursor-pointer text-sm font-bold leading-6 p-2 shadow bg-stone-100 hover:bg-zinc-200 rounded-full">
-                                                    <CgMoreO className="text-slate-900" />
-                                                  </div>
+                                                    )}
                                                 </div>
-                                          
-                                                {/* ==== Stock badge ==== */}
-                                                <div className="absolute -left-2 top-2 text-xl font-semibold text-[rgb(var(--color-text))] mt-1 px-4">
-                                                  <span
-                                                    className={`${
-                                                      product.existencia === 0 ? 'bg-red-400' : 'bg-amber-500'
-                                                    } text-white text-sm rounded-full h-8 w-8 text-md flex items-center justify-center shadow-lg animate-up`}
-                                                  >
-                                                    {product.existencia}
-                                                  </span>
-                                                </div>
-                                              </div>
-                                          
-                                              {/* ==== Descripción a la derecha ==== */}
-                                              <div className="flex flex-col justify-between md:w-2/3 w-full md:pl-6 mt-3 md:mt-0 relative">
-                                                <div className="flex flex-wrap my-2 justify-center md:justify-start items-center gap-2">
-                                                  <p className="text-lg font-bold text-[rgb(var(--color-refautomex))] bg-[rgb(var(--color-gray-base))] rounded-full px-3 py-0.5">
-                                                    {product.num_parte}
-                                                  </p>
-                                                  <p className="text-lg font-bold text-[rgb(var(--color-refautomex))]">
-                                                    {product.localizacion}
-                                                  </p>
-                                                </div>
-                                          
-                                                <h3 className="text-xl text-[rgb(var(--color-text))] max-w-full h-[85px] overflow-y-auto px-2 mb-3 font-semibold text-justify">
-                                                  {product.descripcion}
-                                                </h3>
-                                          
-                                                <p className="absolute bottom-0 right-0 text-2xl italic font-bold text-green-700 px-4">
-                                                  ${' '}
-                                                  {(Number(product.precio)).toFixed(2)} MXN
-                                                </p>
-                                              </div>
                                             </div>
-                                          );
-                                          
+                                        );
                                     })}
                                 </div>
                             </div>

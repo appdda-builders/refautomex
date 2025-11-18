@@ -166,7 +166,7 @@ export default function NavbarPanel() {
                 className="mx-3 text-md xl:text-lg leading-6 xl:pr-1 flex rounded-3xl justify-center items-center shadow shadow-[rgb(var(--color-galaxy))]/90 text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] cursor-pointer animate-out"
                 >
                 {userData?.idusuario && !imgError ? (
-                    <div className="flex h-9 w-9 2xl:h-11 2xl:w-11 items-center justify-center bg-slate-50 dark:bg-stone-900 border border-slate-300 dark:border-stone-600 hover:bg-slate-100 hover:border-amber-300 dark:hover:border-amber-400 animate-out shadow-lg rounded-full overflow-hidden">
+                    <div className="flex h-9 w-9 2xl:h-11 2xl:w-11 items-center justify-center bg-[rgb(var(--color-card))] border border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-card-white))] hover:border-[rgb(var(--color-amber))] animate-out shadow-lg rounded-full overflow-hidden">
                         {profileImageUrl ? (
                         <img
                             src={profileImageUrl}

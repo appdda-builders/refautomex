@@ -77,7 +77,11 @@ export default function VideoComponent() {
                 <source src={`${multimediaSrc}refautomex.mp4`} type="video/mp4" />
                 <p className='my-8 font-bold'>Your browser does not support the video tag.</p>
             </video>
-            <button className='hidden group-hover:block absolute z-10 top-[50%] left-[42%] sm:left-[46%] lg:left-[48%] text-white hover:bg-stone-950 bg-black opacity-50 p-3 rounded-full text-xs' onClick={handlePlayVideo}>
+            <button
+                type="button"
+                className="absolute z-10 top-[50%] left-[42%] sm:left-[46%] lg:left-[48%] flex items-center justify-center text-white bg-black/60 hover:bg-black/80 p-3 rounded-full text-xs transition-opacity duration-200 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 sm:pointer-events-none sm:group-hover:pointer-events-auto"
+                onClick={handlePlayVideo}
+            >
                 {isPlaying ? <FaRegStopCircle size={40}/> : <FaPlayCircle size={40}/>}
             </button>
             <div className='relative w-full h-full'>

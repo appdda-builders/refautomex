@@ -265,7 +265,7 @@ const GooglePlacesAutocomplete = ({ placeId, setPlaceId, setPostalCode, lock }) 
     return (
         <div className="relative">
             <div className={`${lock ? 'block' : 'hidden'}`}>
-                <span className='text-stone-600 dark:text-stone-200 text-xs'>* Cambia tu direccion desde los ajustes de tu cuenta.</span>
+                <span className='text-[rgb(var(--color-text))] opacity-80 text-xs'>* Cambia tu direccion desde los ajustes de tu cuenta.</span>
             </div>
             <input
                 ref={inputRef}

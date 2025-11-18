@@ -9,6 +9,7 @@ import { IoMdCloseCircle } from "react-icons/io";
 import Link from 'next/link';
 import { useCart } from '@/app/lib/shopping-context';
 import { FaBullseye } from "react-icons/fa6";
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
@@ -105,7 +106,7 @@ export default function OrderGrid() {
 
             const saveSale = async () => {
                 try {
-                    const response = await fetch('/api/dataManage?type=newSale', {
+                    const response = await fetch(buildApiUrl('/newSale'), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

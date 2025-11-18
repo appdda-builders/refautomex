@@ -10,7 +10,6 @@ import { FaCircleMinus, FaCirclePlus } from 'react-icons/fa6';
 import Spinner from '@/app/components/principal/spinner';
 import ProductOverview from '@/app/components/principal/products/product-overview';
 import { useCart } from '@/app/lib/shopping-context';
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import '@/app/translations/i18next-translation';
 
@@ -93,16 +92,32 @@ export default function CardProducts({ showSearchBar = true }) {
   const [showModal, setShowModal] = useState(false);
   const [prodOverview, setProdOverview] = useState(null);
   const [quantities, setQuantities] = useState({});
+  const [isMobile, setIsMobile] = useState(false);
+  const [refreshIndex, setRefreshIndex] = useState(0);
 
   const { cart, addToCart, removeFromCart } = useCart();
 
   useEffect(() => {
+    const controller = new AbortController();
+    let isMounted = true;
+
     const fetchProducts = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await axios.get(buildApiUrl('/getProducts'), { withCredentials: false });
-        const raw = response.data?.[0] ?? [];
+        const response = await fetch(buildApiUrl('/getProducts'), {
+          signal: controller.signal,
+          cache: 'no-store',
+          headers: {
+            Accept: 'application/json',
+          },
+        });
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        const payload = await response.json();
+        if (!isMounted) return;
+        const raw = payload?.[0] ?? [];
         const parsed = raw.map(p => ({
           ...p,
           rutasParsed: (() => {
@@ -116,14 +131,20 @@ export default function CardProducts({ showSearchBar = true }) {
         }));
         setProducts(parsed);
       } catch (err) {
+        if (controller.signal.aborted) return;
         console.error('Error fetching products:', err);
-        setError(err);
+        if (isMounted) setError(err);
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
     fetchProducts();
-  }, []);
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [refreshIndex]);
 
   const categories = useCategories(products);
 
@@ -153,6 +174,14 @@ export default function CardProducts({ showSearchBar = true }) {
     document.body.classList.toggle('overflow-hidden', showModal);
     return () => { document.body.classList.remove('overflow-hidden'); };
   }, [showModal]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const detectMobile = () => setIsMobile(window.innerWidth < 640);
+    detectMobile();
+    window.addEventListener('resize', detectMobile);
+    return () => window.removeEventListener('resize', detectMobile);
+  }, []);
 
   useEffect(() => {
     if (!products.length) return;
@@ -233,11 +262,30 @@ export default function CardProducts({ showSearchBar = true }) {
   if (isLoading) return <Spinner />;
   if (error) {
     return (
-      <div className="px-6 py-20 text-center text-[rgb(var(--color-text))]">
-        <p className="text-lg">{t('common.error', { defaultValue: 'An error occurred while loading products.' })}</p>
+      <div className="px-6 py-20 text-center text-[rgb(var(--color-text))] space-y-4">
+        <p className="text-lg font-semibold">{t('common.error', { defaultValue: 'An error occurred while loading products.' })}</p>
+        {error?.message && (
+          <p className="text-sm text-[rgb(var(--color-text))]/70 break-words">
+            {error.message}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => setRefreshIndex((prev) => prev + 1)}
+          className="inline-flex items-center rounded-full bg-[rgb(var(--color-text))] px-6 py-2 text-sm font-semibold text-[rgb(var(--color-card))] shadow shadow-[rgb(var(--color-med))]/70 hover:opacity-90 transition"
+        >
+          {t('common.retry', { defaultValue: 'Reintentar' })}
+        </button>
       </div>
     );
   }
+
+  const animationDisabled = isMobile;
+  const GridComponent = animationDisabled ? 'div' : motion.div;
+  const CardComponent = animationDisabled ? 'div' : motion.div;
+  const ImageWrapper = animationDisabled ? 'div' : motion.div;
+  const ProductImage = animationDisabled ? 'img' : motion.img;
+  const ActionButton = animationDisabled ? 'button' : motion.button;
 
   return (
     <section className="relative isolate py-24 sm:py-32 bg-[rgb(var(--color-card))]">
@@ -305,12 +353,16 @@ export default function CardProducts({ showSearchBar = true }) {
           </div>
         )}
 
-        <motion.div
+        <GridComponent
           key="product-grid"
-          initial={hasAnimated ? 'show' : 'hidden'}
-          animate="show"
-          onAnimationComplete={() => setHasAnimated(true)}
-          variants={gridVariants}
+          {...(!animationDisabled
+            ? {
+                initial: hasAnimated ? 'show' : 'hidden',
+                animate: 'show',
+                onAnimationComplete: () => setHasAnimated(true),
+                variants: gridVariants,
+              }
+            : {})}
           className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 will-change-transform transform-gpu"
         >
           {pageItems.length === 0 && (
@@ -333,15 +385,18 @@ export default function CardProducts({ showSearchBar = true }) {
 
             return (
               <Fragment key={`${product.grupo}-${product.num_parte}-${idx}`}>
-                <motion.div
-                  custom={idx}
-                  variants={cardVariants}
+                <CardComponent
+                  {...(!animationDisabled ? { custom: idx, variants: cardVariants } : {})}
                   className="group relative flex flex-col justify-between rounded-3xl shadow-lg overflow-hidden transition-all duration-500 hover:shadow-[rgb(var(--color-med))]/30 hover:-translate-y-1 hover:scale-[1.02)] bg-[rgb(var(--color-card))]"
                 >
-                  <motion.div
+                  <ImageWrapper
                     className="relative w-full aspect-4/3 overflow-hidden"
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ duration: 0.3 }}
+                    {...(!animationDisabled
+                      ? {
+                          whileHover: { scale: 1.05 },
+                          transition: { duration: 0.3 },
+                        }
+                      : {})}
                   >
                     <button
                       type="button"
@@ -351,12 +406,12 @@ export default function CardProducts({ showSearchBar = true }) {
                     >
                       <CgMoreO />
                     </button>
-                    <motion.img
+                    <ProductImage
                       src={img}
                       alt={product.descripcion}
                       className="h-full w-full object-cover object-center"
                     />
-                  </motion.div>
+                  </ImageWrapper>
 
                   <div className="flex flex-col justify-between flex-1 p-4">
                     <h4 className="text-lg font-semibold linear-text-title text-center line-clamp-2" title={product.descripcion}>
@@ -402,33 +457,41 @@ export default function CardProducts({ showSearchBar = true }) {
 
                       <div className="col-span-1 flex justify-end">
                         {inCart ? (
-                          <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            whileHover={{ scale: 1.05 }}
+                          <ActionButton
+                            {...(!animationDisabled
+                              ? {
+                                  whileTap: { scale: 0.95 },
+                                  whileHover: { scale: 1.05 },
+                                }
+                              : {})}
                             onClick={() => handleRemoveProduct(product)}
                             className="flex items-center gap-2 rounded-full bg-red-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 transition-all"
                           >
                             <MdDelete className="text-base" />
                             {t('products.remove', { defaultValue: 'Quitar' })}
-                          </motion.button>
+                          </ActionButton>
                         ) : (
-                          <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            whileHover={{ scale: 1.05 }}
+                          <ActionButton
+                            {...(!animationDisabled
+                              ? {
+                                  whileTap: { scale: 0.95 },
+                                  whileHover: { scale: 1.05 },
+                                }
+                              : {})}
                             onClick={() => handleAddProduct(product)}
                             className="rounded-full cursor-pointer bg-[rgb(var(--color-text))] px-4 py-2 text-sm font-semibold text-[rgb(var(--color-card))] transition-all"
                           >
                             {t('products.add', { defaultValue: 'Agregar' })}
-                          </motion.button>
+                          </ActionButton>
                         )}
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </CardComponent>
               </Fragment>
             );
           })}
-        </motion.div>
+        </GridComponent>
 
         {source.length > PAGE_SIZE && (
           <div className="mt-8 flex items-center justify-center gap-3">

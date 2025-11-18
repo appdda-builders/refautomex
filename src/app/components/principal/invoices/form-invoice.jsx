@@ -85,10 +85,10 @@ export default function FormInvoice() {
 
   return (
     <div className="min-h-screen flex">
-      <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:flex-none lg:px-16 xl:px-36 bg-gradient-to-b from-gray-50 to-slate-300 dark:from-stone-950 dark:to-slate-700">
+      <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:flex-none lg:px-16 xl:px-36 bg-gradient-to-b from-[rgb(var(--color-card))] to-[rgb(var(--color-gray))]">
         <div className="lg:h-[650px] lg:overflow-y-auto w-full sm:min-w-[600px] max-w-sm my-24 px-2 mx-auto">
           <h2 className="mt-6 text-3xl font-extrabold gradient-text-title">{t('invoice.title')}</h2>
-          <p className='text-gray-900 dark:text-gray-200 text-shadow text-md'>{t('invoice.subtitle')}</p>
+          <p className='text-[rgb(var(--color-text))] text-shadow text-md'>{t('invoice.subtitle')}</p>
 
           {activeSection === null ? (
             <div className="flex flex-col space-y-4">
@@ -97,16 +97,16 @@ export default function FormInvoice() {
                   <div
                     key={section.key}
                     onClick={() => handleSectionClick(section.key)}
-                    className="relative flex gap-x-6 py-6 my-4 animate-up bg-gray-100 dark:bg-slate-800 rounded-xl px-4 shadow cursor-pointer"
+                    className="relative flex gap-x-6 py-6 my-4 animate-up bg-[rgb(var(--color-card-white))] rounded-xl px-4 shadow cursor-pointer"
                   >
-                    <div className="flex h-10 w-10 flex-none items-center justify-center rounded-full shadow-sm ring-1 ring-gray-900/10 dark:ring-gray-100">
-                      <section.icon className="h-6 w-6 dark:text-amber-300 text-amber-400" aria-hidden="true" />
+                    <div className="flex h-10 w-10 flex-none items-center justify-center rounded-full shadow-sm ring-1 ring-gray-900/10">
+                      <section.icon className="h-6 w-6 text-amber-400" aria-hidden="true" />
                     </div>
                     <div className="flex-auto">
                       <h3 className="text-sm font-semibold leading-6 text-amber-400">
                         {section.name}
                       </h3>
-                      <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-stone-100">{section.description}</p>
+                      <p className="mt-2 text-sm leading-6 text-[rgb(var(--color-text))] opacity-80">{section.description}</p>
                     </div>
                   </div>
                 ))
@@ -117,13 +117,13 @@ export default function FormInvoice() {
           ) : (
             <div>
               <div
-                className="max-w-32 text-sm leading-6 xl:pr-1 flex rounded-3xl justify-center items-center bg-zinc-300/30 dark:bg-slate-300/10 relative cursor-pointer animate-out mt-4"
+                className="max-w-32 text-sm leading-6 xl:pr-1 flex rounded-3xl justify-center items-center bg-[rgb(var(--color-card))] relative cursor-pointer animate-out mt-4"
                 onClick={handleBackClick}
               >
-                <div className="text-sm font-bold leading-6 p-2 shadow bg-slate-100 dark:bg-stone-700 hover:bg-zinc-50 dark:hover:bg-stone-600 rounded-full">
-                  <IoMdArrowRoundBack size={10} className='leading-6 text-yellow-600 dark:text-stone-300' />
+                <div className="text-sm font-bold leading-6 p-2 shadow bg-[rgb(var(--color-card-white))] hover:bg-zinc-50 rounded-full">
+                  <IoMdArrowRoundBack size={10} className='leading-6 text-yellow-600' />
                 </div>
-                <div className='ml-1 mr-3 text-md xl:text-lg 2xl:text-lg leading-6 text-yellow-600 dark:text-stone-300'>
+                <div className='ml-1 mr-3 text-md xl:text-lg 2xl:text-lg leading-6 text-yellow-600'>
                   {t('invoice.back')}
                 </div>
               </div>

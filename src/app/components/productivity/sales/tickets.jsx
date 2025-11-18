@@ -11,20 +11,33 @@ import ClientOrderModal from './client-order-modal';
 import PaymentTypeModal from './payment-type-modal';
 import RowTypeModal from './row-type-modal';
 import { getStorageValue } from "@/app/lib/storage-values";
-import axios from 'axios';
 import { HiOutlineViewGridAdd } from "react-icons/hi";
 import { MdAutorenew } from "react-icons/md";
 import ListToPrint from './list-print';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 const fetchNewSale = async (sale_data) => {
+    const endpoint = buildApiUrl('/newSale');
     try {
-        const response = await axios.post('/api/dataManage?type=newSale', sale_data, {
+        const response = await fetch(endpoint, {
+            method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
-            }
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(sale_data),
+            cache: 'no-store'
         });
-        return response.data.folio;
+
+        if (!response.ok) {
+            const message = `Error ${response.status}: ${response.statusText}`;
+            throw new Error(message);
+        }
+
+        const data = await response.json();
+        return data?.folio;
     } catch (error) {
+        console.error('Error generating sale:', error);
         alert("Imposible vender, por favor intenta nuevamente más tarde.");
         return null;
     }
@@ -75,11 +88,11 @@ export default function Tickets() {
     }, [paymentType, folio]);
 
     const handlePrint = useReactToPrint({
-        content: () => componentRef.current,
+        contentRef: componentRef,
     });
 
     const handlelistPrint = useReactToPrint({
-        content: () => listRef.current,
+        contentRef: listRef,
     });
 
     const handleGenerateFolioAndPrint = async () => {
@@ -137,10 +150,11 @@ export default function Tickets() {
             refaccion: `${isSeminew ? 'SEMI' : 'NEW'}-${globalIdCounter}`,
             descripcion: '',
             aIva: 0,
-            precio: 0 ,
+            precio: 0,
             cantidad: 1,
             monto: 0,
-            isSeminew: isSeminew,
+            localizacion: '',
+            isSeminew,
             isEditable: true,
         };
         setGlobalIdCounter(prev => prev + 1);
@@ -255,14 +269,14 @@ export default function Tickets() {
     const ceroMonto = items.some(item => item.monto === 0);
     const ceroTotal = total <= 0;
     const ceroItems = items.length === 0;
-    const noDescription = items.some(item => item.descripcion.trim() === '');
-
-    const validaHiddenTicket = hasPedido || ceroExistencia || ceroMonto || ceroTotal || ceroItems || noDescription ? 'hidden' : 'block';
-    const validaBlockPedido = hasPedido && !(ceroMonto || ceroTotal || ceroItems || noDescription) ? 'block' : 'hidden';
+    const manualRowsIncomplete = items.some(
+        item => item.isEditable && (item.descripcion.trim() === '' || Number(item.precio) <= 0)
+    );
+    const canCompleteSale = !(hasPedido || ceroExistencia || ceroMonto || ceroTotal || ceroItems || manualRowsIncomplete);
     const validaTextArea = hasPedido ? 'block' : 'hidden';
     const validaHiddenLista = ceroItems ? 'hidden' : 'block';
 
-    const buttonConfigs = [
+    const baseButtonConfigs = [
         {
             icon: HiOutlineViewGridAdd,
             btnconf: `relative blue-circle-button tooltip-button`,
@@ -279,23 +293,29 @@ export default function Tickets() {
             path: '',
             event: handlelistPrint
         },
-        {
+    ];
+
+    if (canCompleteSale) {
+        baseButtonConfigs.push({
             icon: IoTicket,
-            btnconf: `relative p-3 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 color-cultured cursor-pointer inline-block tooltip-button ${validaHiddenTicket}`,
+            btnconf: `relative p-3 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 color-cultured cursor-pointer inline-block tooltip-button`,
             label: 'Ticket',
             id: 'print',
             path: '',
             event: handleOnlyPrint
-        },
-        {
-            icon: IoBagAdd,
-            btnconf: `relative p-3 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 color-cultured cursor-pointer inline-block tooltip-button ${validaBlockPedido}`,
-            label: 'Pedido',
-            id: 'add',
-            path: '',
-            event: handleClientData
-        }
-    ];
+        });
+    }
+
+    const pedidoButton = {
+        icon: IoBagAdd,
+        btnconf: `relative p-3 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 color-cultured cursor-pointer inline-block tooltip-button`,
+        label: 'Pedido',
+        id: 'add',
+        path: '',
+        event: handleClientData
+    };
+
+    const buttonConfigs = hasPedido ? [...baseButtonConfigs, pedidoButton] : baseButtonConfigs;
 
     const completeConfigs = [
         {
@@ -315,7 +335,7 @@ export default function Tickets() {
     ];
 
     return (
-        <div className="bg-gradient-to-b min-h-screen from-[rgb(var(--color-card))] via-text-[rgb(var(--color-bg))] to-[rgb(var(--color-galaxy))] backdrop-blur-md pt-28">
+        <div className="bg-gradient-to-b min-h-screen from-[rgb(var(--color-card))] via-text-[rgb(var(--color-bg))] to-[rgb(var(--color-galaxy))] backdrop-blur-md pt-28 overflow-x-hidden">
             <Title
                 title='Genera tickets para clientes'
                 icon={MdSell}
@@ -325,7 +345,7 @@ export default function Tickets() {
             <div>
                 <div className="mx-auto max-w-[1700px] xl:px-8 mt-5 overflow-hidden">
                     <div className="grid grid-cols-1 lg:grid-cols-3 mx-auto gap-x-7 gap-y-6 lg:mx-0 px-2">
-                        <div className= {`lg:rounded-2xl my-5 pt-2 shadow shadow-[rgb(var(--color-gray-base))] w-auto overflow-hidden rounded-xl ${folio ? 'bg-stone-500' : 'bg-[rgb(var(--color-gray))]' }`}>
+                        <div className= {`lg:rounded-2xl my-5 pt-2 shadow shadow-[rgb(var(--color-gray-base))] w-full max-w-[520px] mx-auto overflow-hidden rounded-xl ${folio ? 'bg-stone-500' : 'bg-[rgb(var(--color-gray))]' }`}>
                             <FindProducts
                                 onAddProduct={handleAddProduct}
                                 onRemoveProduct={handleRemoveProduct}

@@ -66,8 +66,8 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
     }, []);
 
     return (
-        <div className="h-[690px] bg-gray-100 dark:bg-stone-800 rounded-2xl my-5 flex shadow relative">
-            <div className='flex flex-col px-1 bg-gray-300 dark:bg-stone-900 rounded-l-2xl pt-5 relative'>
+        <div className="h-[690px] bg-[rgb(var(--color-card))] rounded-2xl my-5 flex shadow relative">
+            <div className='flex flex-col px-1 bg-[rgb(var(--color-card-white))] rounded-l-2xl pt-5 relative'>
                 {buttonConfigs.map(({ icon: Icon, label, id, event, btnconf }) => (
                     <div
                         key={id}
@@ -78,7 +78,7 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                     >
                         <Icon />
                         {visibleTooltip[id] && (
-                            <div className="tooltip-content absolute left-full ml-3 top-1/2 transform -translate-y-1/2 opacity-90 dark:bg-gray-900 bg-gray-300 shadow dark:text-white text-black text-xs rounded px-2 py-1 z-10"
+                            <div className="tooltip-content absolute left-full ml-3 top-1/2 transform -translate-y-1/2 opacity-90 bg-[rgb(var(--color-card))] shadow text-[rgb(var(--color-text))] text-xs rounded px-2 py-1 z-10"
                                 style={{ width: 'max-content', maxWidth: '16rem' }}>
                                 {label}
                             </div>
@@ -87,8 +87,8 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                 ))}
             </div>
             <div className="flex flex-col overflow-x-scroll w-full">
-                <table ref={listRef} className="w-full text-sm text-left text-gray-500 dark:text-gray-400 shadow-sm">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                <table ref={listRef} className="w-full text-sm text-left text-[rgb(var(--color-text))] shadow-sm">
+                    <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-card))]">
                         <tr>
                             <th className="p-1">REFACCIÓN</th>
                             <th className="p-1">DESCRIPCIÓN</th>
@@ -114,7 +114,7 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                         {items.map((item, index) => {
                             return (
                                 <tr
-                                    className={`${item.isPedido ? 'bg-blue-200 dark:bg-blue-100' : item.existencia === 0 ? 'bg-red-200 dark:bg-red-950' : 'bg-white dark:bg-gray-800'} border-b dark:border-gray-700 relative`}
+                                    className={`${item.isPedido ? 'bg-blue-200' : item.existencia === 0 ? 'bg-[rgb(var(--color-error-base))]' : 'bg-[rgb(var(--color-card-white))]'} border-b border-[rgb(var(--color-border))] relative`}
                                     key={index}
                                 >
                                     <td className="p-2">
@@ -135,7 +135,7 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                             type="text"
                                             value={item.descripcion}
                                             onChange={(event) => handleDescriptionChange(item, event)}
-                                            className="block w-96 md:w-96 p-1 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-xs focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 uppercase"
+                                            className="block w-96 md:w-96 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 uppercase"
                                         />
                                     </td>
                                     <td className="p-2">
@@ -143,7 +143,7 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                             type="text"
                                             value={item.localizacion}
                                             onChange={(event) => handleLocationChange(item, event)}
-                                            className="block p-1 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-xs focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                            className="block p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60"
                                         />
                                     </td>
                                     <td className="py-2">
@@ -168,13 +168,13 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                 </tr>
                             );
                         })}
-                        <tr className="bg-slate-200 border-b dark:bg-gray-900 dark:border-gray-500">
-                            <td className="py-2 font-bold text-xl text-amber-500 dark:text-amber-200" colSpan="7">
+                        <tr className="bg-[rgb(var(--color-card))] border-b border-[rgb(var(--color-border))]">
+                            <td className="py-2 font-bold text-xl text-amber-500" colSpan="7">
                                 <div className='flex justify-center items-center'>
-                                    <span className='px-2 text-stone-800 dark:text-slate-50 italic'>
+                                    <span className='px-2 text-[rgb(var(--color-text))] italic'>
                                         PRODUCTOS
                                     </span>
-                                    <span className="px-2 bg-amber-500 text-white dark:text-stone-800 font-semibold rounded-full h-10 w-10 text-md flex items-center justify-center shadow-lg">
+                                    <span className="px-2 bg-amber-500 text-white font-semibold rounded-full h-10 w-10 text-md flex items-center justify-center shadow-lg">
                                         {items.length}
                                     </span>
                                 </div>

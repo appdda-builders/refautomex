@@ -97,7 +97,7 @@ export default function Devolution() {
     };
 
     return (
-        <div className="isolate bg-white dark:bg-slate-950 px-6 py-24 sm:py-32 lg:px-8">
+        <div className="isolate bg-[rgb(var(--color-bg))] px-6 py-24 sm:py-32 lg:px-8">
             <Title 
             title='Devolución de productos'
             icon={MdSell}
@@ -109,7 +109,7 @@ export default function Devolution() {
                 aria-hidden="true"
             >
                 <div
-                className="relative left-1/2 -z-10 aspect-[1155/678] w-[36.125rem] max-w-none -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr dark:from-[#ff80b5] dark:to-[#9089fc] from-[#083a82] to-[#fce989] opacity-30 sm:left-[calc(50%-40rem)] sm:w-[72.1875rem]"
+                className="relative left-1/2 -z-10 aspect-[1155/678] w-[36.125rem] max-w-none -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[rgb(var(--color-blue))] to-[rgb(var(--color-galaxy))] opacity-30 sm:left-[calc(50%-40rem)] sm:w-[72.1875rem]"
                 style={{
                     clipPath:
                     'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)',
@@ -118,7 +118,7 @@ export default function Devolution() {
             </div>
             <div className="mx-auto max-w-2xl text-center mt-10">
                 <RefautomexLogo classAttr={'mx-auto'}/>
-                <p className="mt-2 text-lg leading-8 text-gray-600 dark:text-gray-50">
+                <p className="mt-2 text-lg leading-8 text-[rgb(var(--color-text))] opacity-80">
                 Introduce los datos de la devolución para continuar con el ticket
                 </p>
                 <div role="alert" className="mt-4 text-xl bg-zinc-200 shadow-md opacity-90 p-2 rounded-md w-full">
@@ -129,7 +129,7 @@ export default function Devolution() {
             <form onSubmit={handleSubmit} method="POST" className="mx-auto mt-10 max-w-xl sm:mt-14">
                 <div className="grid grid-cols-1 gap-x-8 gap-y-6">
                 <div className="sm:col-span-2">
-                    <label htmlFor="full-name" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+                    <label htmlFor="full-name" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                     Fecha de devolución
                     </label>
                     <div className="mt-2.5">
@@ -143,7 +143,7 @@ export default function Devolution() {
                     </div>
                 </div>
                 <div className="sm:col-span-2">
-                    <label htmlFor="full-name" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+                    <label htmlFor="full-name" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                     Importe del ticket
                     </label>
                     <div className="mt-2.5">
@@ -157,7 +157,7 @@ export default function Devolution() {
                     </div>
                 </div>
                 <div className="sm:col-span-2">
-                    <label htmlFor="full-name" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+                    <label htmlFor="full-name" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                     Importe con Letra
                     </label>
                     <div className="mt-2.5">
@@ -171,7 +171,7 @@ export default function Devolution() {
                     </div>
                 </div>
                 <div className="sm:col-span-2">
-                    <label htmlFor="email" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+                    <label htmlFor="email" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                         Concepto de devolución
                     </label>
                     <div className="mt-2.5">
@@ -185,7 +185,7 @@ export default function Devolution() {
                     </div>
                 </div>
                 <div className="sm:col-span-2">
-                    <label htmlFor="message" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200">
+                    <label htmlFor="message" className="block text-sm font-semibold leading-6 text-[rgb(var(--color-text))]">
                         Describe brevemente el motivo
                     </label>
                     <div className="mt-2.5">

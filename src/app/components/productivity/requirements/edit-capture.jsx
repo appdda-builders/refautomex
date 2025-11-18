@@ -200,7 +200,7 @@ export default function EditCapture({ onCancelEdit }) {
                 </div>
                 <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-8">
                     <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Num Factura
                         </label>
                         <input
@@ -215,7 +215,7 @@ export default function EditCapture({ onCancelEdit }) {
                     </div>
 
                     <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Proveedor
                         </label>
                         <Select
@@ -229,7 +229,7 @@ export default function EditCapture({ onCancelEdit }) {
                     </div>
 
                     <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Fecha Compra
                             {/* LA FECHA PAGO ES EL RESULTADO SE SUMAR LOS DIAS DE LA BASE DE DATOS A LA FECHA DE LA COMPRA,
                             SI LA FECHA DE LA COMPRA NO TIENE DIAS DE PLAZO ENTONCES FECHA_CAPTURA = FECHA_PAGO */}
@@ -246,7 +246,7 @@ export default function EditCapture({ onCancelEdit }) {
                     </div>
 
                     <div className="md:col-span-2 relative">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             % General
                         </label>
                         <input
@@ -262,7 +262,7 @@ export default function EditCapture({ onCancelEdit }) {
                     </div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 mx-auto gap-x-10 gap-y-6 lg:mx-0 px-10 xl:px-0 pt-5">
-                    <div className="bg-gray-200 dark:bg-stone-700 lg:rounded-2xl my-5 py-2 shadow w-auto overflow-hidden rounded-xl md:-mx-8 xl:-mx-4">
+                    <div className="bg-[rgb(var(--color-card-white))] lg:rounded-2xl my-5 py-2 shadow w-auto overflow-hidden rounded-xl md:-mx-8 xl:-mx-4">
                         <FindProducts
                             onAddProduct={handleAddProduct}
                             onRemoveProduct={handleRemoveProduct}

@@ -4,7 +4,7 @@ import { FaArrowDown, FaArrowUp, FaSearch } from "react-icons/fa";
 import { FaMoneyBillTransfer, FaBook, FaBox } from "react-icons/fa6";
 import { GrStatusGoodSmall } from "react-icons/gr";
 import { GiAutoRepair } from 'react-icons/gi';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { SlMagnifierRemove } from "react-icons/sl";
 import FindFolio from './find-folio';
 import Title from '../title';
@@ -15,7 +15,7 @@ const createTooltip = (icon, label, id, visibleTooltip, setVisibleTooltip) => {
     const hide = () => setVisibleTooltip(null);
     const tooltip = visibleTooltip === id ? (
         <div
-            className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 opacity-90 dark:bg-gray-900 bg-gray-300 shadow dark:text-white text-black text-xs rounded px-2 py-1 z-10"
+            className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 opacity-90 bg-[rgb(var(--color-card))] shadow text-[rgb(var(--color-text))] text-xs rounded px-2 py-1 z-10"
             style={{ width: 'max-content', maxWidth: '16rem' }}
         >
             {label}
@@ -42,6 +42,13 @@ export default function Site() {
     const [idVenta, setIdVenta] = useState('');
     const [viewMode, setViewMode] = useState('P');
     const [isSearchingFolio, setIsSearchingFolio] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
+    const [selectedRequest, setSelectedRequest] = useState(null);
+    const [isFinalizing, setIsFinalizing] = useState(false);
+    const [finalizeError, setFinalizeError] = useState(null);
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const PAGE_SIZE = 25;
 
     const formatDate = (dateString) => {
         const options = { year: 'numeric', month: 'long', day: 'numeric', locale: 'es-ES' };
@@ -75,6 +82,7 @@ export default function Site() {
                         details: detallesFiltrados
                     }
                 ]);
+                setCurrentPage(1);
             } else {
                 alert(`No se encontraron datos con el folio ${folio}`);
                 setRequests([]);
@@ -94,6 +102,8 @@ export default function Site() {
             return;
         }
 
+        setIsUpdatingStatus(true);
+
         const update_data = {
             folio: folioToChange,
             status: selectedStatus,
@@ -104,7 +114,7 @@ export default function Site() {
         //console.log('Datos a actualizar:', update_data);
 
         try {
-            const response = await axios.patch(`/api/dataManage?type=patchHistoryStatus`, update_data, {
+            const response = await axios.patch(buildApiUrl('/patchHistoryStatus'), update_data, {
                 headers: { 'Content-Type': 'application/json' },
             });
             if (response) {
@@ -133,6 +143,8 @@ export default function Site() {
         } catch (error) {
             console.error('Error actualizando el estado:', error);
             alert('Hubo un error al actualizar el estado. Intenta de nuevo.');
+        } finally {
+            setIsUpdatingStatus(false);
         }
 
         setIsStatusModalOpen(false);
@@ -151,6 +163,61 @@ export default function Site() {
         setCurrentPartNumber(num_parte);
         setIdVenta(request?.idventa || request?.idVenta);
         setIsStatusModalOpen(true);
+    };
+
+    const closeFinalizeModal = () => {
+        setIsFinalizeModalOpen(false);
+        setSelectedRequest(null);
+        setFinalizeError(null);
+    };
+
+    const handleOpenFinalizeModal = (request) => {
+        setSelectedRequest(request);
+        setFinalizeError(null);
+        setIsFinalizeModalOpen(true);
+    };
+
+    const handleFinalizeOrder = async () => {
+        if (!selectedRequest) return;
+
+        const pendingDetails = (selectedRequest.details || []).filter(
+            (detail) => detail.status_producto !== 'E'
+        );
+
+        if (pendingDetails.length === 0) {
+            setIsFinalizeModalOpen(false);
+            setSelectedRequest(null);
+            return;
+        }
+
+        setIsFinalizing(true);
+        setFinalizeError(null);
+
+        try {
+            await Promise.all(
+                pendingDetails.map((detail) =>
+                    axios.patch(
+                        buildApiUrl('/patchHistoryStatus'),
+                        {
+                            folio: selectedRequest.folio,
+                            status: 'E',
+                            idventa: selectedRequest.idventa,
+                            num_parte: detail.num_parte,
+                        },
+                        { headers: { 'Content-Type': 'application/json' } }
+                    )
+                )
+            );
+
+            await fetchData();
+            setIsFinalizeModalOpen(false);
+            setSelectedRequest(null);
+        } catch (error) {
+            console.error('Error finalizando pedido:', error);
+            setFinalizeError('No se pudo finalizar el pedido. Intenta de nuevo.');
+        } finally {
+            setIsFinalizing(false);
+        }
     };
 
     const fetchData = async () => {
@@ -186,23 +253,84 @@ export default function Site() {
         fetchData();
     }, [viewMode]);
 
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [viewMode]);
+
+    useEffect(() => {
+        if (!isSearchingFolio) {
+            const finalized = requests.filter((req) => req.status === 'F');
+            console.log('[Site] Estado actual', {
+                viewMode,
+                totalPedidos: requests.length,
+                finalizados: finalized.length,
+                detalleFinalizados: finalized.map((req) => ({
+                    folio: req.folio,
+                    idventa: req.idventa,
+                })),
+            });
+        }
+    }, [viewMode, requests, isSearchingFolio]);
+
+    const totalPages = Math.max(1, Math.ceil(requests.length / PAGE_SIZE));
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    const paginatedRequests = isSearchingFolio
+        ? requests
+        : requests.slice(startIndex, startIndex + PAGE_SIZE);
+
+    const handlePrevPage = () => {
+        setCurrentPage((prev) => Math.max(1, prev - 1));
+    };
+
+    const handleNextPage = () => {
+        setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+    };
+
     return (
-        <div className="bg-gradient-to-b min-h-screen from-white via-gray-100 to-gray-400 dark:from-black dark:via-slate-800 dark:to-stone-700 backdrop-blur-md pt-28">
+        <div className="bg-gradient-to-b min-h-screen from-[rgb(var(--color-bg))] via-[rgb(var(--color-card))] to-[rgb(var(--color-gray))] backdrop-blur-md pt-28">
             <Title
                 title='Entregas en sucursal'
                 icon={GiAutoRepair}
                 back='Volver al panel'
                 path='/productivity'
             />
-            <div className="mx-auto max-w-7xl px-6 lg:px-8 mt-5 flex justify-center dark:text-blue-200 text-amber-900 text-xl items center uppercase font-semibold italic"></div>
+            <div className="mx-auto max-w-7xl px-6 lg:px-8 mt-5 flex justify-center text-[rgb(var(--color-text))] text-xl items center uppercase font-semibold italic"></div>
                 <div className="mx-auto max-w-7xl px-6 lg:px-8 mt-5">
-                    <div className="mx-auto grid max-w-2xl grid-cols-1 gap-x-8 gap-y-6 lg:mx-0 lg:max-w-none">
-                        <div className="relative h-[470px] bg-gray-200 dark:bg-stone-800 rounded-2xl my-5 flex justify-center shadow">
-                            <div className='flex flex-col px-1 bg-gray-300 dark:bg-stone-900 rounded-l-2xl pt-5 relative w-16'>
-                            <div className='bg-amber-100 dark:bg-violet-800 rounded-full shadow w-max absolute top-2 flex flex-col sm:ml-0.5'>
+                    <div className="mx-auto grid max-w-4xl grid-cols-1 gap-x-4 gap-y-3 lg:mx-0 lg:max-w-none">
+                        {!isSearchingFolio && requests.length === 0 && (
+                            <div className="text-center text-sm text-[rgb(var(--color-text))] py-4">
+                                No se encontraron registros.
+                            </div>
+                        )}
+                        {!isSearchingFolio && requests.length > PAGE_SIZE && (
+                            <div className="flex items-center justify-center gap-4 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={handlePrevPage}
+                                    disabled={currentPage === 1}
+                                    className={`px-3 py-1 rounded-full border ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[rgb(var(--color-card))]'}`}
+                                >
+                                    Anterior
+                                </button>
+                                <span className="text-sm text-[rgb(var(--color-text))]">
+                                    Página {currentPage} de {totalPages}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={handleNextPage}
+                                    disabled={currentPage === totalPages}
+                                    className={`px-3 py-1 rounded-full border ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[rgb(var(--color-card))]'}`}
+                                >
+                                    Siguiente
+                                </button>
+                            </div>
+                        )}
+                        <div className="relative h-[70vh] bg-[rgb(var(--color-bg))] rounded-2xl mb-5 flex justify-center shadow">
+                            <div className='flex flex-col px-1 bg-[rgb(var(--color-card))] rounded-l-2xl pt-5 relative w-16'>
+                                <div className='bg-[rgb(var(--color-card))] rounded-full shadow shadow-[rgb(var(--color-galaxy))] w-max absolute top-2 flex flex-col sm:ml-0.5'>
                                     {isSearchingFolio ? (
                                         <div
-                                            className='muted-circle-button relative'
+                                            className='green-circle-button relative'
                                             onClick={() => {
                                                 setIsSearchingFolio(false);
                                                 fetchData();
@@ -230,7 +358,7 @@ export default function Site() {
                                     />
                                 </div>
                                 {!isSearchingFolio && (
-                                    <div className='bg-slate-100 dark:bg-stone-600 rounded-full shadow w-max absolute top-16 flex flex-col sm:ml-0.5'>
+                                    <div className='bg-[rgb(var(--color-card))] rounded-full shadow shadow-[rgb(var(--color-galaxy))] w-max absolute top-16 flex flex-col sm:ml-0.5'>
                                         <div
                                             className={`${viewMode === 'P'
                                             ? 'p-3 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 color-cultured cursor-pointer inline-block'
@@ -257,8 +385,8 @@ export default function Site() {
                                 )}
                             </div>
                             <div className='w-full h-full overflow-scroll'>
-                                <table className="w-full lg:w-[1155px] text-sm text-left text-gray-500 dark:text-gray-400 mx-auto">
-                                    <thead className="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400 text-center">
+                                <table className="w-full lg:w-[1155px] text-sm text-left text-[rgb(var(--color-text))] mx-auto">
+                                    <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-card))] text-center">
                                         <tr>
                                             <th scope="col" className="p-1.5">STATUS</th>
                                             <th scope="col" className="py-2 px-8">FOLIO</th>
@@ -269,43 +397,49 @@ export default function Site() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                            {Array.isArray(requests) && requests.map((item, index) => (
-                                            <>
-                                                <tr className="bg-white dark:bg-gray-800" >
+                                            {Array.isArray(paginatedRequests) && paginatedRequests.map((item, index) => (
+                                            <Fragment key={item.folio || index}>
+                                                <tr className="bg-[rgb(var(--color-bg))]" >
                                                     <td className="py-4 px-4 relative flex-col justify-center items-center flex">
                                                         <button
                                                             className="relative flex h-5 w-5"
                                                         >
-                                                            <GrStatusGoodSmall className={`relative inline-flex rounded-full h-5 w-5
-                                                            ${item.status === 'P' ? 'text-yellow-500'
-                                                                : 'text-red-500'}`}
+                                                            <GrStatusGoodSmall className={`relative inline-flex rounded-full h-5 w-5 animate-pulse
+                                                            ${item.status === 'P' ? 'text-[rgb(var(--color-amber))]'
+                                                                : 'text-[rgb(var(--color-error))]'}`}
                                                             />
                                                         </button>
-                                                        <span className={`
-                                                            ${item.status === 'P' ? 'bg-yellow-200 dark:bg-yellow-700'
-                                                            : 'bg-red-200 dark:bg-red-500'}
-                                                            text-sm dark:text-white px-1 shadow rounded-md mt-2`}
+                                                        <span
+                                                            onClick={() => {
+                                                                if (item.status === 'P') {
+                                                                    handleOpenFinalizeModal(item);
+                                                                }
+                                                            }}
+                                                            className={`
+                                                            ${item.status === 'P' ? 'bg-[rgb(var(--color-amber))] cursor-pointer hover:opacity-80'
+                                                            : 'bg-[rgb(var(--color-error))] cursor-default'}
+                                                            text-sm text-[rgb(var(--color-text-base))] px-1 rounded-md mt-2`}
                                                         >
                                                             {item.status === 'P' ? 'Pedido'
                                                             : 'Finalizada'}
                                                         </span>
                                                     </td>
-                                                    <td className="py-4 px-1 md:px-3 cursor-pointer font-medium bg-amber-50 dark:bg-indigo-950 dark:text-white"
+                                                    <td className="py-4 px-1 md:px-3 cursor-pointer font-medium bg-[rgb(var(--color-card))]"
                                                         onClick={() => toggleDetails(item.folio, item.idVenta)}
                                                     >
-                                                        <div className='flex flex-col items-center'>
+                                                        <div className='flex flex-col items-center text-[rgb(var(--color-text))]'>
                                                             <span className='font-semibold text-sm xl:text-lg truncate'>{item.folio}</span>
-                                                            <span className='animate-out mt-2 rounded-full shadow border border-slate-700 dark:border-slate-100 p-0.5'>
+                                                            <span className='animate-out mt-2 rounded-full shadow shadow-[rgb(var(--color-galaxy))] text-[rgb(var(--color-text))] p-0.5'>
                                                                 {expandedFolio === item.folio ? <FaArrowUp size={13}/> : <FaArrowDown size={13}/>}
                                                             </span>
                                                         </div>
                                                     </td>
-                                                    <td className="py-4 px-3 bg-slate-50 dark:bg-stone-800 dark:text-white">
+                                                    <td className="py-4 px-3 bg-[rgb(var(--color-gray))]">
                                                         <div className='flex flex-col items-center justify-center'>
-                                                            <span className='text-lg'>
+                                                            <span className='text-lg text-[rgb(var(--color-text))]'>
                                                                 {upperCase(item.nombre)}
                                                             </span>
-                                                            <span className='font-bold'>
+                                                            <span className='font-bold text-[rgb(var(--color-text))]'>
                                                                 {item.telefono}
                                                             </span>
                                                         </div>
@@ -313,23 +447,23 @@ export default function Site() {
                                                     <td className="py-4 px-4 font-bold text-lg">
                                                         $ {item.total_venta}
                                                     </td>
-                                                    <td className="py-4 px-2 m-1 cursor-pointer font-medium dark:text-white">
-                                                        <span className='bg-red-50 dark:bg-red-950 lg:rounded-full p-1 flex flex-col items-center justify-center'>
+                                                    <td className="py-4 px-2 m-1 cursor-pointer font-medium">
+                                                        <span className='bg-[rgb(var(--color-error))] text-[rgb(var(--color-text-base))] lg:rounded-full p-1 flex flex-col items-center justify-center'>
                                                             {formatDate(item.f_entrega)}
                                                         </span>
                                                     </td>
-                                                    <td className="py-4 px-2 m-1 cursor-pointer font-medium dark:text-white">
+                                                    <td className="py-4 px-2 m-1 cursor-pointer font-medium">
                                                         <span className='flex flex-col items-center justify-center'>
                                                             {formatDate(item.f_pedido)}
                                                         </span>
                                                     </td>
                                                 </tr>
                                                 {expandedFolio === item.folio && (
-                                                    <tr className="bg-gray-100 dark:bg-gray-700">
+                                                    <tr className="bg-[rgb(var(--color-bg))]">
                                                         <td colSpan="7" className="py-1 pb-3 px-1">
                                                             <div>
-                                                                <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400 mt-2 shadow">
-                                                                    <thead className="text-xs text-gray-700 dark:text-white uppercase bg-gray-300 dark:bg-gray-600">
+                                                                <table className="w-full text-sm text-left text-[rgb(var(--color-text))] mt-2 shadow">
+                                                                    <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-card))]">
                                                                         <tr>
                                                                             <th scope="col" className="py-2 px-4">STATUS</th>
                                                                             <th scope="col" className="py-2 px-4">NÚMERO DE PARTE</th>
@@ -340,25 +474,23 @@ export default function Site() {
                                                                     </thead>
                                                                     <tbody>
                                                                         {item.details && item.details.map((detail, i) => (
-                                                                            <tr key={i} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                                                                            <tr key={i} className="bg-[rgb(var(--color-gray))] border-b border-[rgb(var(--color-border))]">
                                                                                 <td className="p-4 relative flex-col justify-center items-center flex">
                                                                                     <button
                                                                                         className="relative flex h-5 w-5"
                                                                                         onClick={() => handleOpenStatusModal(item.status, item.folio, detail.num_parte)}
                                                                                     >
-                                                                                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75
-                                                                                        ${detail.status_producto === 'P' ? 'bg-green-500'
-                                                                                            : 'bg-blue-500'}`}
-                                                                                        ></span>
-                                                                                        <GrStatusGoodSmall className={`relative inline-flex rounded-full h-5 w-5
-                                                                                        ${detail.status_producto === 'P' ? 'text-green-500'
-                                                                                            : 'text-blue-500'}`}
+                                                                                        <GrStatusGoodSmall className={`relative inline-flex rounded-full h-5 w-5 animate-pulse
+                                                                                        ${detail.status_producto === 'P' ? 'text-[rgb(var(--color-success))]'
+                                                                                            : 'text-[rgb(var(--color-text))]'}`}
                                                                                         />
                                                                                     </button>
-                                                                                    <span className={`
-                                                                                        ${detail.status_producto === 'P' ? 'bg-green-200 dark:bg-green-700'
-                                                                                        : 'bg-blue-200 dark:bg-blue-700'}
-                                                                                        text-sm dark:text-white px-1 shadow rounded-md mt-2`}
+                                                                                    <span
+                                                                                        onClick={() => handleOpenStatusModal(item.status, item.folio, detail.num_parte)}
+                                                                                        className={`
+                                                                                        ${detail.status_producto === 'P' ? 'bg-[rgb(var(--color-success))] cursor-pointer hover:opacity-85'
+                                                                                        : 'bg-[rgb(var(--color-blue))] cursor-pointer hover:opacity-85'}
+                                                                                        text-sm text-[rgb(var(--color-text-base))] px-1 shadow rounded-md mt-2`}
                                                                                     >
                                                                                         {detail.status_producto === 'P' ? 'Pendiente'
                                                                                         : detail.status_producto === 'E' ? 'Entregado'
@@ -377,10 +509,10 @@ export default function Site() {
                                                         </td>
                                                     </tr>
                                                 )}
-                                                <tr className='bg-amber-50 dark:bg-indigo-950 dark:text-white border-gray-700 dark:border-gray-200 border-b-2'>
-                                                        <td colSpan={9} className='text-lg font-semibold'>NOTA: {upperCase(item.nota)}</td>
+                                                <tr className='bg-[rgb(var(--color-card))] border-[rgb(var(--color-border))] border-b-2'>
+                                                    <td colSpan={9} className='text-lg font-semibold text-[rgb(var(--color-text))] pl-1'>NOTA: {upperCase(item.nota)}</td>
                                                 </tr>
-                                            </>
+                                            </Fragment>
                                             ))}
                                     </tbody>
                                 </table>
@@ -390,22 +522,22 @@ export default function Site() {
                 </div>
                 {/**Modal para Status */}
                 {isStatusModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black opacity-50">
-                        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-80">
-                            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgb(var(--color-gray-base))]/70">
+                        <div className="bg-[rgb(var(--color-bg))] p-6 rounded-lg shadow-lg w-80">
+                            <h2 className="text-xl font-semibold mb-4 text-[rgb(var(--color-text))]">
                                 ¿Cambiar status de
                                 <br/>
                                 {folioToChange}?
                             </h2>
                             <div className="mb-4">
-                                <label htmlFor="status" className="block text-gray-700 dark:text-gray-300 mb-2">
+                                <label htmlFor="status" className="block text-[rgb(var(--color-text))] mb-2">
                                     Cambia status del producto seleccionado:
                                 </label>
                                 <select
                                     id="status"
                                     value={selectedStatus}
                                     onChange={(e) => setSelectedStatus(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    className="w-full px-3 py-2 border border-[rgb(var(--color-border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))]"
                                 >
                                     <option value="P">Pendiente</option>
                                     <option value="E">Entregado</option>
@@ -414,18 +546,11 @@ export default function Site() {
                             <div className='py-4 px-4 relative flex-col justify-center items-center flex'>
                                 <span className="relative flex h-5 w-5"
                                 >
-                                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75
-                                    ${selectedStatus === 'P' ? 'bg-green-500'
-                                    : 'bg-blue-500'}`}
-                                    ></span>
-                                    <GrStatusGoodSmall className={`relative inline-flex rounded-full h-5 w-5
-                                    ${selectedStatus === 'P' ? 'text-green-500'
-                                    : 'text-blue-500'}`}
+                                    <GrStatusGoodSmall className={`relative inline-flex rounded-full h-5 w-5 animate-pulse
+                                    ${selectedStatus === 'P' ? 'text-[rgb(var(--color-success))]'
+                                    : 'text-[rgb(var(--color-blue))]'}`}
                                     /></span>
-                                <span className={`
-                                    ${selectedStatus === 'P' ? 'bg-green-200 dark:bg-green-700'
-                                    : 'bg-blue-200 dark:bg-blue-700'}
-                                    text-sm dark:text-white px-1 shadow rounded-md mt-2`}
+                                <span className={`text-sm text-[rgb(var(--color-text))] px-1 shadow rounded-md mt-2`}
                                 >
                                     {selectedStatus === 'P' ? 'Pendiente'
                                     : 'Entregado'}
@@ -435,16 +560,71 @@ export default function Site() {
                                 <button
                                     type="button"
                                     onClick={() => setIsStatusModalOpen(false)}
-                                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mr-2"
+                                    disabled={isUpdatingStatus}
+                                    className="px-4 py-2 rounded-full border text-sm mr-2 disabled:opacity-50"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="button"
                                     onClick={handleChangeStatus}
-                                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                                    disabled={isUpdatingStatus}
+                                    className={`px-4 py-2 rounded-full text-sm text-white ${
+                                        isUpdatingStatus
+                                            ? 'bg-emerald-300 cursor-not-allowed'
+                                            : 'bg-emerald-500 hover:bg-emerald-600'
+                                    }`}
                                 >
-                                    Continuar
+                                    {isUpdatingStatus ? 'Actualizando...' : 'Continuar'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {isFinalizeModalOpen && selectedRequest && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgb(var(--color-gray-base))]/70">
+                        <div className="bg-[rgb(var(--color-bg))] p-6 rounded-lg shadow-xl w-96 max-w-full">
+                            <h2 className="text-xl font-semibold mb-2 text-[rgb(var(--color-text))]">
+                                Finalizar pedido
+                            </h2>
+                            <p className="text-sm text-[rgb(var(--color-text))] mb-4">
+                                Se marcarán como entregados todos los productos del folio{' '}
+                                <span className="font-bold">{selectedRequest.folio}</span>.
+                            </p>
+                            <div className="bg-[rgb(var(--color-card))] rounded-lg p-3 mb-4 text-sm">
+                                <p>Total de productos: {selectedRequest.details?.length || 0}</p>
+                                <p>
+                                    Pendientes:{' '}
+                                    {selectedRequest.details?.filter((detail) => detail.status_producto !== 'E')
+                                        .length || 0}
+                                </p>
+                            </div>
+                            {finalizeError && (
+                                <p className="text-sm text-[rgb(var(--color-error))] mb-3">
+                                    {finalizeError}
+                                </p>
+                            )}
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={closeFinalizeModal}
+                                    className="px-4 py-2 rounded-full border text-sm"
+                                    disabled={isFinalizing}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleFinalizeOrder}
+                                    className={`px-4 py-2 rounded-full text-sm text-white ${
+                                        isFinalizing
+                                            ? 'bg-emerald-400 cursor-not-allowed'
+                                            : 'bg-emerald-500 hover:bg-emerald-600'
+                                    }`}
+                                    disabled={isFinalizing}
+                                >
+                                    {isFinalizing ? 'Finalizando...' : 'Finalizar'}
                                 </button>
                             </div>
                         </div>

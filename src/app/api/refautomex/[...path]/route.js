@@ -15,25 +15,32 @@ const buildRemoteUrl = (segments = [], searchParams) => {
   return `${remoteBase}/${joinedPath}${query ? `?${query}` : ''}`;
 };
 
-export async function GET(request, { params }) {
-  const { path = [] } = params;
+const FORWARDED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+
+const proxyRequest = async (method, request, context) => {
+  const resolvedParams = (await context.params) || {};
+  const { path = [] } = resolvedParams;
   const targetUrl = buildRemoteUrl(path, request.nextUrl.searchParams);
 
   try {
-    const response = await fetch(targetUrl, {
+    const headers = new Headers(request.headers);
+    headers.set('Accept', headers.get('Accept') || 'application/json, text/plain, */*');
+
+    const init = {
+      method,
+      headers,
       cache: 'no-store',
-      headers: {
-        'Accept': 'application/json, text/plain, */*',
-      },
-    });
+    };
 
+    if (method !== 'GET' && method !== 'HEAD') {
+      init.body = await request.arrayBuffer();
+    }
+
+    const response = await fetch(targetUrl, init);
     const contentType = response.headers.get('content-type') || 'application/json';
-    const body =
-      contentType.includes('application/json')
-        ? await response.text()
-        : await response.text();
+    const bodyBuffer = await response.arrayBuffer();
 
-    return new NextResponse(body, {
+    return new NextResponse(bodyBuffer, {
       status: response.status,
       headers: {
         'content-type': contentType,
@@ -48,4 +55,24 @@ export async function GET(request, { params }) {
       { status: 502 }
     );
   }
+};
+
+export async function GET(request, context) {
+  return proxyRequest('GET', request, context);
+}
+
+export async function POST(request, context) {
+  return proxyRequest('POST', request, context);
+}
+
+export async function PUT(request, context) {
+  return proxyRequest('PUT', request, context);
+}
+
+export async function PATCH(request, context) {
+  return proxyRequest('PATCH', request, context);
+}
+
+export async function DELETE(request, context) {
+  return proxyRequest('DELETE', request, context);
 }

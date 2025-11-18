@@ -47,7 +47,7 @@ export default function Refautomex() {
         {load !== 'home' && (
             <div
             onClick={() => router.push(`/section/refautomex?lang=${lang}`)}
-            className="absolute top-32 left-5 sm:left-10 rounded-full justify-center items-center flex bg-stone-300 text-slate-800 shadow-md dark:bg-stone-700 dark:text-white animate-out w-12 h-12 cursor-pointer"
+            className="absolute top-32 left-5 sm:left-10 rounded-full justify-center items-center flex bg-[rgb(var(--color-card-white))] text-[rgb(var(--color-text))] shadow-md animate-out w-12 h-12 cursor-pointer"
             title="Inicio"
             >
             <IoHome className='w-8 h-8' />

@@ -10,18 +10,18 @@ export default function FAQs () {
 
   const Section = ({ title, contents }) => (
     <div className="border-b-4 border-gray-50 pt-4">
-      <h2 className="text-xl text-center font-bold text-stone-600 dark:text-stone-50">{title}</h2>
+      <h2 className="text-xl text-center font-bold text-[rgb(var(--color-text))]">{title}</h2>
       {contents.map((content, index) => (
-        <div key={index} className="my-4 md:my-6 bg-stone-100 dark:bg-stone-950 py-2 shadow rounded-xl px-10 cursor-pointer animate-out">
-          <p className="font-medium text-gray-900 dark:text-gray-200">{content.question}</p>
-          <p className="text-gray-600 dark:text-gray-400">{content.answer}</p>
+        <div key={index} className="my-4 md:my-6 bg-[rgb(var(--color-card))] py-2 shadow rounded-xl px-10 cursor-pointer animate-out">
+          <p className="font-medium text-[rgb(var(--color-text))]">{content.question}</p>
+          <p className="text-[rgb(var(--color-text))] opacity-80">{content.answer}</p>
         </div>
       ))}
     </div>
   );
   
   const OffsetSection = ({ children }) => (
-    <div className="bg-stone-300 dark:bg-stone-800 rounded-3xl px-10 py-5 shadow-md min-h-[350px]">
+    <div className="bg-[rgb(var(--color-card-white))] rounded-3xl px-10 py-5 shadow-md min-h-[350px]">
       {children}
     </div>
   );
@@ -60,14 +60,14 @@ export default function FAQs () {
   };
 
   return (
-    <section className='dark:bg-black'>
+    <section className='bg-[rgb(var(--color-bg))]'>
       <MetaHead title="FAQs"/>
       <div className="container mx-auto py-32 sm:py-40 p-4 ">
         <div className="flex flex-col lg:flex-row">
           <aside className="w-full lg:w-1/4 flex justify-center items-center">
             <ul className="space-y-6 w-full">
               {Object.keys(sections).map((section) => (
-                <li key={section} className="animate-out text-yellow-500 hover:text-amber-500 font-bold text-center border-b-4 border-stone-300 bg-slate-50 dark:bg-stone-700 shadow cursor-pointer" onClick={() => setActiveSection(section)}>
+                <li key={section} className="animate-out text-yellow-500 hover:text-amber-500 font-bold text-center border-b-4 border-stone-300 bg-[rgb(var(--color-card-white))] shadow cursor-pointer" onClick={() => setActiveSection(section)}>
                   {section === 'faqs' ? t('faqs.sectionOne') : t('faqs.sectionTwo')}
                 </li>
               ))}

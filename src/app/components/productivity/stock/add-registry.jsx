@@ -141,7 +141,7 @@ export default function AddRegistry({ onCancelEdit }) {
             <div className="md:px-20 py-10">
                 <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                     <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Refacción
                         </label>
                         <input
@@ -156,7 +156,7 @@ export default function AddRegistry({ onCancelEdit }) {
                     </div>
 
                     <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Sucursal
                         </label>
                         <Select
@@ -170,7 +170,7 @@ export default function AddRegistry({ onCancelEdit }) {
                     </div>
 
                     <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Localización
                         </label>
                         <input
@@ -185,7 +185,7 @@ export default function AddRegistry({ onCancelEdit }) {
                     </div>
 
                     <div className="col-span-full">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Descripción
                         </label>
                         <textarea
@@ -199,7 +199,7 @@ export default function AddRegistry({ onCancelEdit }) {
                     </div>
 
                     <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Existencia
                         </label>
                         <Select
@@ -213,7 +213,7 @@ export default function AddRegistry({ onCancelEdit }) {
                     </div>
 
                     <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Modelo
                         </label>
                         <div className="flex items-center">
@@ -240,7 +240,7 @@ export default function AddRegistry({ onCancelEdit }) {
                     </div>
 
                     <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Marca de auto
                         </label>
                         <Select
@@ -254,7 +254,7 @@ export default function AddRegistry({ onCancelEdit }) {
                     </div>
 
                     <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Utilidad
                         </label>
                         <Select
@@ -275,7 +275,7 @@ export default function AddRegistry({ onCancelEdit }) {
                     </div>
 
                     <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Costo
                         </label>
                         <input
@@ -290,7 +290,7 @@ export default function AddRegistry({ onCancelEdit }) {
                     </div>
 
                     <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Precio
                         </label>
                         <input
