@@ -245,23 +245,24 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
                     />
                     {deleteTooltip.tooltip}
                 </div>
-                <div className='absolute -top-11 right-0 -mt-1 mb-1 flex rounded-3xl '>
-                    <span className='italic font-sans mx-1 my-auto text-sm text-[rgb(var(--color-text))]'>
-                        {searchTerm.length === 0 ? 'TODOS' : searchTerm.toUpperCase()}
-                    </span>
-                    <span className="bg-amber-500 text-white font-semibold rounded-full h-10 w-10 text-md flex items-center justify-center shadow-lg">
-                        {filteredProducts.length}
-                    </span>
-                </div>
-                {isWarehouse && searchTerm && (
-                    <div className='absolute -top-11 right-0 -mt-1 mb-1 flex gap-2'>
-                        <button
-                            onClick={handleAddAllClick}
-                            className="bg-violet-700 text-white rounded-full p-3 self-center flex items-center gap-1"
-                        >
-                            <LuListPlus className="text-lg" />
-                        </button>
+                <div className='absolute -top-11 right-0 -mt-1 mb-1 flex items-center gap-2'>
+                    <div className='flex rounded-3xl'>
+                        <span className='italic font-sans mx-1 my-auto text-sm text-[rgb(var(--color-text))]'>
+                            {searchTerm.length === 0 ? 'TODOS' : searchTerm.toUpperCase()}
+                        </span>
+                        <span className="bg-amber-500 text-white font-semibold rounded-full h-10 w-10 text-md flex items-center justify-center shadow-lg">
+                            {filteredProducts.length}
+                        </span>
                     </div>
+                </div>
+                {isWarehouse && searchTerm.trim() && (
+                    <button
+                        onClick={handleAddAllClick}
+                        className="ml-2 h-10 w-10 rounded-full bg-violet-700 text-white flex items-center justify-center shadow-lg mt-0.5"
+                        title="Agregar todos los resultados visibles"
+                    >
+                        <LuListPlus className="text-lg" />
+                    </button>
                 )}
             </div>
             <div className='bg-[rgb(var(--color-card))] flex justify-center px-3 cursor-pointer' onClick={handleTypeClick}>

@@ -23,6 +23,7 @@ export default function Warehouse() {
     const [isAdding, setIsAdding] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [locationErrors, setLocationErrors] = useState({});
+    const [saveStatus, setSaveStatus] = useState({ type: null, message: '' });
     const findProductsRef = useRef();
     const labelsRef = useRef();
 
@@ -115,11 +116,8 @@ export default function Warehouse() {
                 idsucursal: item.idsucursal,
                 num_parte: item.refaccion
             };
-            const response = await axios.get(buildApiUrl('/dataManage'), {
-                params: {
-                    type: 'verifyLocation',
-                    params: JSON.stringify(params),
-                },
+            const response = await axios.get(buildApiUrl('/verifyLocation'), {
+                params,
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -175,15 +173,26 @@ export default function Warehouse() {
         return { allValid, validationResults };
     };
 
-    const handleSaveCompleteTable = async () => {
-        if (items.length === 0) {
-            alert('No hay productos para guardar');
+    const updateSaveStatus = (type, message) => setSaveStatus({ type, message });
+
+    const handleSaveClick = () => {
+        if (!hasChanges) {
+            updateSaveStatus('error', 'No hay cambios para guardar.');
             return;
         }
+        handleSaveCompleteTable();
+    };
+
+    const handleSaveCompleteTable = async () => {
+        if (items.length === 0) {
+            updateSaveStatus('error', 'No hay productos para guardar.');
+            return;
+        }
+        setSaveStatus({ type: null, message: '' });
 
         const modifiedItems = items.filter(item => item.modified);
         if (modifiedItems.length === 0) {
-            alert('No se han realizado modificaciones en los registros');
+            updateSaveStatus('error', 'No se han realizado modificaciones en los registros.');
             return;
         }
 
@@ -194,8 +203,8 @@ export default function Warehouse() {
             const errorMessages = validationResults
                 .filter(result => !result.isValid)
                 .map(result => `${result.refaccion}: ${result.errorMessage}`)
-                .join('\n');
-            alert(`Errores de localización:\n${errorMessages}`);
+                .join(' | ');
+            updateSaveStatus('error', errorMessages || 'Error al validar localizaciones.');
             return;
         }
 
@@ -222,10 +231,11 @@ export default function Warehouse() {
                 }
             }));
 
-            alert(`Registros Actualizados, por favor recarga la lista`);
+            updateSaveStatus('success', 'Se guardó correctamente.');
+            findProductsRef.current?.refreshProducts?.();
         } catch (error) {
             console.error('Error actualizando registros:', error);
-            alert('Error al actualizar algunos registros. Por favor, revisa la consola para más detalles.');
+            updateSaveStatus('error', 'Error al guardar listado.');
         } finally {
             // Resetear el estado de modificación
             setItems(prevItems =>
@@ -271,7 +281,7 @@ export default function Warehouse() {
             icon: IoSaveSharp,
             btnconf:'relative blue-circle-button tooltip-button',
             label: 'Actualizar lista', id: 'update', path: '',
-            event: hasChanges ? handleSaveCompleteTable : () => alert('No hay cambios para guardar')
+            event: handleSaveClick
         },
         {
             icon: PiStickerFill,
@@ -291,6 +301,13 @@ export default function Warehouse() {
             />
             <div className={isEditing || isAdding ? 'hidden' : 'block'}>
             <div className="mx-auto max-w-[1700px] xl:px-8 mt-5 overflow-hidden">
+                    {saveStatus.message && (
+                        <div
+                            className={`text-sm font-semibold mb-2 ${saveStatus.type === 'error' ? 'text-red-600' : 'text-green-600'}`}
+                        >
+                            {saveStatus.message}
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 lg:grid-cols-3 mx-auto gap-x-10 gap-y-6 lg:mx-0 px-2 xl:px-0">
                         <div className="bg-[rgb(var(--color-card-white))] lg:rounded-2xl my-5 py-2 shadow w-auto overflow-hidden rounded-xl ">
                             <FindProducts
