@@ -2,7 +2,6 @@
 import { MdDelete, MdAddPhotoAlternate } from 'react-icons/md';
 import React, { useState, useEffect, useRef } from 'react';
 import Select from 'react-select';
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import heic2any from 'heic2any';
 
@@ -366,7 +365,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
             const response = await fetch(url.toString(), {
                 method: 'GET',
                 headers: {
-                    Accept: 'application/json',
+                    Accept: 'application/json, text/plain, */*',
                 },
                 cache: 'no-store',
             });
@@ -432,12 +431,20 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
             };
 
             console.log('PatchProduct payload:', update_data);
-            const response = await axios.patch(buildApiUrl('/patchProduct'), update_data, {
+            const response = await fetch(buildApiUrl('/patchProduct'), {
+                method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
+                    Accept: 'application/json, text/plain, */*',
                 },
+                body: JSON.stringify(update_data),
             });
-            console.log('PatchProduct response:', response.status, response.data);
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            console.log('PatchProduct response:', response.status);
             setSuccessMessage('Registro actualizado exitosamente.');
             setErrorMessages({});
             clearPendingImages();
@@ -462,8 +469,17 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
     useEffect(() => {
         const fetchBrand = async () => {
             try {
-                const response = await axios.get(buildApiUrl('/getBrands'));
-                const formattedBrandOptions = response.data.map(marca => ({
+                const response = await fetch(buildApiUrl('/getBrands'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const formattedBrandOptions = payload.map(marca => ({
                     value: marca.idmarca,
                     label: marca.marca
                 }));
@@ -475,8 +491,17 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
 
         const fetchQuantity = async () => {
             try {
-                const response = await axios.get(buildApiUrl('/getQuantity'));
-                const formattedQuantityOptions = response.data.map(cantidad => ({
+                const response = await fetch(buildApiUrl('/getQuantity'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const formattedQuantityOptions = payload.map(cantidad => ({
                     value: cantidad.idCantidad,
                     label: cantidad.cantidad
                 }));

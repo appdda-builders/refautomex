@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import FindProducts from '../sales/find-products';
 import TableCapture from './table-capture';
@@ -88,9 +87,19 @@ export default function EditCapture({ onCancelEdit }) {
         }
 
         try {
-            await axios.post('/api/dataManage?type=addProduct', addItem, {
-                headers: { 'Content-Type': 'application/json' },
+            const response = await fetch('/api/dataManage?type=addProduct', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json, text/plain, */*',
+                },
+                body: JSON.stringify(addItem),
             });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
             setSuccessMessage('Registro agregado exitosamente.');
         } catch (error) {
             setErrorMessage('Hubo un error al guardar los datos. Intenta de nuevo.');
@@ -100,8 +109,17 @@ export default function EditCapture({ onCancelEdit }) {
     useEffect(() => {
         const fetchBrandOptions = async () => {
             try {
-                const response = await axios.get(buildApiUrl('/getBrands'));
-                const options = response.data.map((brand) => ({
+                const response = await fetch(buildApiUrl('/getBrands'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const options = payload.map((brand) => ({
                     value: brand.idmarca,
                     label: brand.marca,
                 }));
@@ -113,8 +131,17 @@ export default function EditCapture({ onCancelEdit }) {
 
         const fetchQuantityOptions = async () => {
             try {
-                const response = await axios.get(buildApiUrl('/getQuantity'));
-                const options = response.data.map((quantity) => ({
+                const response = await fetch(buildApiUrl('/getQuantity'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const options = payload.map((quantity) => ({
                     value: quantity.idCantidad,
                     label: quantity.cantidad,
                 }));
@@ -126,8 +153,17 @@ export default function EditCapture({ onCancelEdit }) {
 
         const fetchSucursalOptions = async () => {
             try {
-                const response = await axios.get(buildApiUrl('/getSucursal'));
-                const options = response.data.map((sucursal) => ({
+                const response = await fetch(buildApiUrl('/getSucursal'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const options = payload.map((sucursal) => ({
                     value: sucursal.idsucursal,
                     label: sucursal.sucursal,
                 }));

@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { useState, useEffect, Fragment } from 'react';
 import Title from '../title';
@@ -90,12 +89,21 @@ export default function History() {
                     day: "2-digit"
                 }).format(new Date(date)).split('/').reverse().join('-'); // Convierte `DD/MM/YYYY` a `YYYY-MM-DD`
 
-            const response = await axios.get(buildApiUrl('/getHistory'), {
-                params: { id: formattedDate, idVenta },
+            const params = new URLSearchParams({ id: formattedDate });
+            if (idVenta) params.append('idVenta', idVenta);
+            const endpoint = `${buildApiUrl('/getHistory')}?${params.toString()}`;
+            const response = await fetch(endpoint, {
+                cache: 'no-store',
+                headers: { Accept: 'application/json, text/plain, */*' },
             });
 
-            if (Array.isArray(response.data)) {
-                setSales(response.data);
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                setSales(data);
             } else {
                 setSales([]);
             }
@@ -153,9 +161,18 @@ export default function History() {
         };
 
         try {
-            const response = await axios.patch(buildApiUrl('/patchSaleStatus'), update_data, {
-                headers: { 'Content-Type': 'application/json' },
+            const response = await fetch(buildApiUrl('/patchSaleStatus'), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json, text/plain, */*',
+                },
+                body: JSON.stringify(update_data),
             });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
             if(response){
 
                 setSales((prevSales) =>

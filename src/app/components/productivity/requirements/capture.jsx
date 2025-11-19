@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { useState, useEffect } from 'react';
 import Title from '../title';
@@ -258,9 +257,18 @@ export default function Capture() {
 
     const fetchInvoices = async () => {
         try {
-            const response = await axios.get(buildApiUrl('/getInvoicesCaptured'));
-            if (Array.isArray(response.data)) {
-                setCapturedInvoices(response.data[0]);
+            const response = await fetch(buildApiUrl('/getInvoicesCaptured'), {
+                cache: 'no-store',
+                headers: { Accept: 'application/json, text/plain, */*' },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                setCapturedInvoices(data[0]);
             } else {
                 setCapturedInvoices([]);
             }
@@ -273,9 +281,18 @@ export default function Capture() {
 
     const fetchData = async () => {
         try {
-            const response = await axios.get(buildApiUrl('/getAllProviders'));
-            if (Array.isArray(response.data)) {
-                setProviders(response.data);
+            const response = await fetch(buildApiUrl('/getAllProviders'), {
+                cache: 'no-store',
+                headers: { Accept: 'application/json, text/plain, */*' },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                setProviders(data);
             } else {
                 setProviders([]);
             }

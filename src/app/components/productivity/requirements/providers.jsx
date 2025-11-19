@@ -4,7 +4,6 @@ import Title from '../title';
 import { HiClipboardDocumentList } from "react-icons/hi2";
 import { BiSolidUserCircle } from "react-icons/bi";
 import { GrStatusGoodSmall } from "react-icons/gr";
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 export default function Providers() {
@@ -17,8 +16,17 @@ export default function Providers() {
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const response = await axios.get(buildApiUrl('/getAllUsers'));
-                setUsers(response.data);
+                const response = await fetch(buildApiUrl('/getAllUsers'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                setUsers(data);
             } catch (error) {
                 console.error('Error fetching users:', error);
             }

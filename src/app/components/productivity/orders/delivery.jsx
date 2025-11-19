@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { FaArrowDown, FaArrowUp, FaSearch } from "react-icons/fa";
 import { FaMoneyBillTransfer, FaBook, FaBox } from "react-icons/fa6";
@@ -52,10 +51,18 @@ export default function Site() {
         setIsSearchingFolio(true);
 
         try {
-            const response = await axios.get(buildApiUrl('/getFolioHistory'), {
-                params: { id: folio },
+            const params = new URLSearchParams({ id: folio });
+            const endpoint = `${buildApiUrl('/getFolioHistory')}?${params.toString()}`;
+            const response = await fetch(endpoint, {
+                cache: 'no-store',
+                headers: { Accept: 'application/json, text/plain, */*' },
             });
-            const data = response.data;
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
 
             if (Array.isArray(data) && data.length >= 2) {
                 const pedidos = Array.isArray(data[0]) ? data[0] : [];
@@ -104,32 +111,40 @@ export default function Site() {
         //console.log('Datos a actualizar:', update_data);
 
         try {
-            const response = await axios.patch(buildApiUrl('/patchHistoryStatus'), update_data, {
-                headers: { 'Content-Type': 'application/json' },
+            const response = await fetch(buildApiUrl('/patchHistoryStatus'), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json, text/plain, */*',
+                },
+                body: JSON.stringify(update_data),
             });
-            if (response) {
-                // Primero actualizamos el producto individual
-                const updatedRequests = requests.map(request => {
-                    if (request.folio === folioToChange) {
-                        const updatedDetails = request.details.map(detail => {
-                            if (detail.num_parte === currentPartNumber) {
-                                return { ...detail, status_producto: selectedStatus };
-                            }
-                            return detail;
-                        });
-                        // Verificar si todos los detalles están entregados
-                        const allDelivered = updatedDetails.every(d => d.status_producto === 'E');
-                        const newParentStatus = allDelivered ? 'F' : 'P';
-                        return {
-                            ...request,
-                            status: newParentStatus,
-                            details: updatedDetails
-                        };
-                    }
-                    return request;
-                });
-                setRequests(updatedRequests);
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
             }
+
+            // Primero actualizamos el producto individual
+            const updatedRequests = requests.map(request => {
+                if (request.folio === folioToChange) {
+                    const updatedDetails = request.details.map(detail => {
+                        if (detail.num_parte === currentPartNumber) {
+                            return { ...detail, status_producto: selectedStatus };
+                        }
+                        return detail;
+                    });
+                    // Verificar si todos los detalles están entregados
+                    const allDelivered = updatedDetails.every(d => d.status_producto === 'E');
+                    const newParentStatus = allDelivered ? 'F' : 'P';
+                    return {
+                        ...request,
+                        status: newParentStatus,
+                        details: updatedDetails
+                    };
+                }
+                return request;
+            });
+            setRequests(updatedRequests);
         } catch (error) {
             console.error('Error actualizando el estado:', error);
             alert('Hubo un error al actualizar el estado. Intenta de nuevo.');
@@ -155,10 +170,19 @@ export default function Site() {
 
     const fetchData = async () => {
         try {
-            const response = await axios.get(buildApiUrl('/getSiteRequests'));
-            if (Array.isArray(response.data) && response.data.length >= 2) {
-                const pedidos = Array.isArray(response.data[0]) ? response.data[0] : [];
-                const detalles = Array.isArray(response.data[1]) ? response.data[1] : [];
+            const response = await fetch(buildApiUrl('/getSiteRequests'), {
+                cache: 'no-store',
+                headers: { Accept: 'application/json, text/plain, */*' },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            const payload = await response.json();
+            if (Array.isArray(payload) && payload.length >= 2) {
+                const pedidos = Array.isArray(payload[0]) ? payload[0] : [];
+                const detalles = Array.isArray(payload[1]) ? payload[1] : [];
                 const filteredPedidos = pedidos.filter(pedido => pedido.status === viewMode);
 
                 const requests = filteredPedidos.map(pedido => {

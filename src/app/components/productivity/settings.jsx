@@ -7,8 +7,8 @@ import { MdEdit, MdSave } from 'react-icons/md';
 import { useTranslation } from 'react-i18next';
 import GooglePlacesAutocomplete from '@/app/components/principal/account/google-places';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import axios from 'axios';
 import { FaStarHalfAlt } from 'react-icons/fa';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 const HeicToJpgUploader = dynamic(() => import('@/app/components/productivity/stock/heic-to-jpg-uploader'), { ssr: false });
 
@@ -156,12 +156,21 @@ export default function Settings() {
         };
 
         try {
-            const response = await axios.patch(buildApiUrl('/patchUser'), user_data, {
+            const response = await fetch(buildApiUrl('/patchUser'), {
+                method: 'PATCH',
                 headers: {
-                    'Content-Type': 'application/json'
-                }
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json, text/plain, */*',
+                },
+                body: JSON.stringify(user_data),
             });
-            console.log('Respuesta del servidor:', response.data);
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json().catch(() => null);
+            console.log('Respuesta del servidor:', data);
             setSuccessMessage("Usuario actualizado correctamente.");
             let updatedUserData = { ...userData };
             updatedUserData.idusuario = idUsuario;

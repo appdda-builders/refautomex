@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { useState, useEffect } from 'react';
 import Title from '../title';
@@ -45,11 +44,21 @@ export default function Invoice() {
         setError(null);
         try {
             const formattedDate = typeof date === 'string' ? date : date.toISOString().split('T')[0];
-            const response = await axios.get(buildApiUrl('/getHistory'), {
-                params: { id: formattedDate, folio },
+            const params = new URLSearchParams({ id: formattedDate });
+            if (folio) params.append('folio', folio);
+            const endpoint = `${buildApiUrl('/getHistory')}?${params.toString()}`;
+            const response = await fetch(endpoint, {
+                cache: 'no-store',
+                headers: { Accept: 'application/json, text/plain, */*' },
             });
-            if (Array.isArray(response.data)) {
-                setSales(response.data);
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                setSales(data);
             } else {
                 setSales([]);
             }

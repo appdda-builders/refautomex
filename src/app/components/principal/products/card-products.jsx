@@ -109,7 +109,7 @@ export default function CardProducts({ showSearchBar = true }) {
           signal: controller.signal,
           cache: 'no-store',
           headers: {
-            Accept: 'application/json',
+            Accept: 'application/json, text/plain, */*',
           },
         });
         if (!response.ok) {

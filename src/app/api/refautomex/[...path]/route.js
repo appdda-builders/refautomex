@@ -6,7 +6,6 @@ const REMOTE_API_BASE =
   'http://refautomex-calidad.com/api';
 
 const sanitizeBase = (url) => url.replace(/\/$/, '');
-
 const remoteBase = sanitizeBase(REMOTE_API_BASE);
 
 const buildRemoteUrl = (segments = [], searchParams) => {
@@ -14,8 +13,6 @@ const buildRemoteUrl = (segments = [], searchParams) => {
   const query = searchParams?.toString();
   return `${remoteBase}/${joinedPath}${query ? `?${query}` : ''}`;
 };
-
-const FORWARDED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
 const proxyRequest = async (method, request, context) => {
   const resolvedParams = (await context.params) || {};

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useContext, useState, useRef } from 'react';
 import Title from '../title';
 import FindProducts from '@/app/components/productivity/sales/find-products';
 import TableDescription from './table-description';
@@ -11,10 +11,12 @@ import MigrateModal from './migrate-modal';
 import AddRegistry from './add-registry';
 import Labels from './labels';
 import { useReactToPrint } from 'react-to-print';
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
+import { AuthContext } from '@/app/lib/auth-tracker';
 
 export default function Warehouse() {
+    const { userData } = useContext(AuthContext);
+    const userBranchId = userData?.idsucursal || null;
     const [items, setItems] = useState([]);
     const [hasChanges, setHasChanges] = useState(false);
     const [visibleTooltip, setVisibleTooltip] = useState({});
@@ -25,11 +27,11 @@ export default function Warehouse() {
     const [locationErrors, setLocationErrors] = useState({});
     const [saveStatus, setSaveStatus] = useState({ type: null, message: '' });
     const findProductsRef = useRef();
-    const labelsRef = useRef();
+    const labelsRef = useRef(null);
 
     // Configuración de la impresión
     const handlePrint = useReactToPrint({
-        content: () => labelsRef.current,
+        contentRef: labelsRef,
         onAfterPrint: () => {
             // Opcional: alguna acción después de imprimir
             console.log('Etiquetas impresas');
@@ -86,10 +88,63 @@ export default function Warehouse() {
         setShowModal(!showModal);
     };
 
-    const handleModalSubmit = (formData, hasAccount) => {
-        setOrigin(formData.telefono);
-        setDestination(formData.email);
-        toggleModal();
+    const handleModalSubmit = async (migrationSelection) => {
+        if (!migrationSelection?.source || !migrationSelection?.target) {
+            return {
+                ok: false,
+                message: 'Información de migración incompleta.',
+            };
+        }
+
+        if (!userBranchId) {
+            const message = 'No se pudo determinar la sucursal del usuario.';
+            updateSaveStatus('error', message);
+            return {
+                ok: false,
+                message,
+            };
+        }
+
+        try {
+            const response = await fetch(buildApiUrl('/patchMigrate'), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    source: migrationSelection.source,
+                    target: migrationSelection.target,
+                    idsucursal: userBranchId
+                }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            const message = data?.message || (response.ok ? 'Matriz migrada correctamente.' : 'Error al migrar matriz.');
+
+            if (!response.ok) {
+                updateSaveStatus('error', message);
+                return {
+                    ok: false,
+                    message,
+                };
+            }
+
+            updateSaveStatus('success', message);
+            findProductsRef.current?.refreshProducts?.();
+
+            return {
+                ok: true,
+                message,
+            };
+        } catch (error) {
+            console.error('Error al migrar matrices:', error);
+            const message = error?.message || 'Error al migrar matriz. Intenta de nuevo.';
+            updateSaveStatus('error', message);
+            return {
+                ok: false,
+                message,
+            };
+        }
     };
 
     const handleEditClick = (product) => {
@@ -109,29 +164,31 @@ export default function Warehouse() {
         let isValid = true;
         let errorMessage = '';
 
-        // Validar la localización en el servidor
         try {
-            const params = {
+            const params = new URLSearchParams({
                 localizacion: item.localizacion,
                 idsucursal: item.idsucursal,
                 num_parte: item.refaccion
-            };
-            const response = await axios.get(buildApiUrl('/verifyLocation'), {
-                params,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
             });
-            if (response.data.exists) {
-                errorMessage = response.data.message;
+            const endpoint = `${buildApiUrl('/verifyLocation')}?${params.toString()}`;
+            const response = await fetch(endpoint, {
+                cache: 'no-store',
+                headers: { Accept: 'application/json, text/plain, */*' },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data.exists) {
+                errorMessage = data.message;
                 isValid = false;
-                // Actualizar el estado de errores
                 setLocationErrors(prev => ({
                     ...prev,
                     [item.refaccion]: errorMessage
                 }));
             } else {
-                // Limpiar el error si la localización es válida
                 setLocationErrors(prev => {
                     const newErrors = { ...prev };
                     delete newErrors[item.refaccion];
@@ -151,13 +208,12 @@ export default function Warehouse() {
         return { isValid, errorMessage };
     };
 
-    // Función para validar todas las localizaciones antes de guardar
     const validateAllLocations = async (itemsToValidate) => {
         let allValid = true;
         const validationResults = [];
 
         for (const item of itemsToValidate) {
-            if (item.localizacion) { // Solo validar si tiene localización
+            if (item.localizacion) {
                 const result = await validateLocation(item);
                 validationResults.push({
                     refaccion: item.refaccion,
@@ -219,14 +275,16 @@ export default function Warehouse() {
                     descripcion: item.descripcion
                 };
 
-                // Llamada al backend para cada producto modificado
-                const response = await axios.patch(buildApiUrl('/patchTableProducts'), params, {
+                const response = await fetch(buildApiUrl('/patchTableProducts'), {
+                    method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
+                        Accept: 'application/json, text/plain, */*',
                     },
+                    body: JSON.stringify(params),
                 });
-                // Podrías verificar la respuesta aquí si es necesario
-                if (!response.data) {
+
+                if (!response.ok) {
                     throw new Error(`Error actualizando el producto ${item.refaccion}`);
                 }
             }));
