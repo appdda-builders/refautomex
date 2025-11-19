@@ -6,20 +6,40 @@ import { LuListRestart } from "react-icons/lu";
 import { CiBoxList } from "react-icons/ci";
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 
+const parseRoutes = (raw) => {
+    if (!raw) return [];
+    try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    } catch {
+        return [];
+    }
+};
+
+const resolveProductImage = (ruta, multimediaSrc = '') => {
+    if (!ruta) return `${multimediaSrc}productos/no-img.png`;
+    return ruta.startsWith('http') ? ruta : `${multimediaSrc}${ruta}`;
+};
+
 export default function TableDescription({ items, buttonConfigs, onRemoveProduct, onUpdateProduct, handleMouseEnter, handleMouseLeave, visibleTooltip, onEditClick }) {
     const [QuantityOptions, setQuantityOptions] = useState([]);
     const listRef = useRef();
     const printRef = useRef(null);
+    const IVA_FACTOR = 1.16;
+    const DEFAULT_UTILITY = 1.3;
+    const multimediaSrc = process.env.NEXT_PUBLIC_S3 || '';
+
+    const getProductImage = (product) => {
+        if (product?.imageSrc) return product.imageSrc;
+        const routes = parseRoutes(product?.rutas);
+        const fallback = routes.length > 0 ? routes[0] : '';
+        return resolveProductImage(fallback, multimediaSrc);
+    };
 
     const handleQuantityChange = (product, selectedOption) => {
-        const newQuantity = selectedOption.value;
-        onUpdateProduct(
-            items.map(item =>
-                item.refaccion === product.refaccion
-                    ? { ...item, existencia: newQuantity }
-                    : item
-            )
-        );
+        const newQuantity = selectedOption?.value;
+        if (newQuantity === undefined) return;
+        onUpdateProduct(product.refaccion, { existencia: newQuantity });
     };
 
     const handleListPrint = useReactToPrint({
@@ -33,12 +53,37 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
 
     const handleLocationChange = (product, event) => {
         const newLocation = event.target.value;
-        onUpdateProduct(items.map(item => item.refaccion === product.refaccion ? { ...item, localizacion: newLocation } : item));
+        onUpdateProduct(product.refaccion, { localizacion: newLocation });
     };
 
     const handleDescriptionChange = (product, event) => {
         const newDescription = event.target.value;
-        onUpdateProduct(items.map(item => item.refaccion === product.refaccion ? { ...item, descripcion: newDescription } : item));
+        onUpdateProduct(product.refaccion, { descripcion: newDescription });
+    };
+
+    const handlePriceChange = (product, event) => {
+        const rawPrice = event.target.value;
+        if (rawPrice === '') {
+            onUpdateProduct(product.refaccion, { precio: '', costo: '', aIva: '' });
+            return;
+        }
+
+        const parsedPrice = parseFloat(rawPrice);
+        if (Number.isNaN(parsedPrice)) {
+            // Mantener el valor introducido para que el usuario pueda corregirlo
+            onUpdateProduct(product.refaccion, { precio: rawPrice });
+            return;
+        }
+
+        const utilidad = parseFloat(product.utilidad) || DEFAULT_UTILITY;
+        const calculatedAIva = parsedPrice / IVA_FACTOR;
+        const calculatedCost = calculatedAIva / utilidad;
+
+        onUpdateProduct(product.refaccion, {
+            precio: rawPrice,
+            aIva: calculatedAIva.toFixed(2),
+            costo: calculatedCost.toFixed(2)
+        });
     };
 
     const handleRemoveClick = (product) => {
@@ -78,13 +123,15 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
     return (
         <div className="h-[87vh] bg-[rgb(var(--color-card))] rounded-2xl my-5 flex shadow shadow-[rgb(var(--color-galaxy))] relative">
             <div className='flex flex-col px-1 bg-[rgb(var(--color-bg))] rounded-l-2xl pt-10 relative'>
-                {buttonConfigs.map(({ icon: Icon, label, id, event, btnconf }) => (
-                    <div
+                {buttonConfigs.map(({ icon: Icon, label, id, event, btnconf, disabled }) => (
+                    <button
+                        type="button"
                         key={id}
-                        className={btnconf}
+                        className={`${btnconf} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                         onMouseEnter={() => handleMouseEnter(id)}
                         onMouseLeave={() => handleMouseLeave(id)}
-                        onClick={event}
+                        onClick={!disabled ? event : undefined}
+                        disabled={disabled}
                     >
                         <Icon />
                         {visibleTooltip[id] && (
@@ -93,31 +140,37 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                 {label}
                             </div>
                         )}
-                    </div>
+                    </button>
                 ))}
             </div>
             <div className="flex flex-col overflow-x-scroll w-full">
                 <table ref={listRef} className="w-full text-sm text-left text-[rgb(var(--color-text))] shadow-sm">
                     <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-gray))] sticky top-0 z-10">
                         <tr>
-                            <th className="p-1">REFACCIÓN</th>
+                            <th className='p-1'>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={handleListPrint}
+                                        className="bg-gray-700 text-white rounded-full p-1.5 self-center flex items-center cursor-pointer mx-0.5"
+                                    >
+                                        <CiBoxList className="text-lg" />
+                                    </button>
+                                    <button
+                                        onClick={handleClearTable}
+                                        className="bg-red-700 text-white rounded-full p-1.5 self-center flex items-center cursor-pointer mx-0.5"
+                                    >
+                                        <LuListRestart className="text-lg" />
+                                    </button>
+                                    <span className="font-semibold">Refacción</span>
+                                </div>
+                            </th>
+                            <th className="p-1">IMG</th>
                             <th className="p-1">DESCRIPCIÓN</th>
                             <th className="p-1">LOCALIZACIÓN</th>
                             <th className="p-1">EXISTENCIA</th>
-                            <th className='p-1 flex flex-row'>
-                            <button
-                                onClick={handleListPrint}
-                                className="bg-gray-700 text-white rounded-full p-1.5 m-0.5 self-center flex items-center"
-                            >
-                                <CiBoxList className="text-lg" />
-                            </button>
-                            <button
-                                onClick={handleClearTable}
-                                className="bg-red-700 text-white rounded-full p-1.5 m-0.5 self-center flex items-center"
-                            >
-                                <LuListRestart className="text-lg" />
-                            </button>
-                            </th>
+                            <th className="p-1">COSTO</th>
+                            <th className="p-1">PRECIO</th>
+                            <th className="p-1">ACCIONES</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -138,6 +191,19 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                             </button>
                                             {item.refaccion}
                                             </div>
+                                        </div>
+                                    </td>
+                                    <td className="p-2 w-16">
+                                        <div className="h-12 w-12 rounded-md overflow-hidden border border-[rgb(var(--color-border))] bg-white flex items-center justify-center">
+                                            <img
+                                                src={getProductImage(item)}
+                                                alt={item.descripcion || item.refaccion}
+                                                className="object-contain h-full w-full"
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.src = resolveProductImage('', multimediaSrc);
+                                                }}
+                                            />
                                         </div>
                                     </td>
                                     <td className="p-2">
@@ -168,6 +234,27 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                         />
                                     </td>
                                     <td className="p-2">
+                                        <input
+                                            id={`costo-${item.refaccion}`}
+                                            type="number"
+                                            step="0.01"
+                                            value={item.costo ?? ''}
+                                            readOnly
+                                            disabled
+                                            className="block w-24 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-gray-100 text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 cursor-not-allowed"
+                                        />
+                                    </td>
+                                    <td className="p-2">
+                                        <input
+                                            id={`precio-${item.refaccion}`}
+                                            type="number"
+                                            step="0.01"
+                                            value={item.precio ?? ''}
+                                            onChange={(event) => handlePriceChange(item, event)}
+                                            className="block w-24 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60"
+                                        />
+                                    </td>
+                                    <td className="p-2">
                                         <button
                                             onClick={() => handleRemoveClick(item)}
                                             className="bg-red-500 mx-2 text-white rounded-full p-2 hover:bg-red-700"
@@ -179,7 +266,7 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                             );
                         })}
                         <tr className="bg-[rgb(var(--color-card))] border-b border-[rgb(var(--color-border))]">
-                            <td className="py-2 font-bold text-xl text-amber-500" colSpan="7">
+                            <td className="py-2 font-bold text-xl text-amber-500" colSpan="8">
                                 <div className='flex justify-center items-center'>
                                     <span className='px-2 text-[rgb(var(--color-text))] italic'>
                                         PRODUCTOS
@@ -203,6 +290,8 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                 <th className="border border-gray-400 px-3 py-2 uppercase tracking-wide text-xs">Descripción</th>
                                 <th className="border border-gray-400 px-3 py-2 uppercase tracking-wide text-xs">Localización</th>
                                 <th className="border border-gray-400 px-3 py-2 uppercase tracking-wide text-xs">Existencia</th>
+                                <th className="border border-gray-400 px-3 py-2 uppercase tracking-wide text-xs">Costo</th>
+                                <th className="border border-gray-400 px-3 py-2 uppercase tracking-wide text-xs">Precio</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -222,6 +311,12 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                     </td>
                                     <td className="border border-gray-300 px-3 py-1 text-xs text-center">
                                         {product.existencia}
+                                    </td>
+                                    <td className="border border-gray-300 px-3 py-1 text-xs">
+                                        {product.costo ?? '-'}
+                                    </td>
+                                    <td className="border border-gray-300 px-3 py-1 text-xs">
+                                        {product.precio ?? '-'}
                                     </td>
                                 </tr>
                             ))}

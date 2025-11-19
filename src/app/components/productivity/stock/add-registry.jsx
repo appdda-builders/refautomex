@@ -13,28 +13,43 @@ const parseRoutes = (raw) => {
     }
 };
 
+const NOT_ASSIGNED_OPTION = { value: '__NOT_ASSIGNED__', label: 'Selecciona', isDisabled: true };
+
+const withDefaultOption = (options = []) => [NOT_ASSIGNED_OPTION, ...options];
+
+const getSelectValue = (options = [], value) => {
+    if (!value) return NOT_ASSIGNED_OPTION;
+    return options.find((option) => option.value === value) || NOT_ASSIGNED_OPTION;
+};
+
 export default function AddRegistry({ onCancelEdit }) {
     const [productForm, setProductForm] = useState({
         refaccion: '',
         descripcion: '',
-        mod_ini: '1990',
-        mod_fin: '1990',
+        mod_ini: '',
+        mod_fin: '',
         idgrupo: '',
         idmarca: '',
+        idproveedor: '',
     });
+    const IVA_FACTOR = 1.16;
+
     const [detailForm, setDetailForm] = useState({
         idsucursal: '',
         localizacion: '',
         existencia: '',
         costo: '',
         precio: '',
-        utilidad: '1.3',
+        aiva: '',
+        utilidad: '',
     });
     const [groupOptions, setGroupOptions] = useState([]);
     const [brandOptions, setBrandOptions] = useState([]);
+    const [providerOptions, setProviderOptions] = useState([]);
     const [sucursalOptions, setSucursalOptions] = useState([]);
     const [quantityOptions, setQuantityOptions] = useState([]);
     const [pendingProducts, setPendingProducts] = useState([]);
+    const [activeProducts, setActiveProducts] = useState([]);
     const [pendingLoading, setPendingLoading] = useState(false);
     const [selectedPendingPart, setSelectedPendingPart] = useState(null);
     const [activeStep, setActiveStep] = useState('product');
@@ -42,9 +57,26 @@ export default function AddRegistry({ onCancelEdit }) {
     const [errorMessage, setErrorMessage] = useState('');
     const [errorMessages, setErrorMessages] = useState({});
 
-    const selectedPendingProduct = pendingProducts.find(
-        (product) => product.num_parte === selectedPendingPart
-    );
+    const extractGroupOptionsFromProducts = (products = []) => {
+        const uniqueGroups = new Map();
+        products.forEach((product) => {
+            const id = product.idgrupo ?? product.idGrupo ?? product.id_grupo;
+            const name = product.grupo ?? product.group;
+            if (id && name && !uniqueGroups.has(id)) {
+                uniqueGroups.set(id, {
+                    value: id,
+                    label: name
+                });
+            }
+        });
+        return Array.from(uniqueGroups.values()).sort((a, b) =>
+            a.label.localeCompare(b.label, 'es', { sensitivity: 'base' })
+        );
+    };
+
+    const selectedPendingProduct =
+        pendingProducts.find((product) => product.num_parte === selectedPendingPart) ||
+        activeProducts.find((product) => product.num_parte === selectedPendingPart);
 
     const handleProductInputChange = (field, value) => {
         setProductForm((prev) => ({
@@ -53,11 +85,65 @@ export default function AddRegistry({ onCancelEdit }) {
         }));
     };
 
+    const recalculateDetailFinance = (priceValue, utilityValue) => {
+        const parsedPrice = parseFloat(priceValue);
+        if (Number.isNaN(parsedPrice)) {
+            return {};
+        }
+        const computedAIva = (parsedPrice / IVA_FACTOR).toFixed(2);
+        const parsedUtility = parseFloat(utilityValue);
+        const computedCost =
+            Number.isNaN(parsedUtility) || parsedUtility === 0
+                ? ''
+                : (parsedPrice / IVA_FACTOR / parsedUtility).toFixed(2);
+        return {
+            aiva: computedAIva,
+            costo: computedCost,
+        };
+    };
+
     const handleDetailInputChange = (field, value) => {
-        setDetailForm((prev) => ({
-            ...prev,
-            [field]: value,
-        }));
+        setDetailForm((prev) => {
+            const next = { ...prev, [field]: value };
+            if (field === 'precio') {
+                if (value === '') {
+                    next.aiva = '';
+                    next.costo = '';
+                    return next;
+                }
+                const recalculated = recalculateDetailFinance(value, next.utilidad);
+                return { ...next, ...recalculated };
+            }
+            if (field === 'utilidad') {
+                if (value === '') {
+                    next.costo = '';
+                    return next;
+                }
+                if (next.precio) {
+                    const recalculated = recalculateDetailFinance(next.precio, value);
+                    return { ...next, ...recalculated };
+                }
+                return next;
+            }
+            if (field === 'idsucursal') {
+                setErrorMessages(prev => {
+                    const clone = { ...prev };
+                    const activeProduct = activeProducts.find(
+                        product => product.num_parte === selectedPendingPart
+                    );
+                    const existsInBranch = activeProduct?.detalles?.some(
+                        detail => String(detail.idsucursal) === String(value)
+                    );
+                    if (existsInBranch) {
+                        clone.idsucursal = 'Este producto ya está activo en la sucursal seleccionada.';
+                    } else {
+                        delete clone.idsucursal;
+                    }
+                    return clone;
+                });
+            }
+            return next;
+        });
     };
 
     const validateProductForm = () => {
@@ -87,6 +173,11 @@ export default function AddRegistry({ onCancelEdit }) {
             newErrors.idmarca = 'Selecciona una marca.';
         }
 
+        if (!productForm.idproveedor) {
+            valid = false;
+            newErrors.idproveedor = 'Selecciona un proveedor.';
+        }
+
         setErrorMessages(newErrors);
         return valid;
     };
@@ -96,6 +187,7 @@ export default function AddRegistry({ onCancelEdit }) {
             localizacion: /^[0-9]{2}[A-Z]{1}[0-9A-Z]{2}[-0-9]{2,3}$/,
             existencia: /^[0-9]+$/,
             precio: /^[0-9]+(\.[0-9]+)?$/,
+            aiva: /^[0-9]+(\.[0-9]+)?$/,
             costo: /^[0-9]+(\.[0-9]+)?$/,
             utilidad: /^[0-9]+(\.[0-9]+)?$/,
         };
@@ -136,14 +228,13 @@ export default function AddRegistry({ onCancelEdit }) {
         }
 
         const payload = {
-            ...productForm,
-            idsucursal: null,
-            localizacion: null,
-            existencia: null,
-            costo: null,
-            precio: null,
-            utilidad: null,
-            rutas: [],
+            refaccion: productForm.refaccion,
+            descripcion: productForm.descripcion,
+            mod_ini: productForm.mod_ini,
+            mod_fin: productForm.mod_fin,
+            idgrupo: productForm.idgrupo,
+            idmarca: productForm.idmarca,
+            idproveedor: productForm.idproveedor,
             status: 'E',
         };
 
@@ -164,11 +255,12 @@ export default function AddRegistry({ onCancelEdit }) {
             setProductForm({
                 refaccion: '',
                 descripcion: '',
-                mod_ini: '1990',
-                mod_fin: '1990',
+                mod_ini: '',
+                mod_fin: '',
                 idgrupo: '',
                 idmarca: '',
-            });
+                idproveedor: '',
+        });
             fetchPendingProducts();
         } catch (error) {
             console.error('Error al guardar registro:', error);
@@ -191,21 +283,16 @@ export default function AddRegistry({ onCancelEdit }) {
             refaccion: selectedPendingProduct.num_parte,
             idsucursal: detailForm.idsucursal,
             localizacion: detailForm.localizacion,
-            descripcion: selectedPendingProduct.descripcion,
             existencia: detailForm.existencia,
             costo: detailForm.costo,
             precio: detailForm.precio,
+            aiva: detailForm.aiva,
             utilidad: detailForm.utilidad,
-            mod_ini: selectedPendingProduct.mod_ini,
-            mod_fin: selectedPendingProduct.mod_fin,
-            idmarca: selectedPendingProduct.idmarca,
-            idgrupo: selectedPendingProduct.idgrupo,
-            rutas: selectedPendingProduct.rutas || [],
             status: 'A',
         };
 
         try {
-            const response = await fetch(buildApiUrl('/newProduct'), {
+            const response = await fetch(buildApiUrl('/newProductDetail'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -224,7 +311,8 @@ export default function AddRegistry({ onCancelEdit }) {
                 existencia: '',
                 costo: '',
                 precio: '',
-                utilidad: '1.3',
+                aiva: '',
+                utilidad: '',
             });
             setSelectedPendingPart(null);
             fetchPendingProducts();
@@ -237,7 +325,7 @@ export default function AddRegistry({ onCancelEdit }) {
     const fetchPendingProducts = async () => {
         setPendingLoading(true);
         try {
-            const response = await fetch(buildApiUrl('/getAllProducts'), {
+            const response = await fetch(buildApiUrl('/getWarehouseProducts'), {
                 cache: 'no-store',
                 headers: { Accept: 'application/json, text/plain, */*' },
             });
@@ -247,13 +335,41 @@ export default function AddRegistry({ onCancelEdit }) {
             }
 
             const data = await response.json();
-            const formatted = (data?.[0] || [])
-                .filter((product) => product.status === 'E')
-                .map((product) => ({
-                    ...product,
-                    rutas: parseRoutes(product.rutas),
-                }));
-            setPendingProducts(formatted);
+            const formattedExisting = (data?.[0] || []).map(product => ({
+                ...product,
+                rutas: parseRoutes(product.rutas),
+            }));
+            const activeGrouped = {};
+            (data?.[1] || []).forEach(product => {
+                const key = product.num_parte;
+                if (!activeGrouped[key]) {
+                    activeGrouped[key] = {
+                        ...product,
+                        rutas: parseRoutes(product.rutas),
+                        detalles: []
+                    };
+                }
+                activeGrouped[key].detalles.push({
+                    idsucursal: product.idsucursal,
+                    sucursal: product.sucursal,
+                    localizacion: product.localizacion,
+                    existencia: product.existencia,
+                    costo: product.costo,
+                    precio: product.precio,
+                    aiva: product.aiva,
+                    utilidad: product.utilidad
+                });
+            });
+
+            setPendingProducts(formattedExisting);
+            setActiveProducts(Object.values(activeGrouped));
+            setGroupOptions((prev) => {
+                if (prev.length) {
+                    return prev;
+                }
+                const fallback = extractGroupOptionsFromProducts(formattedExisting);
+                return fallback.length ? fallback : prev;
+            });
         } catch (error) {
             console.error('Error al obtener productos pendientes:', error);
         } finally {
@@ -269,18 +385,27 @@ export default function AddRegistry({ onCancelEdit }) {
                     headers: { Accept: 'application/json, text/plain, */*' },
                 });
 
+                if (response.status === 404) {
+                    console.warn('Endpoint /getGroups no disponible. Se usarán datos locales si es posible.');
+                    return;
+                }
+
                 if (!response.ok) {
-                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                    console.warn(`No se pudieron obtener grupos (${response.status}).`);
+                    return;
                 }
 
                 const payload = await response.json();
-                const options = payload.map(group => ({
+                const normalizedPayload = Array.isArray(payload) ? payload : [];
+                const options = normalizedPayload.map(group => ({
                     value: group.idgrupo,
                     label: group.grupo,
                 }));
-                setGroupOptions(options);
+                if (options.length) {
+                    setGroupOptions(options);
+                }
             } catch (error) {
-                console.error('Error al obtener grupos:', error);
+                console.warn('Error al obtener grupos. Se intentará usar datos locales.', error);
             }
         };
 
@@ -303,6 +428,28 @@ export default function AddRegistry({ onCancelEdit }) {
                 setBrandOptions(options);
             } catch (error) {
                 console.error('Error al obtener marcas:', error);
+            }
+        };
+
+        const fetchProviderOptions = async () => {
+            try {
+                const response = await fetch(buildApiUrl('/getProviders'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const options = payload.map((provider) => ({
+                    value: provider.idproveedor,
+                    label: provider.empresa,
+                }));
+                setProviderOptions(options);
+            } catch (error) {
+                console.error('Error al obtener proveedores:', error);
             }
         };
 
@@ -352,17 +499,95 @@ export default function AddRegistry({ onCancelEdit }) {
 
         fetchGroupOptions();
         fetchBrandOptions();
+        fetchProviderOptions();
         fetchQuantityOptions();
         fetchSucursalOptions();
         fetchPendingProducts();
     }, []);
 
-    const detailProductOptions = pendingProducts.map((product) => ({
+    const existingProductOptions = pendingProducts.map((product) => ({
         value: product.num_parte,
-        label: `${product.num_parte} - ${product.descripcion}`,
+        label: `${product.num_parte} | ${product.descripcion}`,
+        status: 'E'
     }));
 
-    const renderProductForm = () => (
+    const activeProductOptions = activeProducts.map((product) => ({
+        value: product.num_parte,
+        label: `${product.num_parte} | ${product.descripcion}`,
+        status: 'A'
+    }));
+
+    const combinedProductOptions = [
+        ...(existingProductOptions.length
+            ? [{ label: 'Productos existentes', options: existingProductOptions }]
+            : []),
+        ...(activeProductOptions.length
+            ? [{ label: 'Productos activos en sucursales', options: activeProductOptions }]
+            : [])
+    ];
+
+    const formatProductOptionLabel = (option) => (
+        <div className="flex items-center gap-2">
+            <span
+                className={`w-2 h-2 rounded-full ${
+                    option.status === 'E' ? 'bg-amber-500' : 'bg-emerald-500'
+                }`}
+            />
+            <span className="truncate">{option.label}</span>
+        </div>
+    );
+
+    const selectedActiveProduct = activeProducts.find(product => product.num_parte === selectedPendingPart);
+
+    useEffect(() => {
+        if (!selectedPendingPart) {
+            setDetailForm(prev => ({
+                ...prev,
+                idsucursal: '',
+                costo: '',
+                precio: '',
+                aiva: '',
+                utilidad: ''
+            }));
+            return;
+        }
+
+        if (selectedActiveProduct?.detalles?.length) {
+            const detail = selectedActiveProduct.detalles[0];
+            setDetailForm(prev => ({
+                ...prev,
+                idsucursal: '',
+                costo: detail.costo ?? '',
+                precio: detail.precio ?? '',
+                aiva: detail.aiva ?? '',
+                utilidad: detail.utilidad ?? ''
+            }));
+        } else {
+            setDetailForm(prev => ({
+                ...prev,
+                idsucursal: '',
+                costo: '',
+                precio: '',
+                aiva: '',
+                utilidad: ''
+            }));
+        }
+    }, [selectedPendingPart, selectedActiveProduct]);
+
+    const renderProductForm = () => {
+        const groupSelectOptions = groupOptions.filter(
+            (option) => option.label && option.label.toLowerCase() !== 'not assigned'
+        );
+        const brandSelectOptions = withDefaultOption(brandOptions);
+        const providerSelectOptions = providerOptions.slice(2);
+        const yearOptions = withDefaultOption(
+            Array.from({ length: 36 }, (_, i) => {
+                const year = 1990 + i;
+                return { value: year, label: `${year}` };
+            })
+        );
+
+        return (
         <form onSubmit={handleProductSubmit}>
             <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                 <div className="sm:col-span-2">
@@ -373,7 +598,7 @@ export default function AddRegistry({ onCancelEdit }) {
                         type="text"
                         value={productForm.refaccion}
                         onChange={(e) => handleProductInputChange('refaccion', e.target.value)}
-                        className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] shadow focus:ring-2 focus:ring-indigo-500 uppercase"
+                        className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] shadow shadow-[rgb(var(--color-galaxy))] focus:ring-2 focus:ring-indigo-500 uppercase"
                     />
                     {errorMessages.refaccion && (
                         <span className="text-red-600 text-sm">{errorMessages.refaccion}</span>
@@ -387,7 +612,7 @@ export default function AddRegistry({ onCancelEdit }) {
                     <textarea
                         value={productForm.descripcion}
                         onChange={(e) => handleProductInputChange('descripcion', e.target.value)}
-                        className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] shadow focus:ring-2 focus:ring-indigo-500 uppercase"
+                        className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] shadow shadow-[rgb(var(--color-galaxy))] focus:ring-2 focus:ring-indigo-500 uppercase"
                     />
                     {errorMessages.descripcion && (
                         <span className="text-red-600 text-sm">{errorMessages.descripcion}</span>
@@ -399,11 +624,14 @@ export default function AddRegistry({ onCancelEdit }) {
                         Grupo
                     </label>
                     <Select
-                        options={groupOptions}
-                        value={groupOptions.find((option) => option.value === productForm.idgrupo)}
+                        options={groupSelectOptions}
+                        value={
+                            groupSelectOptions.find((option) => option.value === productForm.idgrupo) || null
+                        }
                         onChange={(selectedOption) =>
                             handleProductInputChange('idgrupo', selectedOption ? selectedOption.value : '')
                         }
+                        placeholder="Selecciona un grupo"
                         classNamePrefix="react-select"
                     />
                     {errorMessages.idgrupo && (
@@ -413,18 +641,21 @@ export default function AddRegistry({ onCancelEdit }) {
 
                 <div className="sm:col-span-3">
                     <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
-                        Marca de auto
+                        Proveedor
                     </label>
                     <Select
-                        options={brandOptions}
-                        value={brandOptions.find((option) => option.value === productForm.idmarca)}
-                        onChange={(selectedOption) =>
-                            handleProductInputChange('idmarca', selectedOption ? selectedOption.value : '')
+                        options={providerSelectOptions}
+                        value={
+                            providerSelectOptions.find((option) => option.value === productForm.idproveedor) || null
                         }
+                        onChange={(selectedOption) =>
+                            handleProductInputChange('idproveedor', selectedOption ? selectedOption.value : '')
+                        }
+                        placeholder="Selecciona un proveedor"
                         classNamePrefix="react-select"
                     />
-                    {errorMessages.idmarca && (
-                        <span className="text-red-600 text-sm">{errorMessages.idmarca}</span>
+                    {errorMessages.idproveedor && (
+                        <span className="text-red-600 text-sm">{errorMessages.idproveedor}</span>
                     )}
                 </div>
 
@@ -433,14 +664,12 @@ export default function AddRegistry({ onCancelEdit }) {
                         Modelo inicial
                     </label>
                     <Select
-                        options={Array.from({ length: 36 }, (_, i) => {
-                            const year = 1990 + i;
-                            return { value: year, label: `${year}` };
-                        })}
-                        value={{ value: productForm.mod_ini, label: productForm.mod_ini }}
+                        options={yearOptions}
+                        value={getSelectValue(yearOptions, productForm.mod_ini)}
                         onChange={(selectedOption) =>
                             handleProductInputChange('mod_ini', selectedOption ? selectedOption.value : '')
                         }
+                        isOptionDisabled={(option) => option.isDisabled}
                         classNamePrefix="react-select"
                     />
                     {errorMessages.mod_ini && (
@@ -453,18 +682,34 @@ export default function AddRegistry({ onCancelEdit }) {
                         Modelo final
                     </label>
                     <Select
-                        options={Array.from({ length: 36 }, (_, i) => {
-                            const year = 1990 + i;
-                            return { value: year, label: `${year}` };
-                        })}
-                        value={{ value: productForm.mod_fin, label: productForm.mod_fin }}
+                        options={yearOptions}
+                        value={getSelectValue(yearOptions, productForm.mod_fin)}
                         onChange={(selectedOption) =>
                             handleProductInputChange('mod_fin', selectedOption ? selectedOption.value : '')
                         }
+                        isOptionDisabled={(option) => option.isDisabled}
                         classNamePrefix="react-select"
                     />
                     {errorMessages.mod_fin && (
                         <span className="text-red-600 text-sm">{errorMessages.mod_fin}</span>
+                    )}
+                </div>
+
+                <div className="sm:col-span-3">
+                    <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
+                        Marca de auto
+                    </label>
+                    <Select
+                        options={brandSelectOptions}
+                        value={getSelectValue(brandSelectOptions, productForm.idmarca)}
+                        onChange={(selectedOption) =>
+                            handleProductInputChange('idmarca', selectedOption ? selectedOption.value : '')
+                        }
+                        isOptionDisabled={(option) => option.isDisabled}
+                        classNamePrefix="react-select"
+                    />
+                    {errorMessages.idmarca && (
+                        <span className="text-red-600 text-sm">{errorMessages.idmarca}</span>
                     )}
                 </div>
             </div>
@@ -486,47 +731,103 @@ export default function AddRegistry({ onCancelEdit }) {
             </div>
         </form>
     );
+    };
 
-    const renderDetailForm = () => (
+    const renderDetailForm = () => {
+        const baseSucursalOptions = withDefaultOption(sucursalOptions);
+        const quantitySelectOptions = withDefaultOption(quantityOptions);
+        const utilitySelectOptions = withDefaultOption([
+            { value: 1.25, label: '25%' },
+            { value: 1.3, label: '30%' },
+            { value: 1.35, label: '35%' },
+        ]);
+
+        const combinedOptionValue = selectedPendingPart
+            ? [...existingProductOptions, ...activeProductOptions].find(option => option.value === selectedPendingPart)
+            : null;
+
+        const activeBranchIds = new Set(
+            selectedActiveProduct?.detalles?.map(detail => String(detail.idsucursal)) || []
+        );
+        const filteredSucursalOptions = withDefaultOption(
+            sucursalOptions.filter(option => !activeBranchIds.has(String(option.value)))
+        );
+        const displayedSucursalOptions = selectedActiveProduct ? filteredSucursalOptions : baseSucursalOptions;
+        const noAvailableSucursal =
+            selectedActiveProduct && displayedSucursalOptions.length <= 1;
+
+        return (
         <form onSubmit={handleDetailSubmit}>
             <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                 <div className="sm:col-span-3">
                     <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
-                        Producto pendiente
+                        Producto de lista:
                     </label>
                     <Select
-                        options={detailProductOptions}
-                        value={detailProductOptions.find((option) => option.value === selectedPendingPart) || null}
+                        options={combinedProductOptions}
+                        value={combinedOptionValue || null}
                         onChange={(option) => setSelectedPendingPart(option ? option.value : null)}
                         isLoading={pendingLoading}
                         placeholder="Selecciona un producto"
+                        formatOptionLabel={formatProductOptionLabel}
+                        formatGroupLabel={(group) => (
+                            <div className="text-xs uppercase text-[rgb(var(--color-text))]/70 px-2 py-1">
+                                {group.label}
+                            </div>
+                        )}
                         classNamePrefix="react-select"
                     />
                     {errorMessages.selectedProduct && (
                         <span className="text-red-600 text-sm">{errorMessages.selectedProduct}</span>
                     )}
                     {selectedPendingProduct && (
-                        <div className="mt-3 p-3 rounded-xl bg-[rgb(var(--color-card))] text-xs text-[rgb(var(--color-text))] shadow-inner">
-                            <p><span className="font-semibold">Descripción:</span> {selectedPendingProduct.descripcion}</p>
-                            <p><span className="font-semibold">Modelos:</span> {selectedPendingProduct.mod_ini} - {selectedPendingProduct.mod_fin}</p>
+                        <div className="mt-3 p-3 rounded-xl bg-[rgb(var(--color-card))] text-xs text-[rgb(var(--color-text))] shadow-inner space-y-2">
+                            <div>
+                                <p><span className="font-semibold">Descripción:</span> {selectedPendingProduct.descripcion}</p>
+                                <p><span className="font-semibold">Modelos:</span> {selectedPendingProduct.mod_ini} - {selectedPendingProduct.mod_fin}</p>
+                            </div>
+                            {selectedActiveProduct?.detalles?.length > 0 && (
+                                <div className="space-y-1">
+                                    <p className="font-semibold text-emerald-500">Asignaciones existentes</p>
+                                    {selectedActiveProduct.detalles.map((detail, idx) => (
+                                        <div key={`${selectedActiveProduct.num_parte}-${detail.idsucursal}-${idx}`} className="flex flex-col rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1">
+                                            <span className="text-[rgb(var(--color-text))]">
+                                                <span className="font-semibold">Sucursal:</span> {detail.sucursal || detail.idsucursal}
+                                            </span>
+                                            <span className="text-[rgb(var(--color-text))]">
+                                                <span className="font-semibold">Localización:</span> {detail.localizacion || '—'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
 
                 <div className="sm:col-span-3">
                     <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
-                        Sucursal
+                        Sucursal por asignar
                     </label>
-                    <Select
-                        options={sucursalOptions}
-                        value={sucursalOptions.find((option) => option.value === detailForm.idsucursal)}
-                        onChange={(selectedOption) =>
-                            handleDetailInputChange('idsucursal', selectedOption ? selectedOption.value : '')
-                        }
-                        classNamePrefix="react-select"
-                    />
-                    {errorMessages.idsucursal && (
-                        <span className="text-red-600 text-sm">{errorMessages.idsucursal}</span>
+                    {noAvailableSucursal ? (
+                        <div className="mt-2 p-3 rounded-xl bg-amber-50 text-amber-700 text-sm border border-amber-200">
+                            Producto asignado en todas las sucursales. No se puede asignar nuevamente.
+                        </div>
+                    ) : (
+                        <>
+                            <Select
+                                options={displayedSucursalOptions}
+                                value={getSelectValue(displayedSucursalOptions, detailForm.idsucursal)}
+                                onChange={(selectedOption) =>
+                                    handleDetailInputChange('idsucursal', selectedOption ? selectedOption.value : '')
+                                }
+                                isOptionDisabled={(option) => option.isDisabled}
+                                classNamePrefix="react-select"
+                            />
+                            {errorMessages.idsucursal && (
+                                <span className="text-red-600 text-sm">{errorMessages.idsucursal}</span>
+                            )}
+                        </>
                     )}
                 </div>
 
@@ -550,11 +851,12 @@ export default function AddRegistry({ onCancelEdit }) {
                         Existencia
                     </label>
                     <Select
-                        options={quantityOptions}
-                        value={quantityOptions.find((option) => option.value === detailForm.existencia)}
+                        options={quantitySelectOptions}
+                        value={getSelectValue(quantitySelectOptions, detailForm.existencia)}
                         onChange={(selectedOption) =>
                             handleDetailInputChange('existencia', selectedOption ? selectedOption.value : '')
                         }
+                        isOptionDisabled={(option) => option.isDisabled}
                         classNamePrefix="react-select"
                     />
                     {errorMessages.existencia && (
@@ -567,18 +869,12 @@ export default function AddRegistry({ onCancelEdit }) {
                         Utilidad
                     </label>
                     <Select
-                        options={[
-                            { value: 1.25, label: '25%' },
-                            { value: 1.3, label: '30%' },
-                            { value: 1.35, label: '35%' },
-                        ]}
-                        value={{
-                            value: detailForm.utilidad,
-                            label: `${((detailForm.utilidad - 1) * 100).toFixed(0)}%`,
-                        }}
+                        options={utilitySelectOptions}
+                        value={getSelectValue(utilitySelectOptions, detailForm.utilidad)}
                         onChange={(selectedOption) =>
                             handleDetailInputChange('utilidad', selectedOption ? selectedOption.value : '')
                         }
+                        isOptionDisabled={(option) => option.isDisabled}
                         classNamePrefix="react-select"
                     />
                     {errorMessages.utilidad && (
@@ -593,11 +889,26 @@ export default function AddRegistry({ onCancelEdit }) {
                     <input
                         type="text"
                         value={detailForm.costo}
-                        onChange={(e) => handleDetailInputChange('costo', e.target.value)}
-                        className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] shadow focus:ring-2 focus:ring-indigo-500 uppercase"
+                        readOnly
+                        className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-gray-100 shadow focus:ring-2 focus:ring-indigo-500 uppercase cursor-not-allowed"
                     />
                     {errorMessages.costo && (
                         <span className="text-red-600 text-sm">{errorMessages.costo}</span>
+                    )}
+                </div>
+
+                <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
+                        A IVA
+                    </label>
+                    <input
+                        type="text"
+                        value={detailForm.aiva}
+                        readOnly
+                        className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-gray-100 shadow focus:ring-2 focus:ring-indigo-500 uppercase cursor-not-allowed"
+                    />
+                    {errorMessages.aiva && (
+                        <span className="text-red-600 text-sm">{errorMessages.aiva}</span>
                     )}
                 </div>
 
@@ -634,6 +945,7 @@ export default function AddRegistry({ onCancelEdit }) {
             </div>
         </form>
     );
+    };
 
     return (
         <div className="flex flex-col space-y-6 max-w-7xl mx-auto p-4">
@@ -678,14 +990,45 @@ export default function AddRegistry({ onCancelEdit }) {
 
                 <div className="relative rounded-3xl overflow-hidden shadow-lg bg-gradient-to-br from-[rgb(var(--color-galaxy))] via-[rgb(var(--color-bg))] to-[rgb(var(--color-card))] text-[rgb(var(--color-text))] p-6">
                     <div className="relative space-y-4">
-                        <p className="text-lg font-semibold">Asignación de Imagenes</p>
-                        <p className="text-sm">
-                            Esta card se creará con una imagen de not found inicial.
-                        </p>
-                        <ul className="text-sm space-y-2">
-                            <li>• Agrega una o más imágenes para cada producto.</li>
-                            <li>• Activación automática al agregar detalle.</li>
-                        </ul>
+                        <p className="text-lg font-semibold">Estado de productos</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="border rounded-2xl p-4 bg-amber-50 text-amber-700 shadow-inner">
+                        <p className="text-xs uppercase tracking-wide">Productos existentes</p>
+                        <p className="text-3xl font-bold">{pendingProducts.length}</p>
+                                <p className="text-xs">Pendientes de asignación</p>
+                            </div>
+                            <div className="border rounded-2xl p-4 bg-emerald-50 text-emerald-700 shadow-inner">
+                                <p className="text-xs uppercase tracking-wide">Productos activos</p>
+                                <p className="text-3xl font-bold">{activeProducts.length}</p>
+                                <p className="text-xs">Con detalle en sucursales</p>
+                            </div>
+                        </div>
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <p className="font-semibold text-amber-600 mb-1">Existentes</p>
+                                <div className="space-y-1 max-h-28 overflow-y-auto pr-2">
+                                    {pendingProducts.slice(0, 6).map((product) => (
+                                        <div key={`pending-${product.num_parte}`} className="flex items-center gap-2 bg-[rgb(var(--color-card))/80] rounded-lg px-2 py-1 border border-amber-200">
+                                            <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                            <span className="truncate">{product.num_parte} - {product.descripcion}</span>
+                                        </div>
+                                    ))}
+                                    {pendingProducts.length === 0 && <p className="text-[rgb(var(--color-text))]/70">Sin productos pendientes.</p>}
+                                </div>
+                            </div>
+                            <div>
+                                <p className="font-semibold text-emerald-600 mb-1">Activos</p>
+                                <div className="space-y-1 max-h-28 overflow-y-auto pr-2">
+                                    {activeProducts.slice(0, 6).map((product) => (
+                                        <div key={`active-${product.num_parte}`} className="flex items-center gap-2 bg-[rgb(var(--color-card))/80] rounded-lg px-2 py-1 border border-emerald-200">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                            <span className="truncate">{product.num_parte} - {product.descripcion}</span>
+                                        </div>
+                                    ))}
+                                    {activeProducts.length === 0 && <p className="text-[rgb(var(--color-text))]/70">Sin productos activos.</p>}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
