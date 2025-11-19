@@ -774,7 +774,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                     name="costo"
                                     type="text"
                                     autoComplete="costo"
-                                    value={currentProduct.costo}
+                                    value={currentProduct.costo ?? ''}
                                     onChange={handleCostChange}
                                     className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                                     />

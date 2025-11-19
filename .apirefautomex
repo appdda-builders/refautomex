@@ -217,6 +217,12 @@ app.get('/api/getProducts', (req, res) => {
     handleQuery(query, [], res);
 });
 
+// GET: warehouse products by status
+app.get('/api/getWarehouseProducts', (req, res) => {
+    const query = 'CALL GetWarehouseProducts()';
+    handleQuery(query, [], res);
+});
+
 // GET: filter products by folio
 app.get('/api/getFolioHistory', async (req, res) => {
     const { id } = req.query;
@@ -364,44 +370,68 @@ app.post('/api/newUser', (req, res) => {
 app.post('/api/newProduct', (req, res) => {
     const {
         refaccion,
-        idsucursal,
-        localizacion,
         descripcion,
-        existencia,
-        costo,
-        precio,
-        utilidad,
         mod_ini,
         mod_fin,
-        idmarca,
         idgrupo,
-        status = 'E',
-        rutas = []
+        idmarca,
+        idproveedor,
+        status = 'E'
     } = req.body;
 
-    if (!refaccion || !descripcion) {
+    if (!refaccion || !descripcion || !idgrupo || !idmarca || !idproveedor) {
         return res.status(400).json({
             error: 'Bad Request',
             details: 'Missing required fields for new product.'
         });
     }
 
-    const query = 'CALL newProduct(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const query = 'CALL InsertProduct(?, ?, ?, ?, ?, ?, ?, ?)';
     const params = [
         refaccion,
-        idsucursal,
-        localizacion,
         descripcion,
-        existencia,
-        costo,
-        precio,
-        utilidad,
         mod_ini,
         mod_fin,
         idgrupo,
         idmarca,
         status,
-        Array.isArray(rutas) ? JSON.stringify(rutas) : rutas
+        idproveedor
+    ];
+
+    handleQuery(query, params, res);
+});
+
+app.post('/api/newProductDetail', (req, res) => {
+    const {
+        refaccion,
+        idsucursal,
+        localizacion,
+        existencia,
+        costo,
+        precio,
+        aiva,
+        utilidad,
+        status = 'A'
+    } = req.body;
+
+    if (!refaccion || !idsucursal || !localizacion) {
+        return res.status(400).json({
+            error: 'Bad Request',
+            details: 'Missing required fields for product detail.'
+        });
+    }
+
+    const query = 'CALL InsertDetailsOfProduct(?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const params = [
+        refaccion,
+        idsucursal,
+        localizacion,
+        existencia,
+        costo,
+        precio,
+        aiva,
+        utilidad,
+        status
     ];
 
     handleQuery(query, params, res);

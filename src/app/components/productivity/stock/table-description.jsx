@@ -6,12 +6,35 @@ import { LuListRestart } from "react-icons/lu";
 import { CiBoxList } from "react-icons/ci";
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 
+const parseRoutes = (raw) => {
+    if (!raw) return [];
+    try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    } catch {
+        return [];
+    }
+};
+
+const resolveProductImage = (ruta, multimediaSrc = '') => {
+    if (!ruta) return `${multimediaSrc}productos/no-img.png`;
+    return ruta.startsWith('http') ? ruta : `${multimediaSrc}${ruta}`;
+};
+
 export default function TableDescription({ items, buttonConfigs, onRemoveProduct, onUpdateProduct, handleMouseEnter, handleMouseLeave, visibleTooltip, onEditClick }) {
     const [QuantityOptions, setQuantityOptions] = useState([]);
     const listRef = useRef();
     const printRef = useRef(null);
     const IVA_FACTOR = 1.16;
     const DEFAULT_UTILITY = 1.3;
+    const multimediaSrc = process.env.NEXT_PUBLIC_S3 || '';
+
+    const getProductImage = (product) => {
+        if (product?.imageSrc) return product.imageSrc;
+        const routes = parseRoutes(product?.rutas);
+        const fallback = routes.length > 0 ? routes[0] : '';
+        return resolveProductImage(fallback, multimediaSrc);
+    };
 
     const handleQuantityChange = (product, selectedOption) => {
         const newQuantity = selectedOption?.value;
@@ -124,26 +147,30 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                 <table ref={listRef} className="w-full text-sm text-left text-[rgb(var(--color-text))] shadow-sm">
                     <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-gray))] sticky top-0 z-10">
                         <tr>
-                            <th className="p-1">REFACCIÓN</th>
+                            <th className='p-1'>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={handleListPrint}
+                                        className="bg-gray-700 text-white rounded-full p-1.5 self-center flex items-center cursor-pointer mx-0.5"
+                                    >
+                                        <CiBoxList className="text-lg" />
+                                    </button>
+                                    <button
+                                        onClick={handleClearTable}
+                                        className="bg-red-700 text-white rounded-full p-1.5 self-center flex items-center cursor-pointer mx-0.5"
+                                    >
+                                        <LuListRestart className="text-lg" />
+                                    </button>
+                                    <span className="font-semibold">Refacción</span>
+                                </div>
+                            </th>
+                            <th className="p-1">IMG</th>
                             <th className="p-1">DESCRIPCIÓN</th>
                             <th className="p-1">LOCALIZACIÓN</th>
                             <th className="p-1">EXISTENCIA</th>
                             <th className="p-1">COSTO</th>
                             <th className="p-1">PRECIO</th>
-                            <th className='p-1 flex flex-row'>
-                            <button
-                                onClick={handleListPrint}
-                                className="bg-gray-700 text-white rounded-full p-1.5 m-0.5 self-center flex items-center"
-                            >
-                                <CiBoxList className="text-lg" />
-                            </button>
-                            <button
-                                onClick={handleClearTable}
-                                className="bg-red-700 text-white rounded-full p-1.5 m-0.5 self-center flex items-center"
-                            >
-                                <LuListRestart className="text-lg" />
-                            </button>
-                            </th>
+                            <th className="p-1">ACCIONES</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -164,6 +191,19 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                             </button>
                                             {item.refaccion}
                                             </div>
+                                        </div>
+                                    </td>
+                                    <td className="p-2 w-16">
+                                        <div className="h-12 w-12 rounded-md overflow-hidden border border-[rgb(var(--color-border))] bg-white flex items-center justify-center">
+                                            <img
+                                                src={getProductImage(item)}
+                                                alt={item.descripcion || item.refaccion}
+                                                className="object-contain h-full w-full"
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.src = resolveProductImage('', multimediaSrc);
+                                                }}
+                                            />
                                         </div>
                                     </td>
                                     <td className="p-2">
@@ -226,7 +266,7 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                             );
                         })}
                         <tr className="bg-[rgb(var(--color-card))] border-b border-[rgb(var(--color-border))]">
-                            <td className="py-2 font-bold text-xl text-amber-500" colSpan="7">
+                            <td className="py-2 font-bold text-xl text-amber-500" colSpan="8">
                                 <div className='flex justify-center items-center'>
                                     <span className='px-2 text-[rgb(var(--color-text))] italic'>
                                         PRODUCTOS
