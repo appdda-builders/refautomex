@@ -634,7 +634,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                         name="location"
                                         type="text"
                                         autoComplete="location"
-                                        value={currentProduct.localizacion}
+                                        value={currentProduct.localizacion ?? ''}
                                         className={`block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase`}
                                         onChange={(e) => setProdOverview(prevState => ({ ...prevState, localizacion: e.target.value }))}
                                     />
@@ -655,7 +655,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                     name="descripcion"
                                     type="text"
                                     autoComplete="descripcions"
-                                    value={currentProduct.descripcion}
+                                    value={currentProduct.descripcion ?? ''}
                                     className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase"
                                     onChange={(e) => setProdOverview(prevState => ({ ...prevState, descripcion: e.target.value }))}
                                     />
@@ -700,7 +700,9 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                             const year = 1990 + i;
                                             return { value: year, label: `${year}` };
                                         })}
-                                        value={{ value: currentProduct.mod_ini, label: currentProduct.mod_ini }}
+                                        value={currentProduct.mod_ini
+                                            ? { value: currentProduct.mod_ini, label: String(currentProduct.mod_ini) }
+                                            : null}
                                         onChange={(selectedOption) => {
                                             setProdOverview(prevState => ({ ...prevState, mod_ini: selectedOption.value }));
                                         }}
@@ -714,7 +716,9 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                             const year = 1990 + i;
                                             return { value: year, label: `${year}` };
                                         })}
-                                        value={{ value: currentProduct.mod_fin, label: currentProduct.mod_fin }}
+                                        value={currentProduct.mod_fin
+                                            ? { value: currentProduct.mod_fin, label: String(currentProduct.mod_fin) }
+                                            : null}
                                         onChange={(selectedOption) => {
                                             setProdOverview(prevState => ({ ...prevState, mod_fin: selectedOption.value }));
                                         }}
@@ -753,7 +757,9 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                             { value: 1.3, label: '30%' },
                                             { value: 1.35, label: '35%' },
                                         ]}
-                                        value={{ value: currentProduct.utilidad, label: `${((currentProduct.utilidad - 1) * 100).toFixed(0) }%` }}
+                                        value={currentProduct?.utilidad
+                                            ? { value: currentProduct.utilidad, label: `${((currentProduct.utilidad - 1) * 100).toFixed(0)}%` }
+                                            : null}
                                         onChange={handleUtilityChange}
                                     />
                                 </div>

@@ -26,6 +26,7 @@ export default function Warehouse() {
     const [showModal, setShowModal] = useState(false);
     const [locationErrors, setLocationErrors] = useState({});
     const [saveStatus, setSaveStatus] = useState({ type: null, message: '' });
+    const [isSaving, setIsSaving] = useState(false);
     const findProductsRef = useRef();
     const labelsRef = useRef(null);
 
@@ -52,7 +53,7 @@ export default function Warehouse() {
             const updatedItems = exists
                 ? prevItems.filter(item => item.refaccion !== product.refaccion)
                 : [...prevItems, { ...product, modified: true }];
-            setHasChanges(true);
+            setHasChanges(updatedItems.some(item => item.modified));
             return updatedItems;
         });
     };
@@ -60,23 +61,31 @@ export default function Warehouse() {
     const handleRemoveProduct = (refaccion) => {
         setItems(prevItems => {
             const updatedItems = prevItems.filter(item => item.refaccion !== refaccion);
-            setHasChanges(updatedItems.length !== prevItems.length);
+            setHasChanges(updatedItems.some(item => item.modified));
             return updatedItems;
         });
     };
 
-    const handleUpdateProduct = (updatedItems) => {
+    const handleUpdateProduct = (refaccion, changes) => {
         setItems(prevItems => {
-            if (JSON.stringify(prevItems) !== JSON.stringify(updatedItems)) {
-                // Marcar todos los items como modificados
-                const markedItems = updatedItems.map(item => ({
-                    ...item,
-                    modified: true
-                }));
-                setHasChanges(true);
-                return markedItems;
-            }
-            return prevItems;
+            let didModify = false;
+            const updatedItems = prevItems.map(item => {
+                if (item.refaccion !== refaccion) {
+                    return item;
+                }
+                const nextItem = { ...item, ...changes };
+                const itemChanged = Object.keys(changes).some(
+                    key => item[key] !== nextItem[key]
+                );
+                if (itemChanged) {
+                    didModify = true;
+                    return { ...nextItem, modified: true };
+                }
+                return item;
+            });
+            const hasModifiedItems = updatedItems.some(item => item.modified);
+            setHasChanges(hasModifiedItems || didModify);
+            return updatedItems;
         });
     };
 
@@ -232,6 +241,9 @@ export default function Warehouse() {
     const updateSaveStatus = (type, message) => setSaveStatus({ type, message });
 
     const handleSaveClick = () => {
+        if (isSaving) {
+            return;
+        }
         if (!hasChanges) {
             updateSaveStatus('error', 'No hay cambios para guardar.');
             return;
@@ -264,6 +276,9 @@ export default function Warehouse() {
             return;
         }
 
+        setIsSaving(true);
+
+        let saveSuccessful = false;
         try {
             // Usamos Promise.all para enviar todas las peticiones en paralelo
             await Promise.all(modifiedItems.map(async (item) => {
@@ -272,7 +287,10 @@ export default function Warehouse() {
                     idsucursal: item.idsucursal,
                     existencia: item.existencia,
                     localizacion: item.localizacion,
-                    descripcion: item.descripcion
+                    descripcion: item.descripcion,
+                    costo: item.costo,
+                    precio: item.precio,
+                    aiva: item.aIva
                 };
 
                 const response = await fetch(buildApiUrl('/patchTableProducts'), {
@@ -291,15 +309,18 @@ export default function Warehouse() {
 
             updateSaveStatus('success', 'Se guardó correctamente.');
             findProductsRef.current?.refreshProducts?.();
+            saveSuccessful = true;
         } catch (error) {
             console.error('Error actualizando registros:', error);
             updateSaveStatus('error', 'Error al guardar listado.');
         } finally {
-            // Resetear el estado de modificación
-            setItems(prevItems =>
-                prevItems.map(item => ({ ...item, modified: false }))
-            );
-            setHasChanges(false);
+            if (saveSuccessful) {
+                setItems(prevItems =>
+                    prevItems.map(item => item.modified ? { ...item, modified: false } : item)
+                );
+                setHasChanges(false);
+            }
+            setIsSaving(false);
         }
     };
 
@@ -338,8 +359,9 @@ export default function Warehouse() {
         {
             icon: IoSaveSharp,
             btnconf:'relative blue-circle-button tooltip-button',
-            label: 'Actualizar lista', id: 'update', path: '',
-            event: handleSaveClick
+            label: isSaving ? 'Guardando' : 'Actualizar lista', id: 'update', path: '',
+            event: handleSaveClick,
+            disabled: isSaving
         },
         {
             icon: PiStickerFill,

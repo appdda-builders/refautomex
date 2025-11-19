@@ -42,6 +42,23 @@ export default function AddRegistry({ onCancelEdit }) {
     const [errorMessage, setErrorMessage] = useState('');
     const [errorMessages, setErrorMessages] = useState({});
 
+    const extractGroupOptionsFromProducts = (products = []) => {
+        const uniqueGroups = new Map();
+        products.forEach((product) => {
+            const id = product.idgrupo ?? product.idGrupo ?? product.id_grupo;
+            const name = product.grupo ?? product.group;
+            if (id && name && !uniqueGroups.has(id)) {
+                uniqueGroups.set(id, {
+                    value: id,
+                    label: name
+                });
+            }
+        });
+        return Array.from(uniqueGroups.values()).sort((a, b) =>
+            a.label.localeCompare(b.label, 'es', { sensitivity: 'base' })
+        );
+    };
+
     const selectedPendingProduct = pendingProducts.find(
         (product) => product.num_parte === selectedPendingPart
     );
@@ -254,6 +271,13 @@ export default function AddRegistry({ onCancelEdit }) {
                     rutas: parseRoutes(product.rutas),
                 }));
             setPendingProducts(formatted);
+            setGroupOptions((prev) => {
+                if (prev.length) {
+                    return prev;
+                }
+                const fallback = extractGroupOptionsFromProducts(formatted);
+                return fallback.length ? fallback : prev;
+            });
         } catch (error) {
             console.error('Error al obtener productos pendientes:', error);
         } finally {
@@ -269,18 +293,27 @@ export default function AddRegistry({ onCancelEdit }) {
                     headers: { Accept: 'application/json, text/plain, */*' },
                 });
 
+                if (response.status === 404) {
+                    console.warn('Endpoint /getGroups no disponible. Se usarán datos locales si es posible.');
+                    return;
+                }
+
                 if (!response.ok) {
-                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                    console.warn(`No se pudieron obtener grupos (${response.status}).`);
+                    return;
                 }
 
                 const payload = await response.json();
-                const options = payload.map(group => ({
+                const normalizedPayload = Array.isArray(payload) ? payload : [];
+                const options = normalizedPayload.map(group => ({
                     value: group.idgrupo,
                     label: group.grupo,
                 }));
-                setGroupOptions(options);
+                if (options.length) {
+                    setGroupOptions(options);
+                }
             } catch (error) {
-                console.error('Error al obtener grupos:', error);
+                console.warn('Error al obtener grupos. Se intentará usar datos locales.', error);
             }
         };
 

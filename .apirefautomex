@@ -583,15 +583,15 @@ app.patch('/api/patchHistoryStatus', (req, res) => {
 // PATCH: update table status of multiple products
 app.patch('/api/patchTableProducts', (req, res) => {
     const {
-        refaccion, idsucursal, existencia, localizacion, descripcion
+        refaccion, idsucursal, existencia, localizacion, descripcion, costo, precio, aiva
     } = req.body;
 
-    console.log('Request data:', req.body); // Para depurar los datos enviados
+    console.log('Request data:', req.body);
 
     // Query para llamar al procedimiento almacenado
-    const query = `CALL UpdateTableProducts(?, ?, ?, ?, ?);`;
+    const query = `CALL UpdateTableProducts(?, ?, ?, ?, ?, ?, ?, ?);`;
     const params = [
-        refaccion, idsucursal, existencia, localizacion, descripcion
+        refaccion, idsucursal, existencia, localizacion, descripcion, costo, precio, aiva
     ];
 
     // Ejecutar el procedimiento almacenado
