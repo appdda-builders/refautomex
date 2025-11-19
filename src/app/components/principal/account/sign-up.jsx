@@ -10,7 +10,6 @@ import { AiFillEye } from 'react-icons/ai';
 
 import RefautomexLogo from '@/app/components/refautomex-logo';
 import ReCAPTCHA from "react-google-recaptcha";
-import axios from 'axios';
 import GooglePlacesAutocomplete from './google-places';
 import Link from 'next/link';
 
@@ -163,20 +162,23 @@ export default function SignUp() {
                 setLoading(true);
 
                 try {
-                    axios.post('/api/dataManage?type=newUser', user_data, {
+                    const response = await fetch('/api/dataManage?type=newUser', {
+                        method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                    .then(response => {
-                        console.log('Data sent successfully:', response.data);
-                        setAlertMessage("Información enviada correctamente!");
-                        window.location.href = '/section/account?load=log-in&user_status=new';
-                    })
-                    .catch(error => {
-                        console.log('Error:', error);
-                        setAlertMessage("Un error ocurrió mientras se envió el formulario.");
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json, text/plain, */*',
+                        },
+                        body: JSON.stringify(user_data),
                     });
+
+                    if (!response.ok) {
+                        throw new Error(`Error ${response.status}: ${response.statusText}`);
+                    }
+
+                    const dataResponse = await response.json().catch(() => null);
+                    console.log('Data sent successfully:', dataResponse);
+                    setAlertMessage("Información enviada correctamente!");
+                    window.location.href = '/section/account?load=log-in&user_status=new';
                 } catch (error) {
                     console.log('Error al subir formulario:', error);
                     setAlertMessage("Error al subir formulario. Revisa la conexión a internet e intentalo más tarde.");

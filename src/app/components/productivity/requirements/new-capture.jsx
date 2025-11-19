@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Select from 'react-select';
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import FindProducts from '../sales/find-products';
 import TableCapture from './table-capture';
@@ -136,23 +135,23 @@ export default function NewCapture({ onCancelEdit }) {
             setErrorMessage('Por favor, completa todos los campos obligatorios.');
             return;
         }
-/*
-        try {
-            await axios.post('/api/dataManage?type=addProduct', addItem, {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            setSuccessMessage('Registro agregado exitosamente.');
-        } catch (error) {
-            setErrorMessage('Hubo un error al guardar los datos. Intenta de nuevo.');
-        }
-*/
+        // TODO: integrar envío a la API cuando se defina el endpoint correcto.
     };
 
     useEffect(() => {
         const fetchBrandOptions = async () => {
             try {
-                const response = await axios.get(buildApiUrl('/getBrands'));
-                const options = response.data.map((brand) => ({
+                const response = await fetch(buildApiUrl('/getBrands'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const options = payload.map((brand) => ({
                     value: brand.idmarca,
                     label: brand.marca,
                 }));
@@ -164,8 +163,17 @@ export default function NewCapture({ onCancelEdit }) {
 
         const fetchQuantityOptions = async () => {
             try {
-                const response = await axios.get(buildApiUrl('/getQuantity'));
-                const options = response.data.map((quantity) => ({
+                const response = await fetch(buildApiUrl('/getQuantity'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const options = payload.map((quantity) => ({
                     value: quantity.idCantidad,
                     label: quantity.cantidad,
                 }));
@@ -177,8 +185,17 @@ export default function NewCapture({ onCancelEdit }) {
 
         const fetchProviderOptions = async () => {
             try {
-                const response = await axios.get(buildApiUrl('/getProviders'));
-                const options = response.data
+                const response = await fetch(buildApiUrl('/getProviders'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const options = payload
                     .filter(provider => provider.idproveedor > 1)
                     .map(provider => ({
                         value: provider.idproveedor,

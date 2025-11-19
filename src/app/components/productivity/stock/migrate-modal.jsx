@@ -1,46 +1,100 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FaTruckRampBox, FaParachuteBox } from "react-icons/fa6";
 import { CgDanger } from "react-icons/cg";
 
+const createInitialMatrixSelection = () => ({
+    origin: { anaquel: '', nivel: '', seccion: '' },
+    destination: { anaquel: '', nivel: '', seccion: '' },
+});
 
 export default function MigrateModal({ isOpen, toggleModal, onSubmit }) {
-    const [formData, setFormData] = useState({
-        nombreCompleto: '',
-        fechaEntrega: '',
-        telefono: '',
-        email: '',
-    });
-
+    const [formData, setFormData] = useState(createInitialMatrixSelection());
     const [missingFieldsWarning, setMissingFieldsWarning] = useState(false);
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormData({
-            ...formData,
-            [name]: value,
-        });
-        setMissingFieldsWarning(false);
-    };
-
-    const handleFormSubmit = () => {
-        console.log('Submit');
-    };
+    const [submissionStatus, setSubmissionStatus] = useState({ type: '', message: '' });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const generateRange = (start, end, prefix = '') =>
         Array.from({ length: end - start + 1 }, (_, i) => prefix + (start + i).toString().padStart(2, '0'));
 
-    const niveles = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)); // A-Z
-    const secciones = generateRange(0, 99);
-    const anaqueles = generateRange(0, 99);
+    const niveles = useMemo(() => Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)), []);
+    const secciones = useMemo(() => generateRange(0, 99), []);
+    const anaqueles = useMemo(() => generateRange(0, 99), []);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setFormData(createInitialMatrixSelection());
+            setMissingFieldsWarning(false);
+            setSubmissionStatus({ type: '', message: '' });
+            setIsSubmitting(false);
+        }
+    }, [isOpen]);
+
+    const handleSelectChange = (group, field, value) => {
+        setFormData(prev => ({
+            ...prev,
+            [group]: {
+                ...prev[group],
+                [field]: value,
+            },
+        }));
+        setMissingFieldsWarning(false);
+        setSubmissionStatus({ type: '', message: '' });
+    };
+
+    const getLocationCode = (group) => {
+        const { anaquel, nivel, seccion } = formData[group];
+        return `${anaquel}${nivel}${seccion}`;
+    };
+
+    const handleFormSubmit = async () => {
+        const hasEmptyFields = Object.values(formData.origin).some(value => !value) ||
+            Object.values(formData.destination).some(value => !value);
+
+        if (hasEmptyFields) {
+            setMissingFieldsWarning(true);
+            return;
+        }
+
+        if (!onSubmit) return;
+
+        const payload = {
+            source: getLocationCode('origin'),
+            target: getLocationCode('destination')
+        };
+
+        setIsSubmitting(true);
+        setSubmissionStatus({ type: '', message: '' });
+
+        try {
+            const response = await onSubmit(payload);
+            if (response?.message) {
+                setSubmissionStatus({
+                    type: response.ok ? 'success' : 'error',
+                    message: response.message,
+                });
+            }
+
+            if (response?.ok) {
+                setTimeout(() => {
+                    toggleModal();
+                    setFormData(createInitialMatrixSelection());
+                }, 700);
+            }
+        } catch (error) {
+            setSubmissionStatus({
+                type: 'error',
+                message: 'No se pudo completar la migración.',
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
-        <div className={`fixed z-10 inset-0 overflow-y-auto ${isOpen ? 'block' : 'hidden'}`}>
-            <div className="flex items-center justify-center min-h-screen px-4">
-                <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-                    <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-                </div>
-
-                <div className="bg-white rounded-lg overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full">
+        <div className={`fixed inset-0 z-50 transition-opacity duration-200 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+            <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" aria-hidden="true" onClick={toggleModal}></div>
+            <div className="relative flex items-center justify-center min-h-screen px-4">
+                <div className="bg-white rounded-lg overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full z-50">
                     <div className="px-4 py-5 sm:px-6">
                         <h3 className="text-lg leading-6 font-medium text-gray-900">Migrar Matrices por Localizacion</h3>
                     </div>
@@ -62,9 +116,11 @@ export default function MigrateModal({ isOpen, toggleModal, onSubmit }) {
                                     <FaTruckRampBox className="w-5 h-5 mr-2 text-blue-800" />
                                     ORIGEN:
                                 </label>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full" data-testid="migration-origin">
                                     <select
                                         name="origen_anq"
+                                        value={formData.origin.anaquel}
+                                        onChange={(event) => handleSelectChange('origin', 'anaquel', event.target.value)}
                                         className="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none"
                                     >
                                         <option value="">Anaquel</option>
@@ -74,6 +130,8 @@ export default function MigrateModal({ isOpen, toggleModal, onSubmit }) {
                                     </select>
                                     <select
                                         name="origen_nivel"
+                                        value={formData.origin.nivel}
+                                        onChange={(event) => handleSelectChange('origin', 'nivel', event.target.value)}
                                         className="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none"
                                     >
                                         <option value="">Nivel</option>
@@ -83,6 +141,8 @@ export default function MigrateModal({ isOpen, toggleModal, onSubmit }) {
                                     </select>
                                     <select
                                         name="origen_sec"
+                                        value={formData.origin.seccion}
+                                        onChange={(event) => handleSelectChange('origin', 'seccion', event.target.value)}
                                         className="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none"
                                     >
                                         <option value="">Sección</option>
@@ -101,6 +161,8 @@ export default function MigrateModal({ isOpen, toggleModal, onSubmit }) {
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
                                     <select
                                         name="destino_anq"
+                                        value={formData.destination.anaquel}
+                                        onChange={(event) => handleSelectChange('destination', 'anaquel', event.target.value)}
                                         className="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-400 focus:outline-none"
                                     >
                                         <option value="">Anaquel</option>
@@ -110,6 +172,8 @@ export default function MigrateModal({ isOpen, toggleModal, onSubmit }) {
                                     </select>
                                     <select
                                         name="destino_nivel"
+                                        value={formData.destination.nivel}
+                                        onChange={(event) => handleSelectChange('destination', 'nivel', event.target.value)}
                                         className="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-400 focus:outline-none"
                                     >
                                         <option value="">Nivel</option>
@@ -119,6 +183,8 @@ export default function MigrateModal({ isOpen, toggleModal, onSubmit }) {
                                     </select>
                                     <select
                                         name="destino_sec"
+                                        value={formData.destination.seccion}
+                                        onChange={(event) => handleSelectChange('destination', 'seccion', event.target.value)}
                                         className="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-400 focus:outline-none"
                                     >
                                         <option value="">Sección</option>
@@ -135,7 +201,17 @@ export default function MigrateModal({ isOpen, toggleModal, onSubmit }) {
                                 <div className="absolute flex bg-red-100 text-red-800 p-3 rounded mb-4 text-sm animate-out">
                                     <CgDanger className='text-red-800 w-5 h-5 mr-1' />
                                     <span>
-                                        Para hacer pedido, llena todos los campos.
+                                        Para migrar la matriz completa selecciona cada campo de origen y destino.
+                                    </span>
+                                </div>
+                            )}
+                            {submissionStatus.message && (
+                                <div
+                                    className={`absolute flex ${submissionStatus.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} p-3 rounded mb-4 text-sm`}
+                                >
+                                    <CgDanger className={`${submissionStatus.type === 'success' ? 'text-green-800' : 'text-red-800'} w-5 h-5 mr-1`} />
+                                    <span>
+                                        {submissionStatus.message}
                                     </span>
                                 </div>
                             )}
@@ -144,9 +220,10 @@ export default function MigrateModal({ isOpen, toggleModal, onSubmit }) {
                         <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                             <button
                                 onClick={handleFormSubmit}
-                                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-500 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                                disabled={isSubmitting}
+                                className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm ${isSubmitting ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-700 focus:ring-blue-500'}`}
                             >
-                                OK
+                                {isSubmitting ? 'Migrando...' : 'Migrar matriz'}
                             </button>
                             <button
                                 onClick={toggleModal}

@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
 import GooglePlacesAutocomplete from '@/app/components/principal/account/google-places';
 import Select from 'react-select';
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 export default function FormData({ t, formState, setFormState, account }) {
@@ -107,16 +106,24 @@ export default function FormData({ t, formState, setFormState, account }) {
         };
 
         try {
-            const response = await axios.post('/api/dataManage?type=addInvoice', InvoiceItem, {
+            const response = await fetch('/api/dataManage?type=addInvoice', {
+                method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
-                }
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json, text/plain, */*',
+                },
+                body: JSON.stringify(InvoiceItem),
             });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
             setIsSuccessfull(true);
             setSuccessMessage('Factura agregada correctamente, enviaremos tu factura a tu correo, ¡Gracias por comprar en refautomex!');
             return response;
         } catch (error) {
-            alert("Error al agregar factura o previamente añadida, por favor contáctanos si el problema persiste.", );
+            alert("Error al agregar factura o previamente añadida, por favor contáctanos si el problema persiste.");
             console.log(error);
             setIsSuccessfull(false);
             return null;
@@ -174,8 +181,16 @@ export default function FormData({ t, formState, setFormState, account }) {
     useEffect(() => {
         const fetchCFDI = async () => {
         try {
-            const response = await axios.get(buildApiUrl('/getCFDI'));
-            const formattedCFDIOptions = response.data.map(cfdi => ({
+            const response = await fetch(buildApiUrl('/getCFDI'), {
+                cache: 'no-store',
+                headers: { Accept: 'application/json, text/plain, */*' },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+            const payload = await response.json();
+            const formattedCFDIOptions = (payload || []).map(cfdi => ({
             value: cfdi.idcfdi,
             label: cfdi.cfdi // e.g., "Gastos en general"
             }));
@@ -187,9 +202,17 @@ export default function FormData({ t, formState, setFormState, account }) {
 
         const fetchRegimen = async () => {
         try {
-            const response = await axios.get(buildApiUrl('/getRegimen'));
+            const response = await fetch(buildApiUrl('/getRegimen'), {
+                cache: 'no-store',
+                headers: { Accept: 'application/json, text/plain, */*' },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+            const payload = await response.json();
             // Label format: "{id} | {regimen}" so we can extract the regimen (after the pipe)
-            const formattedRegOptions = response.data.map(regimen => ({
+            const formattedRegOptions = (payload || []).map(regimen => ({
             value: regimen.idregimen,
             label: `${regimen.idregimen} | ${regimen.regimen}`
             }));

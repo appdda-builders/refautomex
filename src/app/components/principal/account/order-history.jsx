@@ -1,7 +1,6 @@
 'use client';
 import React, { useState, useEffect } from "react";
 import { getStorageValue } from "@/app/lib/storage-values";
-import axios from "axios";
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 export default function OrderHistory(){
@@ -13,14 +12,21 @@ export default function OrderHistory(){
     const [error, setError] = useState(null);
 
     const fetchData = async (id) => {
+        if (!id) return;
         setError(null);
         try {
-            const response = await axios.get(buildApiUrl('/getUserHistory'), {
-                params: { id },
+            const params = new URLSearchParams({ id });
+            const endpoint = `${buildApiUrl('/getUserHistory')}?${params.toString()}`;
+            const response = await fetch(endpoint, {
+                cache: 'no-store',
+                headers: { Accept: 'application/json, text/plain, */*' },
             });
-            if (Array.isArray(response.data)) {
-                setSales(response.data);
-                //console.log(response.data);
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                setSales(data);
             } else {
                 setSales([]);
             }

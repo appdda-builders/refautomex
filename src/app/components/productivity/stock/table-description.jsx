@@ -4,7 +4,6 @@ import { MdDelete, MdEditSquare } from "react-icons/md";
 import Select from 'react-select';
 import { LuListRestart } from "react-icons/lu";
 import { CiBoxList } from "react-icons/ci";
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 export default function TableDescription({ items, buttonConfigs, onRemoveProduct, onUpdateProduct, handleMouseEnter, handleMouseLeave, visibleTooltip, onEditClick }) {
@@ -53,8 +52,17 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
     useEffect(() => {
         const fetchQuantity = async () => {
             try {
-                const response = await axios.get(buildApiUrl('/getQuantity'));
-                const formattedQuantityOptions = response.data.map(cantidad => ({
+                const response = await fetch(buildApiUrl('/getQuantity'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const formattedQuantityOptions = payload.map(cantidad => ({
                     value: cantidad.idCantidad,
                     label: cantidad.cantidad
                 }));
@@ -69,7 +77,7 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
 
     return (
         <div className="h-[87vh] bg-[rgb(var(--color-card))] rounded-2xl my-5 flex shadow shadow-[rgb(var(--color-galaxy))] relative">
-            <div className='flex flex-col px-1 bg-[rgb(var(--color-bg))] rounded-l-2xl pt-5 relative'>
+            <div className='flex flex-col px-1 bg-[rgb(var(--color-bg))] rounded-l-2xl pt-10 relative'>
                 {buttonConfigs.map(({ icon: Icon, label, id, event, btnconf }) => (
                     <div
                         key={id}
@@ -90,7 +98,7 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
             </div>
             <div className="flex flex-col overflow-x-scroll w-full">
                 <table ref={listRef} className="w-full text-sm text-left text-[rgb(var(--color-text))] shadow-sm">
-                    <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-slate))] sticky top-0 z-10">
+                    <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-gray))] sticky top-0 z-10">
                         <tr>
                             <th className="p-1">REFACCIÓN</th>
                             <th className="p-1">DESCRIPCIÓN</th>

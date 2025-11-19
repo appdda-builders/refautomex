@@ -1,5 +1,4 @@
 'use client';
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import Spinner from '@/app/components/principal/spinner';
@@ -26,8 +25,67 @@ const resolveProductImage = (ruta, multimediaSrc = '') => {
     return ruta.startsWith('http') ? ruta : `${multimediaSrc}${ruta}`;
 };
 
+const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const highlightText = (text, searchTerm) => {
+    if (!searchTerm || !searchTerm.trim()) return text;
+    const words = searchTerm.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return text;
+    const normalizedWords = words.map(word => word.toLowerCase());
+    const regex = new RegExp(`(${words.map(escapeRegExp).join('|')})`, 'gi');
+    const segments = text.split(regex);
+
+    return segments.map((segment, index) => {
+        if (!segment) return null;
+        const isMatch = normalizedWords.includes(segment.toLowerCase());
+        if (isMatch) {
+            return (
+                <span
+                    key={`${segment}-${index}`}
+                    className="bg-[rgb(var(--color-refautomex))]/30 text-[rgb(var(--color-text))] px-0.5 rounded-sm"
+                >
+                    {segment}
+                </span>
+            );
+        }
+        return <span key={`${segment}-${index}-plain`}>{segment}</span>;
+    });
+};
+
+const prioritizeMatches = (data, accessor, prioritizedWord, type) => {
+    if (!prioritizedWord) {
+        return [...data];
+    }
+
+    const normalizedWord = prioritizedWord.toLowerCase();
+
+    return [...data].sort((a, b) => {
+        const textA = accessor(a).toLowerCase();
+        const textB = accessor(b).toLowerCase();
+
+        const startsA = textA.startsWith(normalizedWord) ? 0 : 1;
+        const startsB = textB.startsWith(normalizedWord) ? 0 : 1;
+
+        if (startsA !== startsB) {
+            return startsA - startsB;
+        }
+
+        if (type === 'num_parte') {
+            const numA = parseInt(a.num_parte, 10);
+            const numB = parseInt(b.num_parte, 10);
+            if (!Number.isNaN(numA) && !Number.isNaN(numB)) {
+                return numA - numB;
+            }
+        }
+
+        return accessor(a).localeCompare(accessor(b), undefined, { numeric: true, sensitivity: 'base' });
+    });
+};
+
 function filterProductsByCategory(products, searchTerm, searchType) {
-    const searchWords = searchTerm.toLowerCase().split(/\s+/);
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const searchWords = normalizedSearch ? normalizedSearch.split(/\s+/).filter(Boolean) : [];
+    const prioritizedWord = searchWords[0] || '';
 
     let result = {
         dataProducts: [],
@@ -37,42 +95,51 @@ function filterProductsByCategory(products, searchTerm, searchType) {
     switch (searchType) {
         case 'Descripcion':
             result.dataProducts = products.filter(product =>
+                searchWords.length === 0 ||
                 searchWords.every(word => product.descripcion.toLowerCase().includes(word))
-            ).sort((a, b) => a.descripcion.localeCompare(b.descripcion));
+            );
             result.type = 'descripcion';
             break;
         case 'Parte':
             result.dataProducts = products.filter(product =>
+                searchWords.length === 0 ||
                 searchWords.every(word => product.num_parte.toLowerCase().includes(word))
-            ).sort((a, b) => {
-                const numA = parseInt(a.num_parte);
-                const numB = parseInt(b.num_parte);
-                return numA - numB;
-            });
+            );
             result.type = 'num_parte';
             break;
         case 'Localizacion':
             result.dataProducts = products.filter(product =>
+                searchWords.length === 0 ||
                 searchWords.every(word => product.localizacion.toLowerCase().includes(word))
-            ).sort((a, b) => {
-                return a.localizacion.localeCompare(b.localizacion);
-            });
+            );
             result.type = 'localizacion';
             break;
         default:
             result.dataProducts = products.filter(product =>
+                searchWords.length === 0 ||
                 searchWords.every(word => product.descripcion.toLowerCase().includes(word))
-            ).sort((a, b) => a.descripcion.localeCompare(b.descripcion));
+            );
             result.type = 'descripcion';
             break;
     }
 
+    const accessorByType = {
+        descripcion: (product) => product.descripcion || '',
+        num_parte: (product) => product.num_parte || '',
+        localizacion: (product) => product.localizacion || ''
+    };
+
+    const accessor = accessorByType[result.type] || ((product) => product.descripcion || '');
+    result.dataProducts = prioritizeMatches(result.dataProducts, accessor, prioritizedWord, result.type);
+
     result.dataProducts = result.dataProducts.map(product => {
         const rutas = parseProductRoutes(product.rutas);
+        const primaryImage = rutas.length > 0 ? rutas[0] : '';
         return {
             ...product,
             rutas,
-            ruta: rutas.length > 0 ? rutas[0] : '',
+            ruta: primaryImage,
+            imageSrc: resolveProductImage(primaryImage, process.env.NEXT_PUBLIC_S3 || '')
         };
     });
 
@@ -124,8 +191,19 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
         setIsLoading(true);
         setError(null);
         try {
-            const response = await axios.get(buildApiUrl('/getAllProducts'));
-            setProducts(response.data[0]);
+            const response = await fetch(buildApiUrl('/getAllProducts'), {
+                cache: 'no-store',
+                headers: {
+                    Accept: 'application/json, text/plain, */*',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            const payload = await response.json();
+            setProducts(payload?.[0] ?? []);
         } catch (error) {
             console.error('Error fetching products:', error);
             setError(error);
@@ -226,7 +304,17 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
 
     return (
         <div className="relative w-full max-w-[480px] lg:max-w-[520px] mx-auto overflow-x-hidden">
-            <div className='flex justify-center items-start m-0.5 mt-10 w-full'>
+            <div className="flex justify-between items-center px-3 mt-6 text-xs text-[rgb(var(--color-text))]">
+                <span className="font-semibold uppercase tracking-wide">
+                    Resultados: {filteredProducts.length}
+                </span>
+                {searchTerm && (
+                    <span className="italic text-[rgb(var(--color-refautomex))]">
+                        Buscando: {searchTerm.toUpperCase()}
+                    </span>
+                )}
+            </div>
+            <div className='flex justify-center items-start m-0.5 mt-4 w-full'>
                 <input
                     type="text"
                     name="client-search"
@@ -244,16 +332,6 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
                         className='text-md xl:text-lg leading-6 text-[rgb(var(--color-error))]'
                     />
                     {deleteTooltip.tooltip}
-                </div>
-                <div className='absolute -top-11 right-0 -mt-1 mb-1 flex items-center gap-2'>
-                    <div className='flex rounded-3xl'>
-                        <span className='italic font-sans mx-1 my-auto text-sm text-[rgb(var(--color-text))]'>
-                            {searchTerm.length === 0 ? 'TODOS' : searchTerm.toUpperCase()}
-                        </span>
-                        <span className="bg-amber-500 text-white font-semibold rounded-full h-10 w-10 text-md flex items-center justify-center shadow-lg">
-                            {filteredProducts.length}
-                        </span>
-                    </div>
                 </div>
                 {isWarehouse && searchTerm.trim() && (
                     <button
@@ -302,21 +380,21 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
                                                 <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 overflow-hidden rounded-xl bg-white shadow shadow-[rgb(var(--color-galaxy))]">
                                                     <img
                                                     src={imageUrl}
-                                                    alt={product.descripcion}
+                                                    alt={product.num_parte}
                                                     className="w-full h-full object-contain object-center"
                                                     />
                                                 </div>
                                                 <div className="flex flex-col flex-1 gap-2">
                                                     <div className="flex flex-col flex-1">
                                                         <div className="text-sm sm:text-base text-[rgb(var(--color-text))] min-h-[4.5rem] max-h-[4.5rem] overflow-y-auto">
-                                                            {product.descripcion}
+                                                            {highlightText(product.descripcion, searchTerm)}
                                                         </div>
                                                         <div className="flex flex-row justify-between text-left my-2">
                                                             <p className="sm:text-sm font-bold text-[rgb(var(--color-refautomex))] bg-[rgb(var(--color-gray))]/20 rounded-full px-2 shadow shadow-[rgb(var(--color-galaxy))]">
-                                                                {product.num_parte}
+                                                                {highlightText(product.num_parte, searchTerm)}
                                                             </p>
                                                             <p className="sm:text-sm font-bold text-[rgb(var(--color-refautomex))] bg-[rgb(var(--color-gray))]/20 rounded-full px-2 shadow shadow-[rgb(var(--color-galaxy))] truncate">
-                                                                {product.localizacion}
+                                                                {highlightText(product.localizacion, searchTerm)}
                                                             </p>
                                                         </div>
                                                         <div className="flex flex-row justify-between h-full">

@@ -188,6 +188,11 @@ app.get('/api/getBrands', (req, res) => {
     handleQuery(query, [], res);
 });
 
+app.get('/api/getGroups', (req, res) => {
+    const query = 'SELECT * FROM grupo';
+    handleQuery(query, [], res);
+});
+
 // GET: all sites available
 app.get('/api/getSucursal', (req, res) => {
     const query = 'SELECT * FROM sucursal';
@@ -350,6 +355,53 @@ app.post('/api/newUser', (req, res) => {
     const params = [
         email, cognitoid, nombre, apellido, telefono, f_nacimiento,
         genero, rfc, domicilio, categoria, empleado
+    ];
+
+    handleQuery(query, params, res);
+});
+
+// POST: insert new product
+app.post('/api/newProduct', (req, res) => {
+    const {
+        refaccion,
+        idsucursal,
+        localizacion,
+        descripcion,
+        existencia,
+        costo,
+        precio,
+        utilidad,
+        mod_ini,
+        mod_fin,
+        idmarca,
+        idgrupo,
+        status = 'E',
+        rutas = []
+    } = req.body;
+
+    if (!refaccion || !descripcion) {
+        return res.status(400).json({
+            error: 'Bad Request',
+            details: 'Missing required fields for new product.'
+        });
+    }
+
+    const query = 'CALL newProduct(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const params = [
+        refaccion,
+        idsucursal,
+        localizacion,
+        descripcion,
+        existencia,
+        costo,
+        precio,
+        utilidad,
+        mod_ini,
+        mod_fin,
+        idgrupo,
+        idmarca,
+        status,
+        Array.isArray(rutas) ? JSON.stringify(rutas) : rutas
     ];
 
     handleQuery(query, params, res);
@@ -543,6 +595,14 @@ app.patch('/api/patchTableProducts', (req, res) => {
     ];
 
     // Ejecutar el procedimiento almacenado
+    handleQuery(query, params, res);
+});
+
+// PATCH: update to migrate matrix for all products
+app.patch('/api/patchMigrate', (req, res) => {
+    const { source, target, idsucursal } = req.body;
+    const query = 'CALL MigrateMatrixProducts(?, ?, ?);';
+    const params = [source, target, idsucursal];
     handleQuery(query, params, res);
 });
 

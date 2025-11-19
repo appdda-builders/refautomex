@@ -7,7 +7,6 @@ import { setStorageValue } from "@/app/lib/storage-values";
 import { AiFillEye } from 'react-icons/ai';
 import { TbWorldWww } from "react-icons/tb";
 import Link from 'next/link';
-import axios from 'axios';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 export default function LogIn() {
@@ -76,12 +75,22 @@ export default function LogIn() {
     };
 
     const checkIfUserIsEmployee = async (token) => {
+        if (!token) return false;
         try {
-            const response = await axios.get(buildApiUrl('/verifyEmployee'), {
-                params: { id: token },
+            const params = new URLSearchParams({ id: token });
+            const endpoint = `${buildApiUrl('/verifyEmployee')}?${params.toString()}`;
+            const response = await fetch(endpoint, {
+                cache: 'no-store',
+                headers: { Accept: 'application/json, text/plain, */*' },
             });
-            console.log('Empleado:', response.data.empleado);
-            return response.data.empleado;
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log('Empleado:', data.empleado);
+            return data.empleado;
         } catch (error) {
             console.error('Error al verificar empleado:', error);
             setAlertMessage('Imposible verificar empleado.');
