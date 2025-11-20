@@ -165,9 +165,31 @@ app.get('/api/getAllProviders', (req, res) => {
 });
 
 // GET: all products for CALIDAD
-app.get('/api/getAllProducts', (req, res) => {
-    const query = 'CALL allProducts()';
-    handleQuery(query, [], res);
+app.get('/api/getAllProducts', async (req, res) => {
+    const { idsucursal } = req.query;
+    const parsedBranch = idsucursal ? parseInt(idsucursal, 10) : null;
+
+    try {
+        const data = await executeQuery('CALL allProducts(?)', [Number.isNaN(parsedBranch) ? null : parsedBranch]);
+        res.json(data);
+    } catch (error) {
+        console.error('Error fetching products:', error);
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+});
+
+// POST: all products filtered by branch
+app.post('/api/getAllProducts', async (req, res) => {
+    const { idsucursal } = req.body || {};
+    const parsedBranch = idsucursal ? parseInt(idsucursal, 10) : null;
+
+    try {
+        const data = await executeQuery('CALL allProducts(?)', [Number.isNaN(parsedBranch) ? null : parsedBranch]);
+        res.json(data);
+    } catch (error) {
+        console.error('Error fetching products via POST:', error);
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
 });
 
 // GET: all CFDI to invoices
@@ -562,16 +584,16 @@ app.patch('/api/patchUser', (req, res) => {
 app.patch('/api/patchProduct', (req, res) => {
     const {
         refaccion, idsucursal, localizacion, descripcion, existencia, costo, precio,
-        utilidad, mod_ini, mod_fin, idmarca, rutas
+        utilidad, mod_ini, mod_fin, idmarca, idgrupo, rutas
     } = req.body;
 
     console.log('Request data:', req.body); // Para depurar los datos enviados
 
     // Query para llamar al procedimiento almacenado
-    const query = `CALL UpdateProductAndDetail(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+    const query = `CALL UpdateProductAndDetail(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
     const params = [
         refaccion, idsucursal, localizacion, descripcion, existencia, costo,
-        precio, utilidad, mod_ini, mod_fin, idmarca, rutas
+        precio, utilidad, mod_ini, mod_fin, idmarca, idgrupo, rutas
     ];
 
     // Ejecutar el procedimiento almacenado

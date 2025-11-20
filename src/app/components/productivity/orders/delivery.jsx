@@ -170,7 +170,7 @@ export default function Site() {
 
     const fetchData = async () => {
         try {
-            const response = await fetch(buildApiUrl('/getSiteRequests'), {
+            const response = await fetch(buildApiUrl('/getWebDelivery'), {
                 cache: 'no-store',
                 headers: { Accept: 'application/json, text/plain, */*' },
             });
