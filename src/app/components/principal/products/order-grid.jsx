@@ -13,6 +13,19 @@ import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
+const parseRoutes = (raw) => {
+    if (!raw) return [];
+    try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (Array.isArray(parsed)) {
+            return parsed.filter(Boolean);
+        }
+        return [];
+    } catch {
+        return [];
+    }
+};
+
 export default function OrderGrid() {
     const multimediaSrc = process.env.NEXT_PUBLIC_S3;
     const cognitoUserSession = getStorageValue('CognitoUserSession');
@@ -25,6 +38,9 @@ export default function OrderGrid() {
     const [selectedLanguage, setSelectedLanguage] = useState('es');
     const [modalOpen, setModalOpen] = useState(false);
     const [folioWeb, setFolioWeb] = useState('');
+    const [groupCards, setGroupCards] = useState([]);
+    const [productsLoading, setProductsLoading] = useState(false);
+    const [productsError, setProductsError] = useState(null);
     const saleAlreadyProcessed = useRef(false);
 
     const totalAmount = cart.reduce((total, item) => {
@@ -80,6 +96,56 @@ export default function OrderGrid() {
     };
 
     useEffect(() => {
+        const fetchProducts = async () => {
+            setProductsLoading(true);
+            setProductsError(null);
+            try {
+                const response = await fetch(buildApiUrl('/getProducts'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                const payload = await response.json();
+                const groupsMap = {};
+                (payload || []).forEach((product) => {
+                    const groupId = product.idgrupo || 'N/A';
+                    const key = `${groupId}-${product.grupo || 'Sin grupo'}`;
+                    const routes = parseRoutes(product.rutas);
+                    const normalizedProduct = {
+                        ...product,
+                        rutas: routes,
+                        mainImage: routes.length > 0 ? routes[0] : null,
+                    };
+                    if (!groupsMap[key]) {
+                        groupsMap[key] = {
+                            idgrupo: product.idgrupo,
+                            nombre: product.grupo || 'Sin grupo',
+                            productos: [],
+                        };
+                    }
+                    groupsMap[key].productos.push(normalizedProduct);
+                });
+                const groups = Object.values(groupsMap).map((group) => ({
+                    ...group,
+                    total: group.productos.length,
+                    muestras: group.productos.slice(0, 3),
+                }));
+                setGroupCards(groups);
+            } catch (error) {
+                console.error('Error al obtener productos web:', error);
+                setProductsError('No pudimos cargar los productos destacados. Intenta más tarde.');
+                setGroupCards([]);
+            } finally {
+                setProductsLoading(false);
+            }
+        };
+
+        fetchProducts();
+    }, []);
+
+    useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const success = urlParams.get('success');
 
@@ -89,19 +155,43 @@ export default function OrderGrid() {
             saleAlreadyProcessed.current = true;
 
             const paymentMethod = localStorage.getItem('paymentMethod') || 3;
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            const deliveryDate = new Date(today);
+            deliveryDate.setDate(today.getDate() + 3);
+            const deliveryStr = deliveryDate.toISOString().split('T')[0];
+            const itemsPayload = cart.map((item) => {
+                const quantity = item.quantity || 1;
+                const price = parseFloat(item.precio) || 0;
+                return {
+                    refaccion: item.num_parte,
+                    descripcion: item.descripcion || '',
+                    cantidad: quantity,
+                    aIva: (price / 1.16).toFixed(2),
+                    precio: price.toFixed(2),
+                    monto: (price * quantity).toFixed(2),
+                    existencia: item.existencia || 0,
+                    isSeminew: 'N',
+                    isEditable: false,
+                    isPedido: true,
+                };
+            });
+
             const saleData = {
-                fecha_venta: new Date().toISOString().split('T')[0],
-                total_venta: totalAmount,
+                fecha_venta: todayStr,
+                total_venta: totalAmount.toFixed(2),
                 idusuario: userData?.idusuario || 1,
                 status: 'A',
                 idmetodo: paymentMethod,
                 tipo: 'W',
-                productos: cart.map(item => ({
-                    num_parte: item.num_parte,
-                    descripcion: item.descripcion,
-                    cantidad: item.quantity || 1,
-                    precio: item.precio
-                }))
+                telefono: userData?.telefono || '',
+                email: userData?.email || '',
+                fecha_entrega: deliveryStr,
+                fecha_pedido: todayStr,
+                nombre_cliente: userData?.nombre || 'Cliente web',
+                isOrder: true,
+                notas: 'Pago vía Stripe',
+                items: itemsPayload,
             };
 
             const saveSale = async () => {
@@ -152,6 +242,73 @@ export default function OrderGrid() {
             )}
             <div className="container min-h-screen mx-auto bg-gradient-to-tl from-[rgb(var(--color-gray))] via-[rgb(var(--color-bg))] to-[rgb(var(--color-card))] px-6 md:px-28 py-24 sm:py-40">
                 <div className="py-8">
+                    <section className="mb-10">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                            <h2 className="text-2xl font-bold text-[rgb(var(--color-text))]">
+                                Explora por grupo
+                            </h2>
+                            {groupCards.length > 0 && (
+                                <p className="text-sm text-gray-500">
+                                    {groupCards.reduce((sum, group) => sum + group.total, 0)} productos disponibles
+                                </p>
+                            )}
+                        </div>
+                        {productsLoading ? (
+                            <p className="text-sm text-gray-500">Cargando grupos...</p>
+                        ) : productsError ? (
+                            <p className="text-sm text-red-500">{productsError}</p>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                                {groupCards.map((group) => (
+                                    <div
+                                        key={group.idgrupo || group.nombre}
+                                        className="bg-white rounded-xl shadow flex flex-col p-4 border border-slate-100"
+                                    >
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div>
+                                                <p className="text-xs uppercase text-gray-500">Grupo</p>
+                                                <h3 className="text-lg font-semibold text-[rgb(var(--color-text))]">
+                                                    {group.nombre}
+                                                </h3>
+                                            </div>
+                                            <span className="text-sm font-semibold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">
+                                                {group.total} piezas
+                                            </span>
+                                        </div>
+                                        <div className="flex -space-x-3 mb-4">
+                                            {group.muestras.map((product, idx) => (
+                                                <div
+                                                    key={`${product.num_parte}-${idx}`}
+                                                    className="w-16 h-16 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 flex items-center justify-center"
+                                                >
+                                                    <img
+                                                        src={
+                                                            product.mainImage
+                                                                ? `${multimediaSrc}${product.mainImage}`
+                                                                : `${multimediaSrc}productos/no-img.png`
+                                                        }
+                                                        alt={product.descripcion}
+                                                        className="object-cover w-full h-full"
+                                                    />
+                                                </div>
+                                            ))}
+                                            {group.muestras.length === 0 && (
+                                                <div className="w-16 h-16 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 flex items-center justify-center text-xs text-gray-400">
+                                                    Sin fotos
+                                                </div>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-gray-500">
+                                            Algunos ejemplos: {group.muestras.map((prod) => prod.descripcion).join(', ') || 'Sin descripción'}
+                                        </p>
+                                    </div>
+                                ))}
+                                {groupCards.length === 0 && (
+                                    <p className="text-sm text-gray-500">No hay productos para mostrar.</p>
+                                )}
+                            </div>
+                        )}
+                    </section>
                     {cart.map((item, index) => {
                         if (!item) return null;
                         const quantity = item.quantity || 1;

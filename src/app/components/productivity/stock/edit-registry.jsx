@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Select from 'react-select';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import heic2any from 'heic2any';
+import { getStorageValue } from '@/app/lib/storage-values';
 
 const getAbsoluteApiUrl = (path) => {
     const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -53,10 +54,22 @@ const buildImageSrc = (multimediaSrc = '', route) => {
     return route.startsWith('http') ? route : `${multimediaSrc}${route}`;
 };
 
-export default function EditRegistry({ prodOverview, onCancelEdit, setProdOverview }) {
+const isWebBranchValue = (value) => {
+    if (value === null || value === undefined) return false;
+    const normalized = String(value).trim().toUpperCase();
+    return normalized === '1' || normalized === 'WEB';
+};
+
+const MODEL_YEAR_OPTIONS = Array.from({ length: 36 }, (_, i) => {
+    const year = 1990 + i;
+    return { value: year, label: `${year}` };
+});
+
+export default function EditRegistry({ prodOverview, onCancelEdit, setProdOverview, onRefreshProducts }) {
     const multimediaSrc = process.env.NEXT_PUBLIC_S3;
     const [isSuccessfull, setIsSuccessfull] = useState(false);
     const [brandOptions, setBrandOptions] = useState([]);
+    const [groupOptions, setGroupOptions] = useState([]);
     const [QuantityOptions, setQuantityOptions] = useState([]);
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
@@ -71,11 +84,14 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
         utilidad: '',
         mod_ini: '',
         mod_fin: '',
-        idmarca: ''
+        idmarca: '',
+        idgrupo: ''
     });
 
     const defaultProdOverview = {
         rutas: [],
+        idgrupo: '',
+        grupo: ''
     };
 
     const currentProduct = prodOverview || defaultProdOverview;
@@ -91,6 +107,19 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
     const [mediaUploading, setMediaUploading] = useState(false);
     const [imageFeedback, setImageFeedback] = useState({ error: '', success: '' });
     const fileInputRef = useRef(null);
+    const [branchDetails, setBranchDetails] = useState([]);
+    const [selectedBranchId, setSelectedBranchId] = useState(null);
+    const [branchLoading, setBranchLoading] = useState(false);
+    const [branchError, setBranchError] = useState('');
+    const [userBranchId, setUserBranchId] = useState(null);
+    const activeBranchId = selectedBranchId || (currentProduct?.idsucursal ? String(currentProduct.idsucursal) : null);
+    const isWebBranchSelected = isWebBranchValue(activeBranchId);
+    const branchSelectOptions = branchDetails.map(detail => ({
+        value: detail.idsucursal,
+        label: detail.sucursal || 'Sucursal',
+    }));
+    const selectedBranchOption =
+        branchSelectOptions.find(option => option.value === selectedBranchId) || null;
 
     const revokePreviewUrl = (image) => {
         if (image?.previewUrl) {
@@ -122,6 +151,163 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
     }, [prodOverview, multimediaSrc]);
 
     useEffect(() => {
+        if (!prodOverview) return;
+        const candidateId =
+            prodOverview.idgrupo ??
+            prodOverview.idGrupo ??
+            prodOverview.id_grupo ??
+            null;
+        const candidateLabel = prodOverview.grupo || prodOverview.group;
+
+        if (candidateId) {
+            setProdOverview(prev => {
+                if (!prev) return prev;
+                if (prev.idgrupo === candidateId) return prev;
+                return { ...prev, idgrupo: candidateId };
+            });
+            setGroupOptions((prev) => {
+                const exists = prev.some(
+                    (option) => String(option.value) === String(candidateId)
+                );
+                if (exists) return prev;
+                return [
+                    ...prev,
+                    {
+                        value: candidateId,
+                        label: candidateLabel || `Grupo ${candidateId}`,
+                    },
+                ];
+            });
+        } else if (candidateLabel) {
+            const matched = groupOptions.find(
+                (option) => option.label.toLowerCase() === candidateLabel.toLowerCase()
+            );
+            if (matched) {
+                setProdOverview(prev => prev ? { ...prev, idgrupo: matched.value } : prev);
+            }
+        }
+    }, [prodOverview, groupOptions, setProdOverview]);
+
+    useEffect(() => {
+        const session = getStorageValue('CognitoUserSession');
+        const username = session?.idToken?.payload?.['cognito:username'];
+        const user = username ? getStorageValue(`user_${username}`) : null;
+        const resolvedBranch = user?.idsucursal ? String(user.idsucursal) : null;
+        setUserBranchId(resolvedBranch);
+    }, []);
+
+    useEffect(() => {
+        if (!prodOverview?.refaccion) {
+            setBranchDetails([]);
+            setSelectedBranchId(null);
+            return;
+        }
+
+        let ignore = false;
+        const fetchBranchDetails = async () => {
+            setBranchLoading(true);
+            setBranchError('');
+            try {
+                const response = await fetch(buildApiUrl('/getWarehouseProducts'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const activeRows = Array.isArray(payload?.[1]) ? payload[1] : [];
+                const normalized = activeRows
+                    .filter(detail => detail.num_parte === prodOverview.refaccion)
+                    .map(detail => ({
+                        idsucursal: String(detail.idsucursal),
+                        sucursal: detail.sucursal,
+                        localizacion: detail.localizacion,
+                        existencia: detail.existencia,
+                        costo: detail.costo,
+                        precio: detail.precio,
+                        utilidad: detail.utilidad,
+                        descripcion: detail.descripcion,
+                        rutas: parseRoutes(detail.rutas),
+                    }));
+
+                if (!ignore) {
+                    setBranchDetails(normalized);
+                    setBranchError(normalized.length === 0 ? 'Este producto no tiene asignaciones activas.' : '');
+                }
+            } catch (error) {
+                console.error('Error fetching branch details:', error);
+                if (!ignore) {
+                    setBranchDetails([]);
+                    setBranchError('No se pudieron cargar los detalles por sucursal.');
+                }
+            } finally {
+                if (!ignore) {
+                    setBranchLoading(false);
+                }
+            }
+        };
+
+        fetchBranchDetails();
+
+        return () => {
+            ignore = true;
+        };
+    }, [prodOverview?.refaccion]);
+
+    useEffect(() => {
+        if (!branchDetails.length) {
+            setSelectedBranchId(null);
+            return;
+        }
+
+        setSelectedBranchId((prev) => {
+            if (prev && branchDetails.some(detail => detail.idsucursal === prev)) {
+                return prev;
+            }
+
+            const normalizedUserBranch = userBranchId ? String(userBranchId) : null;
+            if (normalizedUserBranch && branchDetails.some(detail => detail.idsucursal === normalizedUserBranch)) {
+                return normalizedUserBranch;
+            }
+
+            const normalizedProductBranch = prodOverview?.idsucursal ? String(prodOverview.idsucursal) : null;
+            if (normalizedProductBranch && branchDetails.some(detail => detail.idsucursal === normalizedProductBranch)) {
+                return normalizedProductBranch;
+            }
+
+            return branchDetails[0].idsucursal;
+        });
+    }, [branchDetails, userBranchId, prodOverview?.idsucursal]);
+
+    useEffect(() => {
+        if (!selectedBranchId) {
+            return;
+        }
+        const detail = branchDetails.find(item => item.idsucursal === selectedBranchId);
+        if (!detail) {
+            return;
+        }
+
+        setProdOverview(prev => {
+            if (!prev) return prev;
+            const isWebBranch = isWebBranchValue(detail.idsucursal);
+            return {
+                ...prev,
+                idsucursal: detail.idsucursal ? Number(detail.idsucursal) : prev.idsucursal,
+                sucursal: detail.sucursal || prev.sucursal,
+                localizacion: isWebBranch ? '0' : (detail.localizacion ?? ''),
+                existencia: isWebBranch ? '0' : (detail.existencia ?? ''),
+                costo: detail.costo ?? prev.costo,
+                precio: detail.precio ?? prev.precio,
+                utilidad: detail.utilidad ?? prev.utilidad,
+            };
+        });
+    }, [selectedBranchId, branchDetails, setProdOverview]);
+
+    useEffect(() => {
         const existingUrls = imageRoutes.map(route => buildImageSrc(multimediaSrc, route));
         const pendingUrls = pendingImages.map(image => image.previewUrl);
         const placeholder = `${multimediaSrc}productos/no-img.png`;
@@ -150,6 +336,14 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
 
     const handleUtilityChange = (selectedOption) => {
         setProdOverview(prevState => ({ ...prevState, utilidad: selectedOption.value }));
+    };
+
+    const handleGroupChange = (selectedOption) => {
+        setProdOverview(prevState => ({
+            ...prevState,
+            idgrupo: selectedOption ? selectedOption.value : '',
+            grupo: selectedOption ? selectedOption.label : ''
+        }));
     };
 
     const handleCostChange = (e) => {
@@ -335,16 +529,29 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
         };
         let isValid = true;
         let newErrorMessages = {};
+        if (!prodOverview.idgrupo) {
+            isValid = false;
+            newErrorMessages.idgrupo = 'Selecciona un grupo.';
+        } else {
+            newErrorMessages.idgrupo = '';
+        }
         // Validar campos locales con regex
         for (const [key, value] of Object.entries(prodOverview)) {
             if (key === 'costo') {
                 if (value == null || value === '' || isNaN(value) || Number(value) <= 0) {
                     isValid = false;
                     newErrorMessages[key] = 'Costo no puede ser 0, nulo o inválido.';
-                    continue;
                 }
+                continue;
             }
-            if (regexPatterns[key] && !regexPatterns[key].test(value)) {
+            if (isWebBranchSelected && (key === 'localizacion' || key === 'existencia')) {
+                newErrorMessages[key] = '';
+                continue;
+            }
+            if (!regexPatterns[key]) {
+                continue;
+            }
+            if (!regexPatterns[key].test(value)) {
                 isValid = false;
                 newErrorMessages[key] = `${key} - inválido.`;
             } else {
@@ -352,39 +559,41 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
             }
         }
         // Validar la localización en el servidor
-        try {
-            const params = {
-                localizacion: prodOverview.localizacion,
-                idsucursal: currentProduct.idsucursal,
-                num_parte: prodOverview.refaccion
-            };
-            const url = getAbsoluteApiUrl('/dataManage');
-            url.searchParams.set('type', 'verifyLocation');
-            url.searchParams.set('params', JSON.stringify(params));
+        if (!isWebBranchSelected) {
+            try {
+                const params = {
+                    localizacion: prodOverview.localizacion,
+                    idsucursal: activeBranchId ? Number(activeBranchId) : currentProduct.idsucursal,
+                    num_parte: prodOverview.refaccion
+                };
+                const url = getAbsoluteApiUrl('/dataManage');
+                url.searchParams.set('type', 'verifyLocation');
+                url.searchParams.set('params', JSON.stringify(params));
 
-            const response = await fetch(url.toString(), {
-                method: 'GET',
-                headers: {
-                    Accept: 'application/json, text/plain, */*',
-                },
-                cache: 'no-store',
-            });
-            if (response.status === 404) {
-                console.warn('verifyLocation endpoint no disponible. Se omitirá la validación remota.');
-                return { isValid, newErrorMessages };
-            }
-            if (!response.ok) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
-            }
-            const data = await response.json();
-            if (data.exists) {
-                newErrorMessages.localizacion = data.message || 'Localización ya ocupada.';
+                const response = await fetch(url.toString(), {
+                    method: 'GET',
+                    headers: {
+                        Accept: 'application/json, text/plain, */*',
+                    },
+                    cache: 'no-store',
+                });
+                if (response.status === 404) {
+                    console.warn('verifyLocation endpoint no disponible. Se omitirá la validación remota.');
+                    return { isValid, newErrorMessages };
+                }
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                if (data.exists) {
+                    newErrorMessages.localizacion = data.message || 'Localización ya ocupada.';
+                    isValid = false;
+                }
+            } catch (error) {
+                console.error('Error verificando localización:', error);
+                newErrorMessages.localizacion = 'Error al verificar la localización.';
                 isValid = false;
             }
-        } catch (error) {
-            console.error('Error verificando localización:', error);
-            newErrorMessages.localizacion = 'Error al verificar la localización.';
-            isValid = false;
         }
         return { isValid, newErrorMessages };
     };
@@ -414,19 +623,23 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
             const mergedRoutes = [...existing, ...uploadedKeys];
 
             console.log('Merged routes before patch:', mergedRoutes);
+            const resolvedBranchId = activeBranchId ? Number(activeBranchId) : currentProduct.idsucursal;
+            const payloadLocalizacion = isWebBranchSelected ? '0' : prodOverview.localizacion;
+            const payloadExistencia = isWebBranchSelected ? '0' : prodOverview.existencia;
             const update_data = {
                 refaccion: currentProduct.refaccion,
                 sucursal: currentProduct.sucursal,
-                localizacion: prodOverview.localizacion,
+                localizacion: payloadLocalizacion,
                 descripcion: prodOverview.descripcion,
-                existencia: prodOverview.existencia,
+                existencia: payloadExistencia,
                 costo: parseFloat(prodOverview.costo).toFixed(2),
                 precio: parseFloat(prodOverview.precio).toFixed(2),
                 utilidad: prodOverview.utilidad,
                 mod_ini: prodOverview.mod_ini,
                 mod_fin: prodOverview.mod_fin,
                 idmarca: prodOverview.idmarca,
-                idsucursal: currentProduct.idsucursal,
+                idgrupo: prodOverview.idgrupo,
+                idsucursal: resolvedBranchId,
                 rutas: JSON.stringify(mergedRoutes),
             };
 
@@ -454,6 +667,10 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                 rutas: mergedRoutes,
             }));
             setImageFeedback({ error: '', success: '' });
+            if (typeof onRefreshProducts === 'function') {
+                onRefreshProducts();
+            }
+            onCancelEdit?.();
         } catch (error) {
             if (uploadedKeys.length > 0) {
                 await deleteUploadedKeys(uploadedKeys);
@@ -468,7 +685,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
 
     useEffect(() => {
         const fetchBrand = async () => {
-            try {
+        try {
                 const response = await fetch(buildApiUrl('/getBrands'), {
                     cache: 'no-store',
                     headers: { Accept: 'application/json, text/plain, */*' },
@@ -486,6 +703,30 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                 setBrandOptions(formattedBrandOptions);
             } catch (error) {
                 console.error('Error fetching Brands:', error);
+            }
+        };
+
+        const fetchGroup = async () => {
+            try {
+                const response = await fetch(buildApiUrl('/getGroups'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const formattedGroups = payload
+                    .filter(group => group.grupo && group.grupo.toLowerCase() !== 'not assigned')
+                    .map(group => ({
+                        value: group.idgrupo,
+                        label: group.grupo,
+                    }));
+                setGroupOptions(formattedGroups);
+            } catch (error) {
+                console.error('Error fetching Groups:', error);
             }
         };
 
@@ -512,9 +753,9 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
         };
 
         fetchBrand();
+        fetchGroup();
         fetchQuantity();
-    }, [prodOverview]);
-
+    }, []);
     return (
         <form onSubmit={handleSubmit}>
             <div className="md:px-20 py-10">
@@ -607,6 +848,82 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                         </div>
                     </div>
                     <div className="flex-1 px-2 2xl:px-20 my-auto">
+                        <div className="rounded-3xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-card))] p-4 shadow-inner shadow-[rgb(var(--color-galaxy))]">
+                            <div className="flex flex-col gap-4">
+                                <div className="flex flex-col xl:flex-row gap-4 ">
+                                    <div className="flex-1 rounded-2xl bg-[rgb(var(--color-bg))] border border-dashed border-[rgb(var(--color-border))] p-4">
+                                        <p className="text-xs uppercase tracking-wide text-[rgb(var(--color-text))]/60">
+                                        Total sucursales activas: {branchDetails.length}
+                                        </p>
+                                        <label className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
+                                            Sucursal a editar
+                                        </label>
+                                        <Select
+                                            options={branchSelectOptions}
+                                            value={selectedBranchOption}
+                                            onChange={(option) => setSelectedBranchId(option ? option.value : null)}
+                                            isDisabled={branchSelectOptions.length === 0}
+                                            isLoading={branchLoading}
+                                            placeholder={branchLoading ? 'Cargando sucursales...' : 'Selecciona una sucursal'}
+                                            classNamePrefix="react-select"
+                                        />
+                                        {branchError && (
+                                            <p className="text-[rgb(var(--color-error))] text-sm mt-2">
+                                                {branchError}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                                {branchLoading && (
+                                    <p className="text-xs text-[rgb(var(--color-text))]/70">
+                                        Buscando detalles del producto...
+                                    </p>
+                                )}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-52 overflow-y-auto">
+                                    {branchDetails.length === 0 && !branchLoading ? (
+                                        <div className="rounded-2xl border border-dashed border-[rgb(var(--color-border))] bg-[rgb(var(--color-bg))] p-4 text-sm text-[rgb(var(--color-text))]/70">
+                                            No hay registros activos para otras sucursales.
+                                        </div>
+                                    ) : (
+                                        branchDetails.map(detail => {
+                                            const isActive = detail.idsucursal === selectedBranchId;
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={`${detail.idsucursal}-${detail.localizacion}`}
+                                                    onClick={() => setSelectedBranchId(detail.idsucursal)}
+                                                    className={`text-left rounded-2xl border p-3 transition hover:shadow ${
+                                                        isActive
+                                                            ? 'border-[rgb(var(--color-refautomex))] bg-[rgb(var(--color-gray))]/40'
+                                                            : 'border-[rgb(var(--color-border))] bg-[rgb(var(--color-card))]'
+                                                    }`}
+                                                >
+                                                    <div className="text-sm font-semibold text-[rgb(var(--color-text))]">
+                                                        {detail.sucursal || 'Sucursal'}
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-[rgb(var(--color-text))]/80">
+                                                        <p><span className="font-semibold text-[rgb(var(--color-text))]">Loc:</span> {detail.localizacion || '—'}</p>
+                                                        <p><span className="font-semibold text-[rgb(var(--color-text))]">Existencia:</span> {detail.existencia ?? '—'}</p>
+                                                        <p>
+                                                            <span className="font-semibold text-[rgb(var(--color-text))]">Costo:</span>{' '}
+                                                            {detail.costo !== undefined && detail.costo !== null && detail.costo !== ''
+                                                                ? `$${Number(detail.costo).toFixed(2)}`
+                                                                : '—'}
+                                                        </p>
+                                                        <p>
+                                                            <span className="font-semibold text-[rgb(var(--color-text))]">Precio:</span>{' '}
+                                                            {detail.precio !== undefined && detail.precio !== null && detail.precio !== ''
+                                                                ? `$${Number(detail.precio).toFixed(2)}`
+                                                                : '—'}
+                                                        </p>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                         <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                             <div className="sm:col-span-2">
                                 <label htmlFor="first-name" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
@@ -617,30 +934,41 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                 </div>
                             </div>
                             <div className="sm:col-span-2">
-                                <label htmlFor="first-name" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
-                                    Sucursal
-                                </label>
-                                <div className="mt-2 bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] animate-up rounded-md p-1 shadow">
-                                    {currentProduct.sucursal}
-                                </div>
-                            </div>
-                            <div className="sm:col-span-2">
-                                <label htmlFor="location" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
-                                    Localizaci&oacute;n
+                                <label className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
+                                    Grupo
                                 </label>
                                 <div className="mt-2">
-                                    <input
-                                        id="location"
-                                        name="location"
-                                        type="text"
-                                        autoComplete="location"
-                                        value={currentProduct.localizacion ?? ''}
-                                        className={`block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase`}
-                                        onChange={(e) => setProdOverview(prevState => ({ ...prevState, localizacion: e.target.value }))}
+                                    <Select
+                                        options={groupOptions}
+                                        value={groupOptions.find(option => String(option.value) === String(prodOverview?.idgrupo)) || null}
+                                        onChange={handleGroupChange}
+                                        placeholder="Selecciona"
+                                        classNamePrefix="react-select"
                                     />
-                                    {errorMessages.localizacion && (
+                                    {errorMessages.idgrupo && (
                                         <span className="text-[rgb(var(--color-error))] text-sm">
-                                            {errorMessages.localizacion}
+                                            {errorMessages.idgrupo}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                                                        <div className="sm:col-span-2">
+                                <label htmlFor="email" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
+                                    Marca de auto
+                                </label>
+                                <div className="mt-2">
+                                    <Select
+                                        id="marca"
+                                        name="marca"
+                                        value={brandOptions.find(option => option.value === prodOverview?.idmarca)}
+                                        onChange={handleBrandChange}
+                                        options={brandOptions}
+                                        isDisabled={isSuccessfull}
+                                        classNamePrefix="react-select"
+                                    />
+                                    {errorMessages.idmarca && (
+                                        <span className="text-[rgb(var(--color-error))] text-sm">
+                                            {errorMessages.idmarca}
                                         </span>
                                     )}
                                 </div>
@@ -666,40 +994,39 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                     )}
                                 </div>
                             </div>
+                            {!isWebBranchSelected && (
+                                <div className="sm:col-span-2">
+                                    <label htmlFor="location" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
+                                        Localizaci&oacute;n
+                                    </label>
+                                    <div className="mt-2">
+                                        <input
+                                            id="location"
+                                            name="location"
+                                            type="text"
+                                            autoComplete="location"
+                                            value={currentProduct.localizacion ?? ''}
+                                            className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase"
+                                            onChange={(e) => setProdOverview(prevState => ({ ...prevState, localizacion: e.target.value }))}
+                                        />
+                                        {errorMessages.localizacion && (
+                                            <span className="text-[rgb(var(--color-error))] text-sm">
+                                                {errorMessages.localizacion}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                             <div className="sm:col-span-2">
-                                <label htmlFor="last-name" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
-                                    Existencia
+                                <label className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
+                                    Modelo inicial
                                 </label>
                                 <div className="mt-2">
-                                    <Select
-                                        id="existencia"
-                                        name="existencia"
-                                        value={QuantityOptions.find(option => option.value === prodOverview?.existencia)}
-                                        onChange={handleQuantityChange}
-                                        options={QuantityOptions}
-                                        isDisabled={isSuccessfull}
-                                        classNamePrefix="react-select"
-                                    />
-                                    {errorMessages.existencia && (
-                                        <span className="text-[rgb(var(--color-error))] text-sm">
-                                            {errorMessages.existencia}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="sm:col-span-2">
-                                <label htmlFor="last-name" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
-                                    Modelo
-                                </label>
-                                <div className="mt-2 flex items-center justify-center">
                                     <Select
                                         id='mod_ini'
                                         name='mod_ini'
                                         className='w-full'
-                                        options={Array.from({ length: 36 }, (_, i) => {
-                                            const year = 1990 + i;
-                                            return { value: year, label: `${year}` };
-                                        })}
+                                        options={MODEL_YEAR_OPTIONS}
                                         value={currentProduct.mod_ini
                                             ? { value: currentProduct.mod_ini, label: String(currentProduct.mod_ini) }
                                             : null}
@@ -707,15 +1034,23 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                             setProdOverview(prevState => ({ ...prevState, mod_ini: selectedOption.value }));
                                         }}
                                     />
-                                    <span className='mx-2 md:mx-0.5 xl:mx-2'>-</span>
+                                    {errorMessages.mod_ini && (
+                                        <span className="text-[rgb(var(--color-error))] text-sm">
+                                            {errorMessages.mod_ini}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="sm:col-span-2">
+                                <label className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
+                                    Modelo final
+                                </label>
+                                <div className="mt-2">
                                     <Select
                                         id='mod_fin'
                                         name='mod_fin'
                                         className='w-full'
-                                        options={Array.from({ length: 36 }, (_, i) => {
-                                            const year = 1990 + i;
-                                            return { value: year, label: `${year}` };
-                                        })}
+                                        options={MODEL_YEAR_OPTIONS}
                                         value={currentProduct.mod_fin
                                             ? { value: currentProduct.mod_fin, label: String(currentProduct.mod_fin) }
                                             : null}
@@ -723,29 +1058,36 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                             setProdOverview(prevState => ({ ...prevState, mod_fin: selectedOption.value }));
                                         }}
                                     />
-                                </div>
-                            </div>
-                            <div className="sm:col-span-2">
-                                <label htmlFor="email" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
-                                    Marca de auto
-                                </label>
-                                <div className="mt-2">
-                                    <Select
-                                        id="marca"
-                                        name="marca"
-                                        value={brandOptions.find(option => option.value === prodOverview?.idmarca)}
-                                        onChange={handleBrandChange}
-                                        options={brandOptions}
-                                        isDisabled={isSuccessfull}
-                                        classNamePrefix="react-select"
-                                    />
-                                    {errorMessages.idmarca && (
+                                    {errorMessages.mod_fin && (
                                         <span className="text-[rgb(var(--color-error))] text-sm">
-                                            {errorMessages.idmarca}
+                                            {errorMessages.mod_fin}
                                         </span>
                                     )}
                                 </div>
                             </div>
+                            {!isWebBranchSelected && (
+                                <div className="sm:col-span-2">
+                                    <label htmlFor="last-name" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
+                                        Existencia
+                                    </label>
+                                    <div className="mt-2">
+                                        <Select
+                                            id="existencia"
+                                            name="existencia"
+                                            value={QuantityOptions.find(option => option.value === prodOverview?.existencia)}
+                                            onChange={handleQuantityChange}
+                                            options={QuantityOptions}
+                                            isDisabled={isSuccessfull}
+                                            classNamePrefix="react-select"
+                                        />
+                                        {errorMessages.existencia && (
+                                            <span className="text-[rgb(var(--color-error))] text-sm">
+                                                {errorMessages.existencia}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                             <div className="sm:col-span-2">
                                 <label htmlFor="last-name" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     Utilidad

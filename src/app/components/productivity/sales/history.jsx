@@ -1,5 +1,5 @@
 import { buildApiUrl } from '@/app/lib/refautomex-api';
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import Title from '../title';
 import { MdSell } from "react-icons/md";
 import { FaSearch } from "react-icons/fa";
@@ -10,6 +10,8 @@ import { GrStatusGoodSmall } from "react-icons/gr";
 import { IoTicket } from "react-icons/io5";
 import { FaArrowDown, FaArrowUp } from "react-icons/fa";
 import { useTimeZoneContext } from '@/app/lib/time-zone-context';
+import { useReactToPrint } from 'react-to-print';
+import ComponentToPrint from './component-print';
 
 const createTooltip = (icon, label, id, visibleTooltip, setVisibleTooltip) => {
     const show = () => setVisibleTooltip(id);
@@ -29,7 +31,7 @@ const createTooltip = (icon, label, id, visibleTooltip, setVisibleTooltip) => {
 export default function History() {
     const [visibleTooltip, setVisibleTooltip] = useState(null);
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [imgError, setImgError] = useState(false);
+    const [imageErrors, setImageErrors] = useState({});
     const [sales, setSales] = useState([]);
     const [error, setError] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,7 +42,13 @@ export default function History() {
     const [selectedStatus, setSelectedStatus] = useState('');
     const [folioToChange, setFolioToChange] = useState('');
     const [expandedFolio, setExpandedFolio] = useState(null);
+    const [ticketData, setTicketData] = useState(null);
+    const componentRef = useRef(null);
     const multimediaSrc = process.env.NEXT_PUBLIC_S3;
+    const handlePrint = useReactToPrint({
+        contentRef: componentRef,
+        onAfterPrint: () => setTicketData(null),
+    });
 
     const findTooltip = createTooltip(FaSearch, 'Buscar ticket', 'find', visibleTooltip, setVisibleTooltip);
     const withdrawTooltip = createTooltip(BiMoneyWithdraw, 'Solicitar retiro', 'withdraw', visibleTooltip, setVisibleTooltip);
@@ -52,7 +60,10 @@ export default function History() {
 
         let date;
         if (typeof dateInput === "string") {
-            const [year, month, day] = dateInput.split("-");
+            const datePart = dateInput.includes("T")
+                ? dateInput.split("T")[0]
+                : dateInput;
+            const [year, month, day] = datePart.split("-");
             date = new Date(year, month - 1, day);
         } else {
             date = new Date(dateInput);
@@ -121,15 +132,15 @@ export default function History() {
     }, [currentDate, idVenta, timeZone]);
 
     useEffect(() => {
-        if (sales && sales.length > 0) {
-            const id = sales[0].idusuario;
-            const imageUrl = `${multimediaSrc}usr/${id}.jpg`;
-            const image = new Image();
-            image.src = imageUrl;
-            image.onload = () => setImgError(false);
-            image.onerror = () => setImgError(true);
+        if (ticketData) {
+            handlePrint();
         }
-    }, [sales, multimediaSrc]);
+    }, [ticketData, handlePrint]);
+
+    const handleImageError = (userId) => {
+        if (!userId) return;
+        setImageErrors((prev) => ({ ...prev, [userId]: true }));
+    };
 
     const handleSearch = () => {
         setCurrentDate(selectedDate);
@@ -141,6 +152,49 @@ export default function History() {
         .filter((item) => item.status === 'A') // Filtra solo las ventas activas
         .reduce((acc, item) => acc + parseFloat(item.total_venta || 0), 0)
     : 0;
+
+    const buildTicketDataFromSale = (sale) => {
+        if (!sale) return null;
+
+        const items = (sale.details || []).map((detail) => {
+            const quantity = Number(detail.cantidad) || 0;
+            const parsedPrice = parseFloat(detail.precio_venta ?? detail.precio ?? 0);
+            const price = Number.isFinite(parsedPrice) ? parsedPrice : 0;
+            const parsedMonto = parseFloat(detail.monto ?? price * quantity);
+            const monto = Number.isFinite(parsedMonto) ? parsedMonto : price * quantity;
+            return {
+                refaccion: detail.num_parte || detail.refaccion || 'S/N',
+                descripcion: detail.descripcion || detail.concepto_comodin || '',
+                cantidad: quantity,
+                precio: price,
+                monto,
+            };
+        });
+
+        const subtotal = items.reduce((acc, item) => acc + (item.monto || 0), 0);
+        const parsedDiscount = parseFloat(sale.descuento);
+        const discount = Number.isFinite(parsedDiscount) ? parsedDiscount : 0;
+        const parsedTotal = parseFloat(sale.total_venta ?? subtotal);
+        const totalTicket = Number.isFinite(parsedTotal) ? parsedTotal : subtotal;
+
+        return {
+            items,
+            subtotal,
+            discount,
+            total: totalTicket,
+            currentDate: formatDate(sale.fecha_venta, timeZone),
+            employee: sale.empleado || '',
+            folio: sale.folio || '',
+            notes: sale.nota || '',
+        };
+    };
+
+    const handleTicketPrint = (sale) => {
+        const ticket = buildTicketDataFromSale(sale);
+        if (ticket) {
+            setTicketData(ticket);
+        }
+    };
 
     const toggleDetails = (folio, idVenta) => {
         setExpandedFolio(expandedFolio === folio ? null : folio);
@@ -315,9 +369,14 @@ export default function History() {
                                                         </td>
                                                         <td className="py-4 px-8 relative flex flex-1 justify-center items-center">
                                                             <div className="absolute left-0 translate-y-2.5 translate-x-6 lg:-translate-x-4 top-1/4 mx-3 text-md xl:text-lg leading-6 xl:pr-1 flex rounded-3xl justify-center items-center shadow text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] cursor-pointer">
-                                                                {!imgError && item.idusuario ? (
+                                                                {item.idusuario && !imageErrors[item.idusuario] ? (
                                                                     <div className="flex h-9 w-9 items-center justify-center bg-[rgb(var(--color-card))] border border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-card-white))] hover:border-[rgb(var(--color-amber))] animate-out shadow-lg rounded-full overflow-hidden">
-                                                                        <img src={`${multimediaSrc}usr/${item.idusuario}.jpg`} onError={() => setImgError(true)} className="w-full h-full object-cover bg-gray-50" />
+                                                                        <img
+                                                                            src={`${multimediaSrc}usr/${item.idusuario}.jpg`}
+                                                                            onError={() => handleImageError(item.idusuario)}
+                                                                            className="w-full h-full object-cover bg-gray-50"
+                                                                            alt={`Empleado ${item.empleado || item.idusuario}`}
+                                                                        />
                                                                     </div>
                                                                 ) : (
                                                                     <BiSolidUserCircle className="w-6 h-6 rounded-full shadow-xl border border-indigo-100 my-auto animate-out" />
@@ -328,9 +387,14 @@ export default function History() {
                                                             </div>
                                                         </td>
                                                         <td className="py-4 px-3 text-center">
-                                                            <span className='relative p-2 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 color-cultured cursor-pointer inline-block'>
-                                                                <IoTicket/>
-                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                className='relative p-3 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 color-cultured cursor-pointer inline-block'
+                                                                onClick={() => handleTicketPrint(item)}
+                                                                aria-label='Ticket'
+                                                            >
+                                                                <IoTicket />
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                     {expandedFolio === item.folio && (
@@ -497,6 +561,21 @@ export default function History() {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+            {ticketData && (
+                <div className="hidden">
+                    <ComponentToPrint
+                        ref={componentRef}
+                        items={ticketData.items}
+                        subtotal={ticketData.subtotal}
+                        discount={ticketData.discount}
+                        total={ticketData.total}
+                        currentDate={ticketData.currentDate}
+                        employee={ticketData.employee}
+                        folio={ticketData.folio}
+                        notes={ticketData.notes}
+                    />
                 </div>
             )}
         </div>

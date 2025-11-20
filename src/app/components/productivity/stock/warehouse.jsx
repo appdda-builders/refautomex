@@ -414,7 +414,12 @@ export default function Warehouse() {
                 </div>
             </div>
             <div className={isEditing ? 'block' : 'hidden'}>
-                <EditRegistry prodOverview={prodOverview} onCancelEdit={onCancelEdit} setProdOverview={setProdOverview}/>
+                <EditRegistry
+                    prodOverview={prodOverview}
+                    onCancelEdit={onCancelEdit}
+                    setProdOverview={setProdOverview}
+                    onRefreshProducts={() => findProductsRef.current?.refreshProducts?.()}
+                />
             </div>
             <div className={isAdding ? 'block' : 'hidden'}>
                 <AddRegistry onCancelEdit={onCancelEdit} />

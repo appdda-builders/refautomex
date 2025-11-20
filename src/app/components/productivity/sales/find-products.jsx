@@ -6,6 +6,7 @@ import { FaDeleteLeft, FaStar } from "react-icons/fa6";
 import { LuListPlus } from "react-icons/lu";
 import { TiInfo } from "react-icons/ti";
 import { IoClose } from "react-icons/io5";
+import { getStorageValue } from '@/app/lib/storage-values';
 
 const parseProductRoutes = (raw) => {
     if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -175,6 +176,16 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
     const [stockAlerts, setStockAlerts] = useState({});
     const deleteTooltip = createTooltip(FaDeleteLeft, 'Eliminar', 'delete', visibleTooltip, setVisibleTooltip);
 
+    const cognitoUserSession = getStorageValue('CognitoUserSession');
+    const username = cognitoUserSession?.idToken?.payload?.["cognito:username"];
+    const userData = username ? getStorageValue(`user_${username}`) : null;
+    const resolvedBranchId = userData?.idsucursal ?? 2;
+    const userBranchId = resolvedBranchId ? String(resolvedBranchId) : null;
+    useEffect(() => {
+        console.log('Sucursal activa en FindProducts:', resolvedBranchId);
+    }, [resolvedBranchId]);
+    const userBranchLabel = userData?.sucursal || '';
+
     const handleSearchChange = (event) => {
         setSearchTerm(event.target.value);
     };
@@ -192,10 +203,15 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
         setError(null);
         try {
             const response = await fetch(buildApiUrl('/getAllProducts'), {
+                method: 'POST',
                 cache: 'no-store',
                 headers: {
+                    'Content-Type': 'application/json',
                     Accept: 'application/json, text/plain, */*',
                 },
+                body: JSON.stringify({
+                    idsucursal: userBranchId ? Number(userBranchId) : null,
+                }),
             });
 
             if (!response.ok) {
@@ -203,7 +219,13 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
             }
 
             const payload = await response.json();
-            setProducts(payload?.[0] ?? []);
+            const rawProducts = Array.isArray(payload?.[0]) ? payload[0] : [];
+            const filteredByBranch = userBranchId
+                ? rawProducts.filter(
+                    (product) => String(product.idsucursal) === userBranchId
+                )
+                : rawProducts;
+            setProducts(filteredByBranch);
         } catch (error) {
             console.error('Error fetching products:', error);
             setError(error);
@@ -218,10 +240,8 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
     }));
 
     useEffect(() => {
-        if (!products || products.length === 0) {
-            fetchProducts();
-        }
-    }, []);
+        fetchProducts();
+    }, [userBranchId]);
 
     useEffect(() => {
         const result = filterProductsByCategory(products, searchTerm, searchType);
@@ -236,8 +256,8 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
         }
 
         onAddProduct({
-            idsucursal: product.idsucursal,
-            sucursal: product.sucursal,
+            idsucursal: userBranchId ? Number(userBranchId) : product.idsucursal,
+            sucursal: userBranchLabel || product.sucursal,
             refaccion: product.num_parte,
             descripcion: product.descripcion,
             precio: product.precio,
@@ -254,6 +274,8 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
             idmarca: product.idmarca,
             mod_ini: product.mod_ini,
             mod_fin: product.mod_fin,
+            grupo: product.grupo,
+            idgrupo: product.idgrupo,
             rutas: product.rutas,
         });
     };
@@ -277,8 +299,8 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
         const newProducts = filteredProducts.filter(product => !isProductAdded(product));
         newProducts.forEach(product => {
             onAddProduct({
-                idsucursal: product.idsucursal,
-                sucursal: product.sucursal,
+                idsucursal: userBranchId ? Number(userBranchId) : product.idsucursal,
+                sucursal: userBranchLabel || product.sucursal,
                 refaccion: product.num_parte,
                 descripcion: product.descripcion,
                 precio: product.precio,
@@ -295,6 +317,8 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
                 idmarca: product.idmarca,
                 mod_ini: product.mod_ini,
                 mod_fin: product.mod_fin,
+                grupo: product.grupo,
+                idgrupo: product.idgrupo,
                 rutas: product.rutas,
             });
         });

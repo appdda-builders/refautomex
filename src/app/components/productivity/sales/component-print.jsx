@@ -71,32 +71,43 @@ const ComponentToPrint = React.forwardRef(({ items, subtotal, discount, total, c
                         </tr>
                     </thead>
                     <tbody>
-                        {items.map((item, index) => (
-                            <React.Fragment key={index}>
-                            {/* Primera fila: Cantidad, Descripción y Parte (centrados y abarcando todo el ancho) */}
-                            <tr>
-                                <td className='p-0.5 text-[9px] text-left'>
-                                    {item.cantidad}
-                                </td>
-                                <td className='p-0.5 text-[9px] uppercase'>
-                                    {item.refaccion}
-                                </td>
-                                <td colSpan={3} className="p-0.5 text-[9px] truncate uppercase">
-                                    {item.descripcion.toUpperCase()}
-                                </td>
-                            </tr>
-                            {/* Segunda fila: AIVA y Monto (centrados y abarcando todo el ancho) */}
-                            <tr>
-                                <td></td>
-                                <td className="p-0.5 text-[9px] text-left font-semibold">
-                                    AIVA: $ {item.aIva}
-                                </td>
-                                <td className="p-0.5 text-[9px] text-left font-bold">
-                                    MON: $ {item.monto.toFixed(2)}
-                                </td>
-                            </tr>
-                        </React.Fragment>
-                        ))}
+                        {items.map((item, index) => {
+                            const hasAiva = item.aIva !== undefined && item.aIva !== null && item.aIva !== '';
+                            return (
+                                <React.Fragment key={index}>
+                                    {/* Primera fila: Cantidad, Descripción y Parte */}
+                                    <tr>
+                                        <td className='p-0.5 text-[9px] text-left'>
+                                            {item.cantidad}
+                                        </td>
+                                        <td className='p-0.5 text-[9px] uppercase'>
+                                            {item.refaccion}
+                                        </td>
+                                        <td colSpan={3} className="p-0.5 text-[9px] truncate uppercase">
+                                            {item.descripcion.toUpperCase()}
+                                        </td>
+                                    </tr>
+                                    {/* Segunda fila: AIVA (opcional) y Monto */}
+                                    <tr>
+                                        <td></td>
+                                        {hasAiva ? (
+                                            <>
+                                                <td className="p-0.5 text-[9px] text-left font-semibold">
+                                                    AIVA: $ {item.aIva}
+                                                </td>
+                                                <td className="p-0.5 text-[9px] text-left font-bold">
+                                                    MON: $ {item.monto.toFixed(2)}
+                                                </td>
+                                            </>
+                                        ) : (
+                                            <td className="p-0.5 text-[9px] text-left font-bold" colSpan={2}>
+                                                MON: $ {item.monto.toFixed(2)}
+                                            </td>
+                                        )}
+                                    </tr>
+                                </React.Fragment>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

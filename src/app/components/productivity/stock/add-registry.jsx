@@ -13,6 +13,12 @@ const parseRoutes = (raw) => {
     }
 };
 
+const isWebBranchValue = (value) => {
+    if (value === null || value === undefined) return false;
+    const normalized = String(value).toUpperCase();
+    return normalized === '1' || normalized === 'WEB';
+};
+
 const NOT_ASSIGNED_OPTION = { value: '__NOT_ASSIGNED__', label: 'Selecciona', isDisabled: true };
 
 const withDefaultOption = (options = []) => [NOT_ASSIGNED_OPTION, ...options];
@@ -105,6 +111,14 @@ export default function AddRegistry({ onCancelEdit }) {
     const handleDetailInputChange = (field, value) => {
         setDetailForm((prev) => {
             const next = { ...prev, [field]: value };
+            const currentBranch = field === 'idsucursal' ? value : prev.idsucursal;
+            const isWebBranch = isWebBranchValue(currentBranch);
+
+            if (isWebBranch) {
+                next.localizacion = '0';
+                next.existencia = '0';
+            }
+
             if (field === 'precio') {
                 if (value === '') {
                     next.aiva = '';
@@ -138,6 +152,10 @@ export default function AddRegistry({ onCancelEdit }) {
                         clone.idsucursal = 'Este producto ya está activo en la sucursal seleccionada.';
                     } else {
                         delete clone.idsucursal;
+                    }
+                    if (isWebBranchValue(value)) {
+                        delete clone.localizacion;
+                        delete clone.existencia;
                     }
                     return clone;
                 });
@@ -200,12 +218,17 @@ export default function AddRegistry({ onCancelEdit }) {
             newErrors.selectedProduct = 'Selecciona un producto pendiente.';
         }
 
+        const isWebBranch = isWebBranchValue(detailForm.idsucursal);
+
         if (!detailForm.idsucursal) {
             valid = false;
             newErrors.idsucursal = 'Selecciona una sucursal.';
         }
 
         Object.entries(patterns).forEach(([field, regex]) => {
+            if (isWebBranch && (field === 'localizacion' || field === 'existencia')) {
+                return;
+            }
             if (!regex.test(detailForm[field] || '')) {
                 valid = false;
                 newErrors[field] = `${field} es inválido.`;
@@ -279,11 +302,12 @@ export default function AddRegistry({ onCancelEdit }) {
             return;
         }
 
+        const isWebBranch = isWebBranchValue(detailForm.idsucursal);
         const payload = {
             refaccion: selectedPendingProduct.num_parte,
             idsucursal: detailForm.idsucursal,
-            localizacion: detailForm.localizacion,
-            existencia: detailForm.existencia,
+            localizacion: isWebBranch ? '0' : detailForm.localizacion,
+            existencia: isWebBranch ? '0' : detailForm.existencia,
             costo: detailForm.costo,
             precio: detailForm.precio,
             aiva: detailForm.aiva,
@@ -755,6 +779,7 @@ export default function AddRegistry({ onCancelEdit }) {
         const displayedSucursalOptions = selectedActiveProduct ? filteredSucursalOptions : baseSucursalOptions;
         const noAvailableSucursal =
             selectedActiveProduct && displayedSucursalOptions.length <= 1;
+        const webBranchSelected = isWebBranchValue(detailForm.idsucursal);
 
         return (
         <form onSubmit={handleDetailSubmit}>
@@ -839,7 +864,12 @@ export default function AddRegistry({ onCancelEdit }) {
                         type="text"
                         value={detailForm.localizacion}
                         onChange={(e) => handleDetailInputChange('localizacion', e.target.value)}
-                        className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] shadow focus:ring-2 focus:ring-indigo-500 uppercase"
+                        disabled={webBranchSelected}
+                        className={`block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] shadow focus:ring-2 focus:ring-indigo-500 uppercase ${
+                            webBranchSelected
+                                ? 'bg-gray-100 cursor-not-allowed'
+                                : 'bg-[rgb(var(--color-card))]'
+                        }`}
                     />
                     {errorMessages.localizacion && (
                         <span className="text-red-600 text-sm">{errorMessages.localizacion}</span>
@@ -850,15 +880,24 @@ export default function AddRegistry({ onCancelEdit }) {
                     <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                         Existencia
                     </label>
-                    <Select
-                        options={quantitySelectOptions}
-                        value={getSelectValue(quantitySelectOptions, detailForm.existencia)}
-                        onChange={(selectedOption) =>
-                            handleDetailInputChange('existencia', selectedOption ? selectedOption.value : '')
-                        }
-                        isOptionDisabled={(option) => option.isDisabled}
-                        classNamePrefix="react-select"
-                    />
+                    {webBranchSelected ? (
+                        <input
+                            type="text"
+                            value="0"
+                            disabled
+                            className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-gray-100 shadow cursor-not-allowed"
+                        />
+                    ) : (
+                        <Select
+                            options={quantitySelectOptions}
+                            value={getSelectValue(quantitySelectOptions, detailForm.existencia)}
+                            onChange={(selectedOption) =>
+                                handleDetailInputChange('existencia', selectedOption ? selectedOption.value : '')
+                            }
+                            isOptionDisabled={(option) => option.isDisabled}
+                            classNamePrefix="react-select"
+                        />
+                    )}
                     {errorMessages.existencia && (
                         <span className="text-red-600 text-sm">{errorMessages.existencia}</span>
                     )}
