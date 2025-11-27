@@ -122,8 +122,8 @@ export default function NavbarPanel() {
         name: 'Pedidos',
         icon: GiAutoRepair,
         subNav: [
-            { name: 'En sucursal', href: '/productivity?load=site' },
-            { name: 'A domicilio', href: '/productivity?load=delivery' },
+            { name: 'En Sucursal', href: '/productivity?load=site' },
+            { name: 'Web (Stripe)', href: '/productivity?load=delivery' },
         ],
         },
         { name: 'Home', icon: AiOutlineDashboard, href: '/productivity?load=home' },

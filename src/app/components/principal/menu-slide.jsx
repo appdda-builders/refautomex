@@ -2,7 +2,7 @@ import { Popover, Transition, Dialog } from '@headlessui/react'
 import { motion } from 'framer-motion';
 import { FaBarsStaggered } from "react-icons/fa6";
 import { IoBagHandleOutline } from "react-icons/io5";
-import { PiUser } from "react-icons/pi";
+import { FaUserCircle } from "react-icons/fa";
 import { useState, useEffect } from 'react';
 import { getStorageValue } from "@/app/lib/storage-values";
 import { XMarkIcon } from '@heroicons/react/20/solid';
@@ -40,7 +40,7 @@ export default function MenuSlide({menuItems, callsToAction, selectedLanguage, p
         bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] focus:ring-0">
             <FaBarsStaggered size={20} />
             {cartItemCount > 0 && (
-                <span className="absolute -top-2 -right-0.5 bg-red-500 border-2 border-red-800 animate-up text-white text-xs font-semibold rounded-full h-7 w-7 flex items-center justify-center shadow-lg">
+                <span className="absolute -top-2 -right-0.5 bg-red-500 text-white text-xs font-semibold rounded-full h-6 w-6 flex items-center justify-center shadow shadow-[rgb(var(--color-galaxy))]">
                     {cartItemCount}
                 </span>
             )}
@@ -90,9 +90,9 @@ export default function MenuSlide({menuItems, callsToAction, selectedLanguage, p
                                                 : 'text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-text))]/10'}
                                             `}
                                         >
-                                            <div className={`relative text-sm font-bold leading-6 m-1 ${userData?.idusuario && action.icon === PiUser ? '' : 'p-2.5'}
+                                            <div className={`relative text-sm font-bold leading-6 m-1 ${userData?.idusuario && action.icon === FaUserCircle ? '' : 'p-2.5'}
                                             mt-1 flex flex-none items-center justify-center rounded-full shadow bg-[rgb(var(--color-gray))]`}>
-                                                {userData?.idusuario && action.icon === PiUser ? (
+                                                {userData?.idusuario && action.icon === FaUserCircle ? (
                                                     <div className="flex h-10 w-10 items-center justify-center bg-[rgb(var(--color-card))] border border-slate-300 animate-out shadow-lg rounded-full overflow-hidden">
                                                         <img src={profileImageUrl} onError={() => setImgError(true)} className="w-full h-full object-cover bg-[rgb(var(--color-card))]"/>
                                                     </div>

@@ -219,29 +219,7 @@ export default function Login() {
                             {t('account.noAccount')}
                         </Link>
                     </p>
-                    <div className="mt-6 flex items-center justify-center">
-                        <div className="flex-grow border-t border-gray-400"></div>
-                        <span className="mx-4 text-[rgb(var(--color-text))]">
-                        {t('account.continue')}
-                        </span>
-                        <div className="flex-grow border-t border-gray-400"></div>
-                    </div>
-                    <div className="mt-6 flex justify-center space-x-4">
-                        <button
-                            onClick={() => signIn('Google')}
-                            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-md text-stone-500 bg-stone-100 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                        >
-                            <FcGoogle className="w-5 h-5 mr-3" />
-                            Google
-                        </button>
-                        <button
-                            onClick={() => signIn('Facebook')}
-                            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-md text-stone-500 bg-stone-100 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                        >
-                            <FaFacebook className="w-5 h-5 mr-3 text-blue-600" />
-                            Facebook
-                        </button>
-                    </div>
+                    {/* Social login temporalmente oculto hasta ajustar Cognito */}
                 </div>
             </div>
         </div>

@@ -1,11 +1,11 @@
-import MetaHead from "@/app/components/meta-head";
-import OrderGrid from "@/app/components/principal/products/order-grid";
+import MetaHead from '@/app/components/meta-head';
+import Checkout from '@/app/components/principal/products/checkout';
 
 export default function Shopping() {
-  return(
+  return (
     <section>
-      <MetaHead title="Shopping"/>
-      <OrderGrid />
+      <MetaHead title="Shopping" />
+      <Checkout />
     </section>
-  )
+  );
 }

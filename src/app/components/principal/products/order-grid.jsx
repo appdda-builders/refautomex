@@ -148,8 +148,13 @@ export default function OrderGrid() {
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const success = urlParams.get('success');
+        const status = urlParams.get('status');
 
-        if (success === 'true' && !folioWeb && !saleAlreadyProcessed.current) {
+        if (
+            (success === 'true' || status === 'success') &&
+            !folioWeb &&
+            !saleAlreadyProcessed.current
+        ) {
             setCheckoutCompleted(true);
             setModalOpen(true);
             saleAlreadyProcessed.current = true;
