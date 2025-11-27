@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect, useContext, useRef } from 'react';
-import { getStorageValue } from "@/app/lib/storage-values";
 import { Popover } from '@headlessui/react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { PiUser } from "react-icons/pi";
+import { FaUserCircle } from "react-icons/fa";
 import { AuthContext } from '@/app/lib/auth-tracker';
 import { useCart } from '@/app/lib/shopping-context';
-import { CiShop, CiShoppingCart, CiStar, CiMail } from "react-icons/ci";
+import { CiShop, CiStar, CiMail } from "react-icons/ci";
+import { MdShoppingCart } from 'react-icons/md';
 import { PiBooksThin } from "react-icons/pi";
 import { useTranslation } from 'react-i18next';
 
@@ -55,18 +55,15 @@ export default function Navbar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const dropdownRef = useRef(null);
-  const cognitoUserSession = getStorageValue('CognitoUserSession');
-  const username = cognitoUserSession?.idToken?.payload?.["cognito:username"];
-  const userData = getStorageValue(`user_${username}`);
-  const id = userData?.idusuario;
   const { t, i18n } = useTranslation();
-  const { isAuthenticated } = useContext(AuthContext);
+  const { isAuthenticated, userData } = useContext(AuthContext);
   const { cartItemCount } = useCart();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState(null);
   const [imgError, setImgError] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('es');
+  const id = userData?.idusuario;
   const menuItems = [
     { key: 1, name: t('navbar.about'), link: "/section/about", icon: PiBooksThin },
     { key: 2, name: t('navbar.contact'), link: "/section/contact", icon: CiMail },
@@ -74,19 +71,22 @@ export default function Navbar() {
     { key: 4, name: t('navbar.products'), link: "/section/products", icon: CiShop },
   ];
   const callsToAction = [
-    { key: 5, name: t('navbar.account'), href: '/section/account', icon: PiUser },
-    { key: 6, name: t('navbar.shopping'), href: '/section/shopping', icon: CiShoppingCart },
+    { key: 5, name: t('navbar.account'), href: '/section/account', icon: FaUserCircle },
+    { key: 6, name: t('navbar.shopping'), href: '/section/shopping', icon: MdShoppingCart },
   ];
 
   useEffect(() => {
-    if (id && multimediaSrc) {
-      const imageUrl = `${multimediaSrc}usr/${id}.jpg`;
-      setProfileImageUrl(imageUrl);
-      const image = new Image();
-      image.src = imageUrl;
-      image.onload = () => setImgError(false);
-      image.onerror = () => setImgError(true);
+    if (!id || !multimediaSrc) {
+      setProfileImageUrl(null);
+      return;
     }
+
+    const imageUrl = `${multimediaSrc}usr/${id}.jpg`;
+    setProfileImageUrl(imageUrl);
+    const image = new Image();
+    image.src = imageUrl;
+    image.onload = () => setImgError(false);
+    image.onerror = () => setImgError(true);
   }, [id, multimediaSrc]);
 
   useEffect(() => {
@@ -160,10 +160,10 @@ export default function Navbar() {
                 key={action.key}
                 href={`${action.href}?lang=${selectedLanguage}`}
                 className={`relative text-sm font-bold leading-6 m-1 ${
-                  userData?.idusuario && action.icon === PiUser && !imgError ? '' : 'p-2.5'
+                  userData?.idusuario && action.icon === FaUserCircle && !imgError ? '' : 'p-2.5'
                 } shadow bg-[rgb(var(--color-gray))] rounded-full`}
               >
-                {userData?.idusuario && action.icon === PiUser && !imgError ? (
+                {userData?.idusuario && action.icon === FaUserCircle && !imgError ? (
                   <div className="flex h-10 w-10 items-center justify-center bg-[rgb(var(--color-gray))] border border-slate-300 transition-all duration-500 ease-in-out shadow-lg rounded-full overflow-hidden">
                     {profileImageUrl && (
                       <img
@@ -177,8 +177,8 @@ export default function Navbar() {
                 ) : (
                   <action.icon size={20} className="text-[rgb(var(--color-text))]" />
                 )}
-                {action.icon === CiShoppingCart && cartItemCount > 0 && (
-                  <span className="absolute -top-3 -right-3 bg-red-500 text-white text-xs font-semibold rounded-full h-7 w-7 flex items-center justify-center shadow-lg border-2 border-red-800 transition-all duration-500 ease-in-out">
+                {action.icon === MdShoppingCart && cartItemCount > 0 && (
+                  <span className="absolute -top-3 -right-3 bg-red-500 text-white text-xs font-semibold rounded-full h-6 w-6 flex items-center justify-center shadow shadow-[rgb(var(--color-galaxy))] transition-all duration-500 ease-in-out">
                     {cartItemCount}
                   </span>
                 )}

@@ -112,6 +112,9 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
     const [branchLoading, setBranchLoading] = useState(false);
     const [branchError, setBranchError] = useState('');
     const [userBranchId, setUserBranchId] = useState(null);
+    const [deletingBranchId, setDeletingBranchId] = useState(null);
+    const [detailPendingDelete, setDetailPendingDelete] = useState(null);
+    const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
     const activeBranchId = selectedBranchId || (currentProduct?.idsucursal ? String(currentProduct.idsucursal) : null);
     const isWebBranchSelected = isWebBranchValue(activeBranchId);
     const branchSelectOptions = branchDetails.map(detail => ({
@@ -498,15 +501,70 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
         });
     };
 
+    const openImageViewer = () => setIsImageViewerOpen(true);
+    const closeImageViewer = () => setIsImageViewerOpen(false);
+
     const handleExistingImageClick = (route) => {
         if (!route) return;
-        promoteExistingImage(route);
         setSelectedImage(buildImageSrc(multimediaSrc, route));
+        openImageViewer();
     };
 
     const handlePendingImageClick = (imageId, previewUrl) => {
-        promotePendingImage(imageId);
         setSelectedImage(previewUrl);
+        openImageViewer();
+    };
+
+    const handleDeleteBranchDetail = async (detail) => {
+        if (!detail?.idsucursal || !currentProduct?.refaccion) {
+            return;
+        }
+
+        setBranchError('');
+        setDeletingBranchId(detail.idsucursal);
+        try {
+            const response = await fetch(buildApiUrl('/deleteProductDetail'), {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json, text/plain, */*',
+                },
+                body: JSON.stringify({
+                    refaccion: currentProduct.refaccion,
+                    idsucursal: Number(detail.idsucursal),
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            setBranchDetails(prev => prev.filter(item => item.idsucursal !== detail.idsucursal));
+            if (selectedBranchId === detail.idsucursal) {
+                setSelectedBranchId(null);
+            }
+            setSuccessMessage('Detalle eliminado correctamente.');
+            onRefreshProducts?.();
+            setDetailPendingDelete(null);
+        } catch (error) {
+            console.error('Error deleting branch detail:', error);
+            setBranchError('No se pudo eliminar el detalle. Intenta nuevamente.');
+        } finally {
+            setDeletingBranchId(null);
+        }
+    };
+
+    const confirmDeleteDetail = (detail) => {
+        setDetailPendingDelete(detail);
+    };
+
+    const cancelDeleteDetail = () => {
+        setDetailPendingDelete(null);
+    };
+
+    const handleConfirmDelete = () => {
+        if (!detailPendingDelete) return;
+        handleDeleteBranchDetail(detailPendingDelete);
     };
 
     const handleRemoveImage = (route) => {
@@ -769,7 +827,18 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                             className="hidden"
                             onChange={handleImageInputChange}
                         />
-                        <div className="overflow-hidden rounded-3xl shadow-xl bg-gray-200 h-[250px] w-[250px] sm:h-[350px] sm:w-[350px] xl:w-[400px] xl:h-[400px]">
+                        <div
+                            className="overflow-hidden rounded-3xl shadow-xl bg-gray-200 h-[250px] w-[250px] sm:h-[350px] sm:w-[350px] xl:w-[400px] xl:h-[400px] cursor-pointer"
+                            onClick={openImageViewer}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    openImageViewer();
+                                }
+                            }}
+                        >
                             <img
                                 src={selectedImage}
                                 alt="Selected product"
@@ -888,18 +957,38 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                         branchDetails.map(detail => {
                                             const isActive = detail.idsucursal === selectedBranchId;
                                             return (
-                                                <button
-                                                    type="button"
+                                                <div
+                                                    role="button"
+                                                    tabIndex={0}
                                                     key={`${detail.idsucursal}-${detail.localizacion}`}
                                                     onClick={() => setSelectedBranchId(detail.idsucursal)}
+                                                    onKeyDown={(event) => {
+                                                        if (event.key === 'Enter' || event.key === ' ') {
+                                                            event.preventDefault();
+                                                            setSelectedBranchId(detail.idsucursal);
+                                                        }
+                                                    }}
                                                     className={`text-left rounded-2xl border p-3 transition hover:shadow ${
                                                         isActive
                                                             ? 'border-[rgb(var(--color-refautomex))] bg-[rgb(var(--color-gray))]/40'
                                                             : 'border-[rgb(var(--color-border))] bg-[rgb(var(--color-card))]'
                                                     }`}
                                                 >
-                                                    <div className="text-sm font-semibold text-[rgb(var(--color-text))]">
-                                                        {detail.sucursal || 'Sucursal'}
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="text-sm font-semibold text-[rgb(var(--color-text))]">
+                                                            {detail.sucursal || 'Sucursal'}
+                                                        </div>
+                                                        <button
+                                                            className="p-1 rounded-full bg-red-100 text-red-600 hover:bg-red-200 cursor-pointer"
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                confirmDeleteDetail(detail);
+                                                            }}
+                                                            disabled={deletingBranchId === detail.idsucursal}
+                                                            title="Eliminar detalle"
+                                                        >
+                                                            <MdDelete className="h-4 w-4" />
+                                                        </button>
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-[rgb(var(--color-text))]/80">
                                                         <p><span className="font-semibold text-[rgb(var(--color-text))]">Loc:</span> {detail.localizacion || '—'}</p>
@@ -917,7 +1006,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                                                 : '—'}
                                                         </p>
                                                     </div>
-                                                </button>
+                                                </div>
                                             );
                                         })
                                     )}
@@ -1164,6 +1253,56 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                     </div>
                 </div>
             </div>
+            {detailPendingDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-[rgb(var(--color-card))] rounded-2xl shadow-2xl max-w-md w-full p-6 border border-[rgb(var(--color-border))]">
+                        <h3 className="text-lg font-semibold text-[rgb(var(--color-text))]">
+                            Confirmar eliminación
+                        </h3>
+                        <p className="text-sm text-[rgb(var(--color-text))]/80 mt-2">
+                            ¿Estás seguro que deseas dar de baja el detalle de esta sucursal?
+                        </p>
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                className="px-4 py-2 rounded-full bg-gray-200 text-gray-800 hover:bg-gray-300"
+                                onClick={cancelDeleteDetail}
+                                disabled={!!deletingBranchId}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                className="px-4 py-2 rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-70"
+                                onClick={handleConfirmDelete}
+                                disabled={!!deletingBranchId}
+                            >
+                                {deletingBranchId ? 'Eliminando...' : 'Eliminar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {isImageViewerOpen && (
+                <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4">
+                    <div className="relative max-w-3xl w-full">
+                        <button
+                            type="button"
+                            className="absolute -top-4 -right-4 bg-white text-black rounded-full px-3 py-1 shadow-lg text-sm font-semibold"
+                            onClick={closeImageViewer}
+                            aria-label="Cerrar visor de imagen"
+                        >
+                            Cerrar
+                        </button>
+                        <img
+                            src={selectedImage}
+                            alt="Vista previa de producto"
+                            className="rounded-3xl shadow-2xl w-full max-h-[80vh] object-contain bg-[rgb(var(--color-card))]"
+                            onClick={closeImageViewer}
+                        />
+                    </div>
+                </div>
+            )}
         </form>
     )
 }

@@ -21,15 +21,19 @@ export const AuthChecker = ({ children }) => {
                 cognitoUser.getSession((err, session) => {
                     if (err) {
                         console.error(err);
+                        setStorageValue('CognitoUserSession', null);
                     } else {
                         setIsAuthenticated(true);
+                        setStorageValue('CognitoUserSession', session);
                     }
                     setAuthStatusChecked(true);
                 });
             } else {
+                setStorageValue('CognitoUserSession', null);
                 setAuthStatusChecked(true);
             }
         } catch (error) {
+            setStorageValue('CognitoUserSession', null);
             setAuthStatusChecked(true);
         }
     }, []);
