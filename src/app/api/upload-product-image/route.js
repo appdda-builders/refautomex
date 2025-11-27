@@ -24,10 +24,10 @@ const sanitizeFileName = (name = '') => {
 const accessKeyFromEnv = process.env.NEXT_PUBLIC_ACCESS_KEY_S3 || '';
 const secretKeyFromEnv = process.env.NEXT_PUBLIC_SECRET_KEY_S3 || '';
 
-console.log('[upload-product-image] S3 keys loaded?', {
-  accessKey: accessKeyFromEnv ? 'present' : 'missing',
-  secretKey: secretKeyFromEnv ? 'present' : 'missing',
-});
+// console.log('[upload-product-image] S3 keys loaded?', {
+//   accessKey: accessKeyFromEnv ? 'present' : 'missing',
+//   secretKey: secretKeyFromEnv ? 'present' : 'missing',
+// });
 
 const s3Client = new S3Client({
   region: process.env.S3_REGION || 'us-east-1',

@@ -99,6 +99,7 @@ const handleCheckoutCompleted = async (session) => {
 
 export async function POST(request) {
   if (!WEBHOOK_SECRET) {
+    console.error('STRIPE_WEBHOOK_SECRET is not configured when handling Stripe webhook');
     return NextResponse.json({ error: 'WEBHOOK_SECRET_NOT_CONFIGURED' }, { status: 500 });
   }
 
