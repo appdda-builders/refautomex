@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Select from 'react-select';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import FindProducts from '../sales/find-products';
 import TableCapture from './table-capture';
@@ -10,8 +9,7 @@ import { IoMdCloseCircle } from "react-icons/io";
 import { IoBagRemove } from "react-icons/io5";
 import { GoAlertFill } from "react-icons/go";
 
-export default function NewCapture({ onCancelEdit }) {
-    const [addItem, setAddItem] = useState({
+const createInitialForm = (today) => ({
         refaccion: '',
         idsucursal: '',
         localizacion: '',
@@ -23,9 +21,45 @@ export default function NewCapture({ onCancelEdit }) {
         mod_ini: '1990',
         mod_fin: '1990',
         idmarca: '',
-    });
-    const tableRef = useRef();
+        Factura: '',
+        'Fecha compra': today,
+});
+
+const buildDetailItem = (record = {}) => {
+    const qty = Number(record.cantidad_solicitada ?? record.cantidad ?? record.exis ?? 1);
+    const currentCost = Number(record.costo_actual ?? record.costo ?? 0);
+    const previousCost = Number(record.ultimo_costo ?? record.costo_anterior ?? currentCost);
+    return {
+        refaccion: record.num_parte,
+        descripcion: record.descripcion || record.detalle || '',
+        existencia: Number(record.existencia ?? record.actual ?? 0),
+        cantidad: qty,
+        costo: currentCost,
+        costoBase: previousCost,
+        precio: currentCost,
+        precioInicial: currentCost,
+        utilidad: Number(record.utilidad ?? 1),
+        monto: Number((currentCost * qty).toFixed(2)),
+        locked: true
+    };
+};
+
+const buildDiscountMap = (detail = []) => {
+    return detail.reduce((acc, record) => {
+        const values = [record.descuento_uno, record.descuento_dos, record.descuento_tres]
+            .map((value) => Number(value))
+            .filter((value) => Number.isFinite(value) && value > 0 && value < 1);
+        if (values.length) {
+            acc[record.num_parte] = values;
+        }
+        return acc;
+    }, {});
+};
+
+export default function NewCapture({ onCancelEdit, captureToEdit = null }) {
     const today = new Date().toISOString().split('T')[0];
+    const [addItem, setAddItem] = useState(() => createInitialForm(today));
+    const tableRef = useRef();
     const [items, setItems] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [selectedProvider, setSelectedProvider] = useState(null);
@@ -35,14 +69,24 @@ export default function NewCapture({ onCancelEdit }) {
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [errorMessages, setErrorMessages] = useState({});
-    const [discount, setDiscount] = useState(0);
-    const [subtotal, setSubtotal] = useState(0);
     const [sugestedDiscount, setSugestedDiscount] = useState(0.0);
-    const [generalDiscount, setGeneralDiscount] = useState(0.0);
-    const [discountRequest, setDiscountRequest] = useState({
-        value: 0.0,
-        productRef: null
-    });
+    const [generalDiscount, setGeneralDiscount] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [captureFinished, setCaptureFinished] = useState(false);
+    const [captureId, setCaptureId] = useState(null);
+    const [defaultDiscounts, setDefaultDiscounts] = useState({});
+    const [pendingProviderId, setPendingProviderId] = useState(null);
+
+    const isEditingMode = Boolean(captureId);
+    const submitButtonLabel = isSubmitting
+        ? 'GUARDANDO...'
+        : isEditingMode
+            ? 'ACTUALIZAR'
+            : 'CAPTURAR';
+    const submitButtonTheme = isEditingMode
+        ? 'bg-amber-500 hover:bg-amber-400 focus-visible:outline-amber-500'
+        : 'bg-indigo-600 hover:bg-indigo-500 focus-visible:outline-indigo-600';
+    const cancelButtonLabel = isEditingMode ? 'REGRESAR' : 'CANCELAR';
 
     const handleInputChange = (field, value) => {
         setAddItem((prev) => ({
@@ -58,64 +102,48 @@ export default function NewCapture({ onCancelEdit }) {
         }));
     };
 
-    const handleProviderChange = (selectedOption) => {
-        setSelectedProvider(selectedOption);
-        handleSelectChange('Proveedor', selectedOption);
+    const handleProviderChange = (eventOrOption) => {
+        let option = null;
+        if (eventOrOption && eventOrOption.target) {
+            const selectedValue = eventOrOption.target.value;
+            option = providerOptions.find((provider) => `${provider.value}` === selectedValue) || null;
+        } else {
+            option = eventOrOption || null;
+        }
+        setSelectedProvider(option);
+        handleSelectChange('Proveedor', option);
     };
 
-    // Actualiza la función applyDiscount
     const applyDiscount = (discountValue, productRef = null) => {
+        setErrorMessage('');
+        setSuccessMessage('');
+        if (!selectedProvider) {
+            setErrorMessage('Selecciona un proveedor para habilitar los descuentos.');
+            return;
+        }
         if (items.length === 0) {
-            alert('No hay registros para aplicar el descuento');
+            setErrorMessage('Agrega al menos una refacción antes de aplicar descuentos.');
             return;
         }
         const numericDiscount = Number(discountValue);
-        if (isNaN(numericDiscount) || numericDiscount < 0 || numericDiscount > 1) {
-            alert('El descuento debe ser un valor decimal entre 0.0 y 1.0');
+        if (!Number.isFinite(numericDiscount) || numericDiscount <= 0 || numericDiscount >= 1) {
+            setErrorMessage('El descuento debe ser un decimal mayor a 0 y menor a 1.');
+            return;
+        }
+        if (!tableRef.current) {
+            setErrorMessage('La tabla de captura aún no está lista.');
             return;
         }
         if (productRef) {
-            // Descuento específico
-            tableRef.current?.handleDiscountRow(productRef, numericDiscount);
+            tableRef.current.handleDiscountRow(productRef, numericDiscount, { autoConfirm: true });
         } else {
-            // Descuento general
-            tableRef.current?.handleDiscountRow(null, numericDiscount, true);
+            tableRef.current.handleDiscountRow(null, numericDiscount, { isGeneral: true });
         }
     };
 
-    const validateSubmit = () => {
-        const regexPatterns = {
-            refaccion: /^[A-Z0-9-]+$/,
-            localizacion: /^[0-9]{2}[A-Z]{1}[0-9A-Z]{2}[-0-9]{2,3}$/,
-            descripcion: /^\s*\S+.*$/,
-            mod_ini: /^[0-9]{1,4}$/,
-            mod_fin: /^[0-9]{1,4}$/,
-            existencia: /^[0-9]+$/,
-            precio: /^[0-9]+(\.[0-9]+)?$/,
-            costo: /^[0-9]+(\.[0-9]+)?$/,
-            utilidad: /^[0-9]+(\.[0-9]+)?$/,
-        };
+    const validateSubmit = () => true;
 
-        let isValid = true;
-        const newErrorMessages = {};
-
-        for (const [key, value] of Object.entries(addItem)) {
-            if (regexPatterns[key] && !regexPatterns[key].test(value)) {
-                isValid = false;
-                newErrorMessages[key] = `${key} es inválido.`;
-            }
-        }
-
-        setErrorMessages(newErrorMessages);
-        return isValid;
-
-        //validar si el numero de parte existe
-        //validar si la localizacion ya existe
-
-        //Si nada existe entonces se puede agregar
-    };
-
-    const onSubmit = (e) => {
+    const onSubmit = async (e) => {
         e.preventDefault();
         setErrorMessages({});
         setSuccessMessage('');
@@ -135,7 +163,95 @@ export default function NewCapture({ onCancelEdit }) {
             setErrorMessage('Por favor, completa todos los campos obligatorios.');
             return;
         }
-        // TODO: integrar envío a la API cuando se defina el endpoint correcto.
+
+        if (!items.length) {
+            setErrorMessage('Agrega al menos una refacción para capturar la compra.');
+            return;
+        }
+
+        if (!tableRef.current) {
+            setErrorMessage('La tabla de captura no está disponible.');
+            return;
+        }
+
+        const summary = tableRef.current.collectCapturePayload();
+        if (!summary) {
+            setErrorMessage('No fue posible obtener el detalle de la captura.');
+            return;
+        }
+        if (summary.errors.length) {
+            setErrorMessage(summary.errors.join(' '));
+            return;
+        }
+
+        const invoice = (addItem['Factura'] || '').trim().toUpperCase();
+        const captureDate = addItem['Fecha compra'] || today;
+        const payload = {
+            idProveedor: Number(selectedProvider.value),
+            numFactura: invoice,
+            fechaCompra: captureDate,
+            netoTotal: Number(summary.totals.neto.toFixed(2)),
+            descuentoTotal: Number(summary.totals.descuento.toFixed(2)),
+            subtotal: Number(summary.totals.subtotal.toFixed(2)),
+            total: Number(summary.totals.total.toFixed(2)),
+            detalle: summary.detail
+        };
+        if (isEditingMode) {
+            payload.idCompra = captureId;
+        }
+
+        try {
+            setIsSubmitting(true);
+            const endpoint = isEditingMode
+                ? buildApiUrl('/patchCapture')
+                : buildApiUrl('/newCapture');
+            const method = isEditingMode ? 'PATCH' : 'POST';
+            const response = await fetch(endpoint, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            let payloadResponse;
+            const text = await response.text();
+            try {
+                payloadResponse = text ? JSON.parse(text) : {};
+            } catch (err) {
+                payloadResponse = { message: text };
+            }
+            if (!response.ok || (payloadResponse && payloadResponse.success === false)) {
+                throw new Error(payloadResponse?.message || 'No fue posible guardar la captura.');
+            }
+            if (isEditingMode) {
+                setSuccessMessage('Captura actualizada correctamente.');
+                onCancelEdit?.();
+            } else {
+                setSuccessMessage('Captura registrada correctamente.');
+                setItems([]);
+                setSelectedProvider(null);
+                setGeneralDiscount('');
+                setSugestedDiscount(0.0);
+                setAddItem(createInitialForm(today));
+                setCaptureFinished(true);
+            }
+        } catch (error) {
+            setErrorMessage(error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleResetCapture = () => {
+        setItems([]);
+        setSelectedProvider(null);
+        setGeneralDiscount('');
+        setSugestedDiscount(0.0);
+        setErrorMessages({});
+        setErrorMessage('');
+        setSuccessMessage('');
+        setAddItem(createInitialForm(today));
+        setCaptureFinished(false);
+        setCaptureId(null);
+        setDefaultDiscounts({});
     };
 
     useEffect(() => {
@@ -203,8 +319,6 @@ export default function NewCapture({ onCancelEdit }) {
                         sugestion: provider.descuento || 0.0,
                     }));
                 setProviderOptions(options);
-                setSelectedProvider(null);
-                setSugestedDiscount(0.0);
             } catch (error) {
                 console.error('Error al obtener proveedores:', error);
             }
@@ -236,44 +350,71 @@ export default function NewCapture({ onCancelEdit }) {
         }
     }, [showModal]);
 
+    useEffect(() => {
+        if (!captureToEdit || !captureToEdit.header) {
+            setCaptureId(null);
+            setDefaultDiscounts({});
+            return;
+        }
+        const header = captureToEdit.header;
+        const providerId = header.idProveedor ?? header.idproveedor ?? header.id_proveedor ?? null;
+        setCaptureId(header.idcompra ?? header.idCompra ?? header.id);
+        setPendingProviderId(providerId);
+        setAddItem((prev) => ({
+            ...prev,
+            Factura: header.num_factura ?? header.no_factura ?? header.factura ?? '',
+            'Fecha compra': (header.fecha_compra ?? header.fecha ?? today).slice(0, 10),
+        }));
+        const detailItems = (captureToEdit.detail || []).map(buildDetailItem);
+        setItems(detailItems);
+        setDefaultDiscounts(buildDiscountMap(captureToEdit.detail || []));
+        setSuccessMessage('');
+        setErrorMessage('');
+        setCaptureFinished(false);
+    }, [captureToEdit, today]);
+
+    useEffect(() => {
+        if (!pendingProviderId || !providerOptions.length) return;
+        const match = providerOptions.find((option) => Number(option.value) === Number(pendingProviderId));
+        if (match) {
+            handleProviderChange(match);
+        }
+        setPendingProviderId(null);
+    }, [pendingProviderId, providerOptions]);
+
+
+    const inputClass = (field) => {
+        const base = "block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase";
+        return errorMessages[field]
+            ? `${base} border border-red-400 bg-red-50 text-red-900 placeholder:text-red-400 focus:ring-red-500`
+            : base;
+    };
 
     const handleAddProduct = (product) => {
         setItems(prevItems => {
             const exists = prevItems.some(item => item.refaccion === product.refaccion);
-            const updatedItems = exists
-                ? prevItems.filter(item => item.refaccion !== product.refaccion)
-                : [...prevItems, {
+            if (exists) {
+                return prevItems.filter(item => item.refaccion !== product.refaccion);
+            }
+            const baseCost = Number(product.costo ?? product.precio ?? 0);
+            return [
+                ...prevItems,
+                {
                     ...product,
-                    monto: Math.ceil(product.precio * product.cantidad),
-                    precioInicial: product.precio  // Guardamos el precio original
-                }];
-            updateTotals(updatedItems, discount);
-            return updatedItems;
+                    cantidad: 1,
+                    costo: baseCost,
+                    costoBase: baseCost,
+                    costoInicial: baseCost,
+                    precioVenta: Number(product.precio ?? 0),
+                    monto: Number(baseCost.toFixed(2)),
+                    locked: false
+                }
+            ];
         });
     };
-
-    const updateTotals = (items, discount) => {
-        const newSubtotal = items.reduce((acc, item) => acc + item.monto, 0);
-        setSubtotal(newSubtotal);
-    };
-
 
     const handleRemoveProduct = (refaccion) => {
-        setItems(prevItems => {
-            const updatedItems = prevItems.filter(item => item.refaccion !== refaccion);
-            updateTotals(updatedItems, discount);
-            return updatedItems;
-        });
-    };
-
-    const handleUpdateProduct = (updatedItems) => {
-        setItems(prevItems => {
-            if (JSON.stringify(prevItems) !== JSON.stringify(updatedItems)) {
-                updateTotals(updatedItems, discount);
-                return updatedItems;
-            }
-            return prevItems;
-        });
+        setItems(prevItems => prevItems.filter(item => item.refaccion !== refaccion));
     };
 
     const confirmCancel = () => {
@@ -284,60 +425,78 @@ export default function NewCapture({ onCancelEdit }) {
         setShowModal(false);
     }
 
+    const canApplyDiscount = Boolean(selectedProvider);
+
     return (
         <form onSubmit={onSubmit} method="POST">
             <div className="2xl:px-20 py-10 px-3">
-                <div className="mb-6 flex justify-end gap-4">
-                </div>
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                    <div className="order-2 lg:order-1 w-full bg-[rgb(var(--color-card))] shadow rounded-md p-3 flex flex-col justify-center items-center">
-                        <h2 className="text-2xl/7 p-2 font-bold text-[rgb(var(--color-text))] sm:truncate sm:text-3xl sm:tracking-tight mb-1 border-b-2 border-slate-300 w-full">
-                            Aplicar Descuento
-                        </h2>
-                        <div className="mt-1 flex flex-col justify-between sm:mt-0 sm:flex-row sm:flex-wrap sm:space-x-6">
-                            <div className='flex items-center my-1'>
-                                <div className="mt-2 flex items-center text-sm text-[rgb(var(--color-text))] opacity-80">
-                                    <MdDiscount aria-hidden="true" className="mr-1.5 size-5 shrink-0 text-[rgb(var(--color-text))]" />
-                                    DESCUENTO SUGERIDO: {sugestedDiscount === 0 || !sugestedDiscount ? "0.0" : sugestedDiscount}
-                                    {sugestedDiscount > 0 && (
+                <div className="mb-6 flex justify-end gap-4" />
+                {successMessage && (
+                    <div className="mb-4 rounded-md border border-green-400 bg-green-100/60 text-green-700 px-4 py-2 text-sm">
+                        {successMessage}
+                    </div>
+                )}
+                {errorMessage && (
+                    <div className="mb-4 rounded-md border border-red-400 bg-red-100/60 text-red-700 px-4 py-2 text-sm">
+                        {errorMessage}
+                    </div>
+                )}
+                <div className="flex flex-col lg:flex-row lg:items-start lg:space-x-6">
+                    <div className="order-2 lg:order-1 w-full">
+                        {canApplyDiscount ? (
+                            <div className="bg-white/90 shadow rounded-xl border border-slate-200 p-4">
+                                <div className="flex items-start justify-between mb-3">
+                                    <h2 className="text-lg font-semibold text-slate-800">Aplicar descuentos</h2>
+                                    <span className="text-xs text-slate-500">Proveedor: {selectedProvider?.label}</span>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="flex items-center justify-between gap-2 border rounded-lg p-3 bg-slate-50">
+                                        <div className="flex flex-col text-sm">
+                                            <span className="text-slate-500">Descuento sugerido</span>
+                                            <span className="text-lg font-bold text-slate-900">{sugestedDiscount || '0.0'}</span>
+                                        </div>
+                                        {sugestedDiscount > 0 && (
+                                            <button
+                                                type="button"
+                                                className="inline-flex items-center rounded-md bg-amber-500/10 px-3 py-1 text-sm font-semibold text-amber-700 ring-1 ring-amber-400 hover:bg-amber-500/20"
+                                                onClick={() => applyDiscount(sugestedDiscount)}
+                                            >
+                                                <CiInboxOut className="mr-1" />
+                                                Aplicar
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2 border rounded-lg p-3 bg-slate-50">
+                                        <MdDiscount className="text-indigo-500" size={22} />
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            max="1"
+                                            placeholder='Descuento general (0.0-1.0)'
+                                            value={generalDiscount}
+                                            onChange={(e) => {
+                                                const value = parseFloat(e.target.value);
+                                                setGeneralDiscount(Number.isNaN(value) ? '' : Math.min(0.9999, Math.max(0, value)));
+                                            }}
+                                            className="flex-1 rounded-md border border-slate-200 py-1.5 px-3 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        />
                                         <button
                                             type="button"
-                                            className="mx-2 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-gray-300 ring-inset hover:bg-gray-50"
-                                            onClick={() => applyDiscount(sugestedDiscount)}
+                                            className="inline-flex items-center rounded-md bg-indigo-500 px-3 py-1.5 text-sm font-semibold text-white shadow hover:bg-indigo-600"
+                                            onClick={() => applyDiscount(generalDiscount)}
                                         >
-                                            <CiInboxOut aria-hidden="true" className="mr-1.5 -ml-0.5 size-5 text-gray-800" />
-                                            APLICAR
+                                            <CiInboxOut className="mr-1" /> Aplicar
                                         </button>
-                                    )}
+                                    </div>
                                 </div>
                             </div>
-                            <div className='flex items-center my-1'>
-                                <div className="mt-2 flex items-center text-sm text-gray-500">
-                                    <MdDiscount aria-hidden="true" className="mr-1.5 size-5 shrink-0 text-[rgb(var(--color-text))]" />
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        max="1"
-                                        placeholder='Descuento General (0.0-1.0)'
-                                        value={generalDiscount}
-                                        onChange={(e) => {
-                                            const value = parseFloat(e.target.value);
-                                            setGeneralDiscount(isNaN(value) ? '' : Math.min(1, Math.max(0, value)));
-                                        }}
-                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-600 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase"
-                                    />
-                                    <button
-                                        type="button"
-                                        className="mx-2 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-gray-300 ring-inset hover:bg-gray-50"
-                                        onClick={() => applyDiscount(generalDiscount)}
-                                    >
-                                        <CiInboxOut aria-hidden="true" className="mr-1.5 -ml-0.5 size-5 text-gray-800" />
-                                        APLICAR
-                                    </button>
-                                </div>
+                        ) : (
+                            <div className="border border-dashed border-slate-300 rounded-xl p-6 text-center text-slate-500 bg-slate-50">
+                                <p className="font-medium">Selecciona un proveedor para habilitar los descuentos.</p>
+                                <p className="text-sm">Los descuentos sugeridos aparecerán aquí.</p>
                             </div>
-                        </div>
+                        )}
                     </div>
                     <div className="mb-5 md:mt-5 flex lg:mt-0 lg:ml-4 order-1 lg:order-2">
                         <span className="ml-3 block mx-1">
@@ -347,17 +506,29 @@ export default function NewCapture({ onCancelEdit }) {
                                 className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-gray-300 ring-inset hover:bg-gray-50"
                             >
                                 <IoBagRemove aria-hidden="true" className="mr-1.5 -ml-0.5 size-5 text-gray-400" />
-                                CANCELAR
+                                {cancelButtonLabel}
                             </button>
                         </span>
                         <span className="sm:ml-3 mx-1">
-                            <button
-                                type="submit"
-                                className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                            >
-                                <FaFileCircleCheck aria-hidden="true" className="mr-1.5 -ml-0.5 size-5" />
-                                CAPTURAR
-                            </button>
+                            {captureFinished && !isEditingMode ? (
+                                <button
+                                    type="button"
+                                    onClick={handleResetCapture}
+                                    className="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+                                >
+                                    <FaFileCircleCheck aria-hidden="true" className="mr-1.5 -ml-0.5 size-5" />
+                                    NUEVA CAPTURA
+                                </button>
+                            ) : (
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className={`inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed ${submitButtonTheme}`}
+                                >
+                                    <FaFileCircleCheck aria-hidden="true" className="mr-1.5 -ml-0.5 size-5" />
+                                    {submitButtonLabel}
+                                </button>
+                            )}
                         </span>
                     </div>
                 </div>
@@ -369,8 +540,9 @@ export default function NewCapture({ onCancelEdit }) {
                         <input
                             type="text"
                             placeholder='ID de factura'
+                            value={addItem['Factura'] || ''}
                             onChange={(e) => handleInputChange('Factura', e.target.value)}
-                            className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase"
+                            className={inputClass('factura')}
                         />
                         {errorMessages.provider && (
                             <span className="text-red-600 text-sm">{errorMessages.provider}</span>
@@ -381,12 +553,20 @@ export default function NewCapture({ onCancelEdit }) {
                         <label className="block text-sm 2xl:text-lg font-medium text-[rgb(var(--color-text))]">
                             Proveedor
                         </label>
-                        <Select
-                            options={providerOptions}
+                        <select
+                            value={selectedProvider?.value || ''}
                             onChange={handleProviderChange}
-                            value={selectedProvider}
-                            placeholder="Selecciona un proveedor"
-                        />
+                            className={`block w-full rounded-md border ${
+                                errorMessages.provider ? 'border-red-400 bg-red-50' : 'border-slate-200'
+                            } py-2 px-3 text-sm text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500`}
+                        >
+                            <option value="">Selecciona un proveedor</option>
+                            {providerOptions.map((provider) => (
+                                <option key={provider.value} value={provider.value}>
+                                    {provider.label}
+                                </option>
+                            ))}
+                        </select>
                         {errorMessages.provider && (
                             <span className="text-red-600 text-sm">{errorMessages.provider}</span>
                         )}
@@ -400,9 +580,9 @@ export default function NewCapture({ onCancelEdit }) {
                         </label>
                         <input
                             type="date"
-                            defaultValue={today}
+                            value={addItem['Fecha compra'] || today}
                             onChange={(e) => handleInputChange('Fecha compra', e.target.value)}
-                            className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase"
+                            className={inputClass('compra')}
                         />
                         {errorMessages.compra && (
                             <span className="text-red-600 text-sm">{errorMessages.compra}</span>
@@ -410,31 +590,31 @@ export default function NewCapture({ onCancelEdit }) {
                     </div>
                 </div>
                 <div className="mx-auto max-w-[1700px] lg:px-5 mt-5 overflow-hidden">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 mx-auto gap-x-3 lg:gap-x-14 gap-y-6 lg:mx-0 px-5 xl:px-0">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 mx-auto gap-x-3 gap-y-6 lg:mx-0 px-5 xl:px-0">
                         <div className= 'lg:rounded-2xl my-5 pt-2 shadow w-auto overflow-hidden rounded-xl md:-mx-3 lg:-mx-9 xl:-mx-2'>
                             <FindProducts
                                 onAddProduct={handleAddProduct}
                                 onRemoveProduct={handleRemoveProduct}
                                 addedItems={items}
                                 isCapture={true}
+                                includePendingProducts={false}
+                                includeWebBranch={false}
+                                allowedSearchTypes={['Descripcion', 'Parte', 'Localizacion']}
                             />
                         </div>
                         <div className='grid-cols-1 lg:col-span-2 w-auto'>
                             <TableCapture
                                 ref={tableRef}
                                 items={items}
-                                setItems={setItems}
                                 onRemoveProduct={handleRemoveProduct}
-                                onUpdateProduct={handleUpdateProduct}
-                                discountRequest={discountRequest}
-                                onDiscountApplied={() => setDiscountRequest({ value: 0.0, productRef: null })}
+                                defaultDiscounts={defaultDiscounts}
                             />
                         </div>
                     </div>
                     {showModal && (
-                    <div className="fixed z-40 inset-0 overflow-y-auto bg-stone-700 opacity-80">
+                    <div className="fixed z-40 inset-0 overflow-y-auto bg-stone-700/80">
                         <div className="flex items-center justify-center min-h-screen">
-                            <div className='relative max-w-7xl sm:px-10 lg:px-20 bg-gradient-to-bl from-[rgb(var(--color-card))] via-[rgb(var(--color-card-white))] to-[rgb(var(--color-gray))] p-3 sm:rounded-xl shadow-xl py-12'>
+                            <div className='relative max-w-7xl sm:px-10 lg:px-20 bg-gradient-to-bl from-[rgb(var(--color-card))] via-[rgb(var(--color-card))] to-[rgb(var(--color-gray))] p-3 sm:rounded-xl shadow-xl py-12'>
                                 <div className='absolute -top-5 right-1/2 translate-x-1/2 shadow bg-[rgb(var(--color-card))] rounded-full p-3 cursor-pointer animate-out'>
                                     <GoAlertFill className='h-9 w-9 text-amber-500 hover:opacity-80'/>
                                 </div>
@@ -454,7 +634,7 @@ export default function NewCapture({ onCancelEdit }) {
                                             className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-gray-300 ring-inset hover:bg-gray-50"
                                         >
                                             <IoBagRemove aria-hidden="true" className="mr-1.5 -ml-0.5 size-5 text-gray-400" />
-                                            QUIERO CANCELAR
+                                            CANCELAR
                                         </a>
                                     </div>
                                 </div>
