@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import buildApiUrl from '@/app/lib/refautomex-api';
+import { getSecretValue } from '@/app/lib/secrets';
 import getStripe from '../../orders/stripe-client';
-
-const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
 const getBaseUrl = () =>
   process.env.APP_URL ||
@@ -47,7 +46,7 @@ const persistSale = async (salePayload) => {
 
 const handleCheckoutCompleted = async (session) => {
   if (session.metadata?.saleRecorded === 'true') return;
-  const stripe = getStripe();
+  const stripe = await getStripe();
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
     limit: 100,
     expand: ['data.price.product'],
@@ -98,7 +97,8 @@ const handleCheckoutCompleted = async (session) => {
 };
 
 export async function POST(request) {
-  if (!WEBHOOK_SECRET) {
+  const webhookSecret = await getSecretValue('STRIPE_WEBHOOK_SECRET');
+  if (!webhookSecret) {
     console.error('STRIPE_WEBHOOK_SECRET is not configured when handling Stripe webhook');
     return NextResponse.json({ error: 'WEBHOOK_SECRET_NOT_CONFIGURED' }, { status: 500 });
   }
@@ -111,8 +111,8 @@ export async function POST(request) {
 
   let event;
   try {
-    const stripe = getStripe();
-    event = stripe.webhooks.constructEvent(rawBody, signature, WEBHOOK_SECRET);
+    const stripe = await getStripe();
+    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
   } catch (error) {
     console.error('Stripe webhook signature verification failed:', error);
     return NextResponse.json({ error: 'INVALID_SIGNATURE' }, { status: 400 });
