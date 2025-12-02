@@ -1,13 +1,12 @@
-import React, { forwardRef, useState, useEffect, useRef, useImperativeHandle } from 'react';
-import { MdDelete } from "react-icons/md";
-import { IoText } from 'react-icons/io5';
-import { RiCoinsFill } from "react-icons/ri";
-import { MdDeleteSweep } from "react-icons/md";
-import { FaUnlock, FaLock } from "react-icons/fa";
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import Select from 'react-select';
+import { MdDelete, MdDeleteSweep } from 'react-icons/md';
+import { IoText } from 'react-icons/io5';
+import { RiCoinsFill } from 'react-icons/ri';
+import { FaUnlock, FaLock } from 'react-icons/fa';
 
 const customStyles = {
-    control: (provided, state) => ({
+    control: (provided) => ({
         ...provided,
         minHeight: '24px',
         height: '24px',
@@ -16,439 +15,482 @@ const customStyles = {
         borderColor: 'gray',
         boxShadow: 'none',
         '&:hover': {
-            borderColor: 'blue',
-        },
+            borderColor: 'blue'
+        }
     }),
     valueContainer: (provided) => ({
         ...provided,
         height: '24px',
-        padding: '0 6px',
-        color: 'white',
-    }),
-    input: (provided) => ({
-        ...provided,
-        margin: '0px',
-        color: 'black',
+        padding: '0 6px'
     }),
     indicatorsContainer: (provided) => ({
         ...provided,
-        height: '24px',
-        color: 'white',
+        height: '24px'
     }),
     dropdownIndicator: (provided) => ({
         ...provided,
-        padding: '0px',
-        color: 'white',
-    }),
-    clearIndicator: (provided) => ({
-        ...provided,
-        padding: '0px',
-        color: 'white',
+        padding: '0px'
     }),
     singleValue: (provided) => ({
         ...provided,
-        fontSize: '12px',
-        color: 'black',
+        fontSize: '12px'
     }),
     menu: (provided) => ({
         ...provided,
-        zIndex: 9999,
-    }),
-    className: 'block w-full p-2 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60'
+        zIndex: 50
+    })
 };
+
+const quantityOptions = Array.from({ length: 300 }, (_, i) => ({ value: i + 1, label: `${i + 1}` }));
+const MAX_DISCOUNTS = 3;
 
 const TableCapture = forwardRef(({
     items,
-    setItems,
     onRemoveProduct,
-    onUpdateProduct,
-    onShowTextArea,
-    folio
+    onShowTextArea = 'none',
+    folio = null,
+    defaultDiscounts = {}
 }, ref) => {
-
-    const [quantities, setQuantities] = useState(() =>
-        items.reduce((acc, item) => ({ ...acc, [item.refaccion]: item.cantidad || 1 }), {})
-    );
-    const [prices, setPrices] = useState(() =>
-        items.reduce((acc, item) => ({ ...acc, [item.refaccion]: item.precio }), {})
-    );
-    const [aIvas, setAIvas] = useState(() =>
-        items.reduce((acc, item) => ({
-            ...acc,
-            [item.refaccion]: (item.precio / 1.16).toFixed(2)
-        }), {})
-    );
-
-    const [warnings, setWarnings] = useState({});
-    const [error, setError] = useState('');
+    const [quantities, setQuantities] = useState({});
+    const [costs, setCosts] = useState({});
+    const [baseCosts, setBaseCosts] = useState({});
     const [discountRows, setDiscountRows] = useState({});
+    const [notes, setNotes] = useState('');
+    const [error, setError] = useState('');
 
+    useEffect(() => {
+        setQuantities((prev) => {
+            const next = {};
+            items.forEach((item) => {
+                next[item.refaccion] = prev[item.refaccion] ?? item.cantidad ?? 1;
+            });
+            return next;
+        });
+        setBaseCosts((prev) => {
+            const next = {};
+            items.forEach((item) => {
+                const key = item.refaccion;
+                const base = Number(item.costoBase ?? item.costo ?? item.precio ?? 0);
+                next[key] = prev[key] ?? base;
+            });
+            return next;
+        });
+        setCosts((prev) => {
+            const next = {};
+            items.forEach((item) => {
+                const key = item.refaccion;
+                const base = Number(item.costo ?? item.costoBase ?? item.precio ?? 0);
+                next[key] = prev[key] ?? base;
+            });
+            return next;
+        });
+        setDiscountRows((prev) => {
+            const next = {};
+            items.forEach((item) => {
+                if (prev[item.refaccion]) {
+                    next[item.refaccion] = prev[item.refaccion];
+                }
+            });
+            return next;
+        });
+    }, [items]);
 
-    // Exponer funciones al padre
-    useImperativeHandle(ref, () => ({
-        handleDiscountRow
-    }));
 
     const handleQuantityChange = (product, selectedOption) => {
-        const newQuantity = selectedOption.value;
-        setQuantities(prevQuantities => ({ ...prevQuantities, [product.refaccion]: newQuantity }));
-        setItems(prevItems =>
-            prevItems.map(item =>
-                item.refaccion === product.refaccion ? { ...item, cantidad: newQuantity } : item
-            )
-        );
+        setQuantities((prev) => ({ ...prev, [product.refaccion]: selectedOption.value }));
     };
 
     const handleRemoveClick = (product) => {
+        if (product.locked) return;
         onRemoveProduct(product.refaccion);
-        setQuantities(prevQuantities => {
-            const newQuantities = { ...prevQuantities };
-            delete newQuantities[product.refaccion];
-            return newQuantities;
+        setQuantities((prev) => {
+            const next = { ...prev };
+            delete next[product.refaccion];
+            return next;
         });
-        setPrices(prevPrices => {
-            const newPrices = { ...prevPrices };
-            delete newPrices[product.refaccion];
-            return newPrices;
+        setCosts((prev) => {
+            const next = { ...prev };
+            delete next[product.refaccion];
+            return next;
         });
-        setAIvas(prevAIvas => {
-            const newAIvas = { ...prevAIvas };
-            delete newAIvas[product.refaccion];
-            return newAIvas;
+        setBaseCosts((prev) => {
+            const next = { ...prev };
+            delete next[product.refaccion];
+            return next;
         });
-        setWarnings(prevWarnings => {
-            const newWarnings = { ...prevWarnings };
-            delete newWarnings[product.refaccion];
-            return newWarnings;
+        setDiscountRows((prev) => {
+            const next = { ...prev };
+            delete next[product.refaccion];
+            return next;
         });
     };
 
-    const handleDiscountRow = (productRef, discountValue = 0, isGeneral = false) => {
-        const numericDiscount = Number(discountValue);
+    const appendDiscountRow = (productRef, numericDiscount, options = {}) => {
+        const { autoConfirm = false, isGeneralRow = false } = options;
+        let applied = false;
+        setDiscountRows((prev) => {
+            const current = prev[productRef] || [];
+            if (current.length >= MAX_DISCOUNTS) {
+                if (!isGeneralRow) {
+                    setError('Cada refacción permite máximo 3 descuentos.');
+                }
+                return prev;
+            }
+            if (current.some((row) => !row.confirmed)) {
+                setError('Confirma o elimina el descuento pendiente antes de agregar otro.');
+                return prev;
+            }
+            if (Number.isFinite(numericDiscount) && (numericDiscount < 0 || numericDiscount >= 1)) {
+                setError('El descuento debe estar entre 0 y 0.9999.');
+                return prev;
+            }
+            const hasNumericValue = Number.isFinite(numericDiscount) && numericDiscount > 0;
+            const entry = {
+                id: `${productRef}-${Date.now()}-${Math.random()}`,
+                value: hasNumericValue ? numericDiscount : 0,
+                confirmed: hasNumericValue || autoConfirm,
+                isGeneral: isGeneralRow
+            };
+            const updated = [...current, entry];
+            if (entry.confirmed) {
+                recalculateDiscounts(productRef, updated);
+            }
+            applied = true;
+            setError('');
+            return {
+                ...prev,
+                [productRef]: updated
+            };
+        });
+        return applied;
+    };
 
-        if (isNaN(numericDiscount) || numericDiscount < 0 || numericDiscount > 1) {
-            setError('El descuento debe ser entre 0.0 y 1.0');
+    const handleDiscountRow = (productRef, discountValue = 0, options = {}) => {
+        const { isGeneral = false, autoConfirm = false } = options;
+        if (isGeneral) {
+            const numericDiscount = Number(discountValue);
+            if (!items.length) {
+                setError('Agrega al menos una refacción antes de aplicar descuentos.');
+                return;
+            }
+            if (!Number.isFinite(numericDiscount) || numericDiscount <= 0 || numericDiscount >= 1) {
+                setError('El descuento debe ser mayor a 0 y menor a 1.');
+                return;
+            }
+            let applied = false;
+            items.forEach((item) => {
+                const success = appendDiscountRow(item.refaccion, numericDiscount, {
+                    autoConfirm: true,
+                    isGeneralRow: true
+                });
+                if (success) {
+                    applied = true;
+                }
+            });
+            if (!applied) {
+                setError('No fue posible aplicar el descuento general.');
+            }
             return;
         }
-        if (isGeneral) {
 
-            const hasSpace = items.every(item =>
-                (discountRows[item.refaccion]?.length || 0) < 3
-            );
-
-            const unconfirmedWarnings = {};
-            let anyHasUnconfirmed = false;
-
-            items.forEach(item => {
-                const ref = item.refaccion;
-                if ((discountRows[ref] || []).some(d => !d.confirmed)) {
-                    unconfirmedWarnings[ref] = 'Confirma el descuento actual antes de agregar otro.';
-                    anyHasUnconfirmed = true;
-                }
-            });
-
-            if (anyHasUnconfirmed) {
-                setWarnings(prev => ({ ...prev, ...unconfirmedWarnings }));
-                return;
-            }
-
-
-            if (!hasSpace) {
-                setWarnings(prev => ({
-                    ...prev,
-                    [productRef]: 'Uno o más productos ya tienen 3 descuento'
-                }));
-                return;
-            }
-
-            const newDiscountRows = { ...discountRows };
-
-            const updatedItems = items.map(item => {
-                const ref = item.refaccion;
-                const originalPrice = item.precioInicial || item.precio;
-                const currentDiscounts = (newDiscountRows[ref] || []).filter(d => d.confirmed);
-                const newDiscount = {
-                    id: Date.now() + Math.random(),
-                    value: numericDiscount,
-                    isGeneral: true,
-                    confirmed: true
-                };
-                const allDiscounts = [...currentDiscounts, newDiscount];
-
-                // Calcular descuentos compuestos
-                let cumulativePrice = originalPrice;
-                const discountHistory = allDiscounts.map(d => {
-                    const previous = cumulativePrice;
-                    const discountedAmount = previous * d.value;
-                    cumulativePrice = previous - discountedAmount;
-                    return {
-                        value: d.value,
-                        previous,
-                        discountedAmount
-                    };
-                });
-
-                const newMonto = (quantities[ref] || 1) * cumulativePrice;
-
-                // Actualizar filas de descuento
-                newDiscountRows[ref] = [...(newDiscountRows[ref] || []), newDiscount];
-
-                return {
-                    ...item,
-                    precio: cumulativePrice,
-                    monto: newMonto,
-                    discountHistory
-                };
-            });
-
-            setDiscountRows(newDiscountRows);
-            setItems(updatedItems);
-
-        } else {
-            // Descuento específico
-            setDiscountRows(prev => {
-                const current = prev[productRef] || [];
-                const hasUnconfirmed = current.some(d => !d.confirmed);
-
-                if (current.length >= 3) {
-                    setError('Máximo 3 descuentos por producto');
-                    return prev;
-                }
-                if (hasUnconfirmed) {
-                    setError('Confirma el descuento actual antes de agregar otro');
-                    return prev;
-                }
-
-                return {
-                    ...prev,
-                    [productRef]: [
-                        ...current,
-                        {
-                            id: Date.now() + Math.random(),
-                            value: numericDiscount,
-                            isGeneral: false,
-                            confirmed: false
-                        }
-                    ]
-                };
-            });
+        if (!productRef) {
+            setError('Selecciona una refacción para agregar el descuento.');
+            return;
         }
-        setError('');
-        setWarnings(prev => {
-            const newWarnings = { ...prev };
-            delete newWarnings[productRef]; // or delete all keys inside loop for general
-            return newWarnings;
-        });
+
+        appendDiscountRow(productRef, Number(discountValue), { autoConfirm });
     };
 
-const confirmDiscount = (productRef, discountId) => {
-    setDiscountRows(prev => {
-        const discountList = prev[productRef] || [];
-        const target = discountList.find(d => d.id === discountId);
-
-        if (!target || target.value <= 0) {
-            setError("No se puede confirmar un descuento con valor 0 o vacío.");
-            return prev;
-        }
-
-        return {
+    const recalculateDiscounts = (productRef, rows) => {
+        const base = Number(baseCosts[productRef] ?? 0);
+        let price = base;
+        rows.filter((row) => row.confirmed).forEach((row) => {
+            const discountedAmount = Number((price * row.value).toFixed(2));
+            price = Number((price - discountedAmount).toFixed(2));
+        });
+        setCosts((prev) => ({
             ...prev,
-            [productRef]: discountList.map(d =>
-                d.id === discountId ? { ...d, confirmed: true } : d
-            )
-        };
-    });
-};
-
-
-    const updateAllPrices = () => {
-        setItems(prevItems => prevItems.map(item => {
-            const originalPrice = item.precioInicial || item.precio;
-            const confirmedDiscounts = (discountRows[item.refaccion] || []).filter(d => d.confirmed);
-            let cumulativePrice = originalPrice;
-            const discountHistory = confirmedDiscounts.map(d => {
-                const previous = cumulativePrice;
-                const discountedAmount = previous * d.value;
-                cumulativePrice = previous - discountedAmount;
-                return {
-                    value: d.value,
-                    previous,
-                    discountedAmount
-                };
-            });
-
-            const newMonto = (quantities[item.refaccion] || 1) * cumulativePrice;
-
-            return {
-                ...item,
-                precio: cumulativePrice,
-                monto: newMonto,
-                discountHistory
-            };
+            [productRef]: price
         }));
     };
 
+    useEffect(() => {
+        if (!items.length || !defaultDiscounts) return;
+        setDiscountRows((prev) => {
+            const next = { ...prev };
+            let changed = false;
+            items.forEach((item) => {
+                const ref = item.refaccion;
+                const defaults = defaultDiscounts[ref];
+                if (!defaults || !defaults.length || (next[ref] && next[ref].length)) {
+                    return;
+                }
+                const rows = defaults
+                    .map((value, index) => Number(value))
+                    .filter((value) => Number.isFinite(value) && value > 0 && value < 1)
+                    .map((value, index) => ({
+                        id: `${ref}-default-${index}`,
+                        value,
+                        confirmed: true,
+                        isGeneral: false
+                    }));
+                if (rows.length) {
+                    next[ref] = rows;
+                    recalculateDiscounts(ref, rows);
+                    changed = true;
+                }
+            });
+            return changed ? next : prev;
+        });
+    }, [items, defaultDiscounts]);
 
-    const handleRemoveLastDiscountRow = (productRef) => {
-        setDiscountRows(prev => {
-            const discounts = prev[productRef] || [];
-            const confirmedDiscounts = discounts.filter(d => d.confirmed);
-            const updated = discounts.slice(0, -1);
-            const product = items.find(i => i.refaccion === productRef);
-            const originalPrice = product.precioInicial || product.precio;
-            const newPrice = confirmedDiscounts.slice(0, -1).reduce(
-                (price, discount) => price * (1 - discount.value),
-                originalPrice
+    const confirmDiscount = (productRef, discountId) => {
+        setDiscountRows((prev) => {
+            const rows = prev[productRef] || [];
+            const target = rows.find((row) => row.id === discountId);
+            if (!target || target.value <= 0) {
+                setError('Ingresa un decimal válido antes de confirmar.');
+                return prev;
+            }
+            const updated = rows.map((row) =>
+                row.id === discountId ? { ...row, confirmed: true } : row
             );
-
-            if (discounts.length === 0) return prev;
-            setItems(prevItems => prevItems.map(item =>
-                item.refaccion === productRef ? {
-                    ...item,
-                    precio: newPrice,
-                    precioInicial: originalPrice // Mantener referencia original
-                } : item
-            ));
-
-            return { ...prev, [productRef]: updated };
+            recalculateDiscounts(productRef, updated);
+            setError('');
+            return {
+                ...prev,
+                [productRef]: updated
+            };
         });
     };
 
     const handleDiscountChange = (productRef, discountId, value) => {
-        let numericValue = Number(value);
-
-        if (value !== "" && (isNaN(numericValue) || numericValue < 0.0001 || numericValue > 1)) {
-            setError("El descuento debe estar entre 0.0001 y 1.0");
+        const numericValue = value === '' ? '' : Number(value);
+        if (value !== '' && (Number.isNaN(numericValue) || numericValue < 0 || numericValue >= 1)) {
+            setError('El descuento debe estar entre 0 y 0.9999.');
             return;
         }
-
-        setDiscountRows(prev => {
-            const updatedDiscounts = prev[productRef].map(d =>
-                d.id === discountId ? { ...d, value: numericValue, confirmed: false } : d
-            );
-
-            const product = items.find(i => i.refaccion === productRef);
-            const originalPrice = product.precioInicial;
-
-            let cumulativePrice = originalPrice;
-            const discountHistory = updatedDiscounts
-                .filter(d => d.confirmed || d.id === discountId) // incluir actual en edición
-                .map(d => {
-                    const previous = cumulativePrice;
-                    const discountedAmount = previous * d.value;
-                    cumulativePrice = previous - discountedAmount;
-                    return {
-                        value: d.value,
-                        previous,
-                        discountedAmount
-                    };
-                });
-    
-            const newPrice = cumulativePrice;
-            const newMonto = (quantities[productRef] || 1) * newPrice;
-    
-            setItems(prevItems => prevItems.map(item =>
-                item.refaccion === productRef ? {
-                    ...item,
-                    precio: newPrice,
-                    monto: newMonto,
-                    precioInicial: originalPrice,
-                    discountHistory
-                } : item
-            ));
-    
+        setDiscountRows((prev) => {
+            const rows = prev[productRef] || [];
             return {
                 ...prev,
-                [productRef]: updatedDiscounts
+                [productRef]: rows.map((row) =>
+                    row.id === discountId
+                        ? { ...row, value: value === '' ? 0 : numericValue, confirmed: false }
+                        : row
+                )
             };
         });
     };
 
-
-    const quantityOptions = Array.from({ length: 300 }, (_, i) => ({ value: i + 1, label: (i + 1).toString() }));
-
-    const neto = items.reduce((acc, item) => {
-        const originalPrice = item.precioInicial || item.precio;
-        return acc + (quantities[item.refaccion] || 1) * originalPrice;
-    }, 0);
-
-    const totalDiscount = items.reduce((acc, item) => {
-        const ref = item.refaccion;
-        const productDiscounts = (discountRows && discountRows[ref]) || [];
-    
-        const confirmedDiscounts = productDiscounts.filter(d => d.confirmed);
-        const originalPrice = item.precioInicial || item.precio;
-        let cumulativePrice = originalPrice;
-    
-        confirmedDiscounts.forEach(discount => {
-            cumulativePrice *= 1 - discount.value;
+    const handleRemoveLastDiscountRow = (productRef) => {
+        setDiscountRows((prev) => {
+            const rows = prev[productRef] || [];
+            if (!rows.length) return prev;
+            const updated = rows.slice(0, -1);
+            recalculateDiscounts(productRef, updated);
+            return {
+                ...prev,
+                [productRef]: updated
+            };
         });
-    
-        const cantidad = quantities[ref] || 1;
-        const montoSinDescuento = originalPrice * cantidad;
-        const montoConDescuento = cumulativePrice * cantidad;
-    
-        const totalDescontado = montoSinDescuento - montoConDescuento;
-    
-        return acc + totalDescontado;
-    }, 0);
-    
+    };
 
-    const subtotal = neto;
-    const totalWithDiscount = subtotal - totalDiscount;
+    const neto = useMemo(() => {
+        return items.reduce((acc, item) => {
+            const ref = item.refaccion;
+            const qty = quantities[ref] ?? item.cantidad ?? 1;
+            const base = Number(baseCosts[ref] ?? item.costoBase ?? item.costo ?? item.precio ?? 0);
+            return acc + base * qty;
+        }, 0);
+    }, [items, quantities, baseCosts]);
+
+    const subtotal = useMemo(() => {
+        return items.reduce((acc, item) => {
+            const ref = item.refaccion;
+            const qty = quantities[ref] ?? item.cantidad ?? 1;
+            const current = Number(costs[ref] ?? item.costo ?? item.costoBase ?? item.precio ?? 0);
+            return acc + current * qty;
+        }, 0);
+    }, [items, quantities, costs]);
+
+    const totalDiscount = useMemo(() => neto - subtotal, [neto, subtotal]);
+    const totalWithTax = subtotal * 1.16;
+
+    const collectCapturePayload = () => {
+        const errors = [];
+        const detail = [];
+
+        items.forEach((item) => {
+            const ref = item.refaccion;
+            const qty = quantities[ref] ?? item.cantidad ?? 1;
+            const baseCost = Number(baseCosts[ref] ?? item.costoBase ?? item.costo ?? item.precio ?? 0);
+            const currentCost = Number(costs[ref] ?? item.costo ?? item.costoBase ?? baseCost);
+            if (!currentCost || Number.isNaN(currentCost)) {
+                errors.push(`Ingresa un costo válido para la refacción ${ref}.`);
+                return;
+            }
+            if (qty <= 0) {
+                errors.push(`La cantidad para la refacción ${ref} debe ser mayor que 0.`);
+                return;
+            }
+            const pendingDiscount = (discountRows[ref] || []).some((row) => !row.confirmed);
+            if (pendingDiscount) {
+                errors.push(`Confirma o elimina los descuentos pendientes en ${ref}.`);
+                return;
+            }
+            const actualStock = Number(item.existencia ?? 0);
+            const totalStock = actualStock + qty;
+            const confirmed = (discountRows[ref] || []).filter((row) => row.confirmed);
+            detail.push({
+                ref,
+                costo: Number(currentCost.toFixed(2)),
+                costo_a: Number(baseCost.toFixed(2)),
+                actual: actualStock,
+                exis: qty,
+                cant: totalStock,
+                neto: Number((baseCost * qty).toFixed(2)),
+                importe: Number((currentCost * qty).toFixed(2)),
+                ut: Number(item.utilidad ?? 0),
+                d1: Number(confirmed[0]?.value ?? 0),
+                d2: Number(confirmed[1]?.value ?? 0),
+                d3: Number(confirmed[2]?.value ?? 0)
+            });
+        });
+
+        return {
+            errors,
+            detail,
+            totals: {
+                neto: Number(neto.toFixed(2)),
+                descuento: Number(totalDiscount.toFixed(2)),
+                subtotal: Number(subtotal.toFixed(2)),
+                total: Number(totalWithTax.toFixed(2))
+            }
+        };
+    };
+
+    useImperativeHandle(ref, () => ({
+        handleDiscountRow,
+        collectCapturePayload
+    }));
+
+    const handleAddNote = (value) => {
+        setNotes(value.slice(0, 80));
+    };
+
+    const renderDiscountRows = (item, ref) => {
+        const rows = discountRows[ref] || [];
+        if (!rows.length) return null;
+        let runningCost = Number(baseCosts[ref] ?? item.costoBase ?? item.costo ?? 0);
+        return rows.map((discountRow, index) => {
+            const previous = runningCost;
+            const discountedAmount = discountRow.confirmed
+                ? Number((previous * discountRow.value).toFixed(2))
+                : 0;
+            if (discountRow.confirmed) {
+                runningCost = Number((previous - discountedAmount).toFixed(2));
+            }
+            const isLastRow = index === rows.length - 1;
+            return (
+                <tr key={discountRow.id} className="bg-[rgb(var(--color-card))] border-b border-[rgb(var(--color-border))]">
+                    <td colSpan="2" className="p-3 text-right text-xs font-semibold">
+                        Descuento decimal (0.0-1.0)
+                    </td>
+                    <td colSpan="2" className="p-3">
+                        <input
+                            type="number"
+                            step="0.0001"
+                            min="0"
+                            max="0.9999"
+                            value={discountRow.value}
+                            disabled={discountRow.confirmed || discountRow.isGeneral}
+                            className={`block w-full p-1 border border-[rgb(var(--color-border))] rounded-md text-xs bg-[rgb(var(--color-card))] ${discountRow.isGeneral ? 'cursor-not-allowed opacity-60' : ''}`}
+                            onChange={(event) => handleDiscountChange(ref, discountRow.id, event.target.value)}
+                        />
+                        {!discountRow.isGeneral && (
+                            <div className="flex justify-center mt-1">
+                                {discountRow.confirmed ? (
+                                    <div className="rounded-full bg-[rgb(var(--color-card))] p-1 text-xs">
+                                        <FaLock />
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => confirmDiscount(ref, discountRow.id)}
+                                        className="rounded-full bg-[rgb(var(--color-amber))] text-white p-1 text-xs"
+                                    >
+                                        <FaUnlock />
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </td>
+                    <td colSpan="2" className="p-3 text-xs">
+                        <div>Porcentaje: {(discountRow.value * 100).toFixed(2)}%</div>
+                        <div>Anterior: {previous.toFixed(2)} MXN</div>
+                        <div className="text-[rgb(var(--color-amber))]">
+                            Descontado: {discountedAmount.toFixed(2)} MXN
+                        </div>
+                    </td>
+                    {isLastRow && (
+                        <td className="p-3 text-right">
+                            <button
+                                type="button"
+                                onClick={() => handleRemoveLastDiscountRow(ref)}
+                                className="bg-red-500 text-white rounded-full p-2 hover:bg-red-700"
+                                disabled={!!folio}
+                            >
+                                <MdDeleteSweep />
+                            </button>
+                        </td>
+                    )}
+                </tr>
+            );
+        });
+    };
 
     return (
         <div className="h-[690px] bg-[rgb(var(--color-card))] rounded-2xl my-5 flex shadow relative justify-center">
-            <div className="flex flex-col overflow-x-scroll pt-5 lg:mx-1">
+            <div className="flex flex-col overflow-x-auto pt-5 lg:mx-1">
+                {error && (
+                    <div className="mx-6 mb-3 rounded-md border border-red-400 bg-red-100/40 text-red-600 text-xs px-3 py-2">
+                        {error}
+                    </div>
+                )}
                 <table className="w-[845px] text-sm text-left text-[rgb(var(--color-text))] shadow-sm">
-                    <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-card-white))]">
+                    <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-card))]">
                         <tr>
                             <th className="p-3">REFACCIÓN</th>
                             <th className="p-3">DESCRIPCIÓN</th>
                             <th className="p-3">EXISTENCIA</th>
                             <th className="p-3">NUEVA CANTIDAD</th>
                             <th className="p-3">COSTO</th>
-                            <th className="p-3">PRECIO DE VENTA</th>
+                            <th className="p-3">P. VENTA</th>
                             <th className="p-3">DESCUENTO</th>
                             <th className="p-3">IMPORTE</th>
                             <th className="p-3"></th>
                         </tr>
                     </thead>
                     <tbody>
-                        {items.map((item, index) => {
-                            const specificDiscounts = (discountRows && discountRows[item.refaccion]) || [];
-                            const price = parseFloat(prices[item.refaccion]) || parseFloat(item.precio);
-                            const aiva = parseFloat(aIvas[item.refaccion]) || (price / 1.16).toFixed(2);
-                            const monto = (quantities[item.refaccion] || 1) * price;
+                        {items.map((item) => {
+                            const ref = item.refaccion;
+                            const qty = quantities[ref] ?? item.cantidad ?? 1;
+                            const cost = Number(costs[ref] ?? item.costo ?? item.costoBase ?? item.precio ?? 0);
+                            const salePrice = (cost / 1.16).toFixed(2);
+                            const amount = (cost * qty).toFixed(2);
+                            const hasDiscounts = (discountRows[ref] || []).length > 0;
                             return (
-                                <>
-                                    <tr
-                                        className='bg-[rgb(var(--color-card-white))] border-b border-[rgb(var(--color-border))] relative'
-                                        key={index}
-                                    >
-                                        {item.appliedDiscount !== null && (
-                                        <>
+                                <React.Fragment key={ref}>
+                                    <tr className='bg-[rgb(var(--color-card))] border-b border-[rgb(var(--color-border))] relative'>
                                         <td className="p-4">
                                             <div className='italic text-xs flex flex-col justify-center items-center'>
-                                                <div className='text-base'>
-                                                {item.refaccion}
-                                                </div>
+                                                <div className='text-base'>{ref}</div>
                                             </div>
-                                            {warnings[item.refaccion] && (
-                                                <div className="absolute left-1/3 bottom-[1px] z-10 text-xs text-[rgb(var(--color-amber))] bg-[rgb(var(--color-bg))] shadow p-[1.2px] rounded-md font-bold animate-out">
-                                                    {warnings[item.refaccion]}
-                                                </div>
-                                            )}
                                         </td>
                                         <td className="p-4">
                                             <span>{item.descripcion}</span>
-                                            {error && (
-                                                <div className="absolute left-1/3 bottom-[1px] z-10 text-xs text-[rgb(var(--color-error))] bg-[rgb(var(--color-bg))] shadow p-[1.2px] rounded-md font-bold animate-out">
-                                                    {error}
-                                                </div>
-                                            )}
                                         </td>
-                                        <td className="py-4">
                                         <td className="py-4 flex justify-center">
                                             <Select
                                                 value={{ value: item.existencia, label: item.existencia.toString() }}
@@ -457,50 +499,39 @@ const confirmDiscount = (productRef, discountId) => {
                                                 className="pointer-events-none"
                                             />
                                         </td>
-                                        </td>
                                         <td className="py-4">
                                             <Select
-                                                value={quantityOptions.find(option => option.value === (quantities[item.refaccion] || 1))}
+                                                value={quantityOptions.find(option => option.value === qty)}
                                                 onChange={(selectedOption) => handleQuantityChange(item, selectedOption)}
                                                 options={quantityOptions}
                                                 styles={customStyles}
-                                                isDisabled={!!folio}
+                                                isDisabled={!!folio || hasDiscounts}
+                                            />
+                                        </td>
+                                        <td className="p-1">
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={cost}
+                                                onChange={(e) => {
+                                                    const newPrice = Number(e.target.value);
+                                                    if (!Number.isNaN(newPrice)) {
+                                                        setCosts(prev => ({ ...prev, [ref]: newPrice }));
+                                                        setBaseCosts(prev => ({ ...prev, [ref]: newPrice }));
+                                                    }
+                                                }}
+                                                className="block w-full p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-card))] text-xs"
+                                                disabled={!!folio || hasDiscounts}
                                             />
                                         </td>
                                         <td className="p-2">
-                                            <span>{aiva}</span>
-                                        </td>
-                                        <td className="p-1 relative">
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            value={prices[item.refaccion] || item.precio}
-                                            onChange={(e) => {
-                                                const newPrice = parseFloat(e.target.value);
-                                                if (!isNaN(newPrice)) {
-                                                setPrices(prev => ({ ...prev, [item.refaccion]: newPrice }));
-                                                setItems(prevItems => prevItems.map(prod =>
-                                                    prod.refaccion === item.refaccion
-                                                    ? {
-                                                        ...prod,
-                                                        precio: newPrice,
-                                                        monto: newPrice * (quantities[item.refaccion] || 1),
-                                                        precioInicial: prod.precioInicial ?? prod.precio
-                                                        }
-                                                    : prod
-                                                ));
-                                                }
-                                            }}
-                                            className="block w-full p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60"
-                                            disabled={!!folio}
-                                        />
-
+                                            <span>{salePrice}</span>
                                         </td>
                                         <td className='p-2'>
                                             <div
                                                 className='flex flex-col justify-center items-center cursor-pointer'
-                                                onClick={() => handleDiscountRow(item.refaccion)}
+                                                onClick={() => handleDiscountRow(ref)}
                                             >
                                                 <div className='bg-yellow-500 rounded-full shadow h-5 w-5 flex items-center justify-center'>
                                                     <RiCoinsFill />
@@ -508,90 +539,20 @@ const confirmDiscount = (productRef, discountId) => {
                                                 <span className='bg-[rgb(var(--color-card))] rounded-md mt-2 p-1'>Descuento</span>
                                             </div>
                                         </td>
-                                        <td className="p-4">{monto.toFixed(2)}</td>
+                                        <td className="p-4">{amount}</td>
                                         <td className="p-4">
                                             <button
                                                 onClick={() => handleRemoveClick(item)}
-                                                className="bg-red-500 text-white rounded-full p-2 hover:bg-red-700"
-                                                disabled={!!folio}
+                                                className={`rounded-full p-2 ${item.locked ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-red-500 text-white hover:bg-red-700'}`}
+                                                disabled={!!folio || item.locked}
+                                                title={item.locked ? 'No es posible eliminar refacciones guardadas previamente.' : 'Eliminar refacción'}
                                             >
                                                 <MdDelete />
                                             </button>
                                         </td>
-                                        </>
-                                        )}
                                     </tr>
-                                    {specificDiscounts.map((discountRow, discountIndex) => {
-                                        const isLastRow = discountIndex === specificDiscounts.length - 1;
-                                        const discountHistory = item.discountHistory || [];
-                                        const entry = discountHistory[discountIndex]; // vincular con el mismo índice
-
-                                        return (
-                                            <tr key={discountRow.id} className="bg-[rgb(var(--color-card))] border-b border-[rgb(var(--color-border))]">
-                                                <td colSpan="2" className="p-4 text-right font-bold">
-                                                    Descuento Decimal:
-                                                    <br />(0.0 - 1)
-                                                </td>
-                                                <td colSpan="2" className="p-4">
-                                                    <input
-                                                        type="number"
-                                                        step="0.0001"
-                                                        min="0.0001"
-                                                        max="1"
-                                                        value={discountRow.value}
-                                                        disabled={discountRow.confirmed || discountRow.isGeneral}
-                                                        className={`block w-full p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-md text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 bg-[rgb(var(--color-card))] no-spin ${
-                                                            discountRow.isGeneral ? 'bg-[rgb(var(--color-gray))] cursor-not-allowed' : 'bg-[rgb(var(--color-card))]'
-                                                        }`}
-                                                        onChange={(e) => handleDiscountChange(item.refaccion, discountRow.id, e.target.value)}
-                                                    />
-                                                    {!discountRow.confirmed && !discountRow.isGeneral ? (
-                                                        <div className="flex justify-center items-center my-1">
-                                                            <button
-                                                                onClick={() => confirmDiscount(item.refaccion, discountRow.id)}
-                                                                className='text-xs text-[rgb(var(--color-amber))] bg-[rgb(var(--color-bg))] shadow p-1 rounded-md font-bold animate-out cursor-pointer'
-                                                            >
-                                                                <FaUnlock />
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex justify-center items-center my-1">
-                                                            <div className='text-xs text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] shadow p-1 rounded-md font-bold'>
-                                                                <FaLock />
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td colSpan="2" className="p-2 text-right">
-                                                    <div className="flex flex-col">
-                                                        Porcentaje:
-                                                        <span>{(discountRow.value * 100).toFixed(2)}%</span>
-                                                    </div>
-                                                </td>
-                                                <td colSpan="2" className="p-2 text-right">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs text-[rgb(var(--color-text))]">
-                                                            Anterior: {entry?.previous?.toFixed(2) || "0.00"} MXN
-                                                        </span>
-                                                        <span className="text-xs font-bold text-[rgb(var(--color-amber))]">
-                                                            Descontado: {entry?.discountedAmount?.toFixed(2) || "0.00"} MXN
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                {isLastRow && (
-                                                    <td className="p-4 text-right">
-                                                        <button
-                                                            onClick={() => handleRemoveLastDiscountRow(item.refaccion)}
-                                                            className="bg-red-500 text-white rounded-full p-2 hover:bg-red-700"
-                                                        >
-                                                            <MdDeleteSweep />
-                                                        </button>
-                                                    </td>
-                                                )}
-                                            </tr>
-                                        );
-                                    })}
-                                </>
+                                    {renderDiscountRows(item, ref)}
+                                </React.Fragment>
                             );
                         })}
                         {onShowTextArea === 'block' && (
@@ -601,47 +562,42 @@ const confirmDiscount = (productRef, discountId) => {
                                     <span></span>
                                 </td>
                                 <td colSpan="6" className="p-4">
-                                <textarea
-                                    id="nota"
-                                    name="nota"
-                                    value={notes}
-                                    onChange={(e) => handleAddNote(e.target.value)}
-                                    className="w-full px-2 py-1 border border-[rgb(var(--color-border))] rounded text-xs text-blue-500 focus:ring-blue-500 focus:border-blue-500 bg-[rgb(var(--color-card))] uppercase text-[rgb(var(--color-text))] placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60"
-                                    placeholder="Pagado por entregar (¿Que?)"
-                                    rows="3"
-                                    maxLength="80"
-                                    disabled={!!folio}
-                                />
+                                    <textarea
+                                        id="nota"
+                                        name="nota"
+                                        value={notes}
+                                        onChange={(e) => handleAddNote(e.target.value)}
+                                        className="w-full px-2 py-1 border border-[rgb(var(--color-border))] rounded text-xs text-blue-500 focus:ring-blue-500 focus:border-blue-500 bg-[rgb(var(--color-card))] uppercase text-[rgb(var(--color-text))] placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60"
+                                        placeholder="Pagado por entregar (¿Que?)"
+                                        rows="3"
+                                        maxLength="80"
+                                        disabled={!!folio}
+                                    />
                                 </td>
                             </tr>
                         )}
-                        <tr className="bg-[rgb(var(--color-card-white))] border-b border-[rgb(var(--color-border))]">
+                        <tr className="bg-[rgb(var(--color-card))] border-b border-[rgb(var(--color-border))]">
                             <td className="py-4 px-3 font-bold">NETO:</td>
-                            <td className="py-4 px-1 font-bold text-md text-[rgb(var(--color-text))]"
-                                colSpan="8">
+                            <td className="py-4 px-1 font-bold text-md text-[rgb(var(--color-text))]" colSpan="8">
                                 {neto.toFixed(2)} MXN
                             </td>
                         </tr>
-                        <tr className="bg-[rgb(var(--color-card-white))] border-b border-[rgb(var(--color-border))]">
+                        <tr className="bg-[rgb(var(--color-card))] border-b border-[rgb(var(--color-border))]">
                             <td className="py-4 px-3 font-bold">DESCUENTO TOTAL:</td>
-                            <td className="py-4 px-1 font-bold text-md text-[rgb(var(--color-text))]"
-                                colSpan="8">
+                            <td className="py-4 px-1 font-bold text-md text-[rgb(var(--color-text))]" colSpan="8">
                                 {totalDiscount.toFixed(2)} MXN
                             </td>
                         </tr>
-                        <tr className="bg-[rgb(var(--color-card-white))] border-b border-[rgb(var(--color-border))]">
+                        <tr className="bg-[rgb(var(--color-card))] border-b border-[rgb(var(--color-border))]">
                             <td className="py-4 px-3 font-bold">SUBTOTAL:</td>
-                            <td className="py-4 px-1 font-bold text-md text-[rgb(var(--color-text))]"
-                                colSpan="8">
+                            <td className="py-4 px-1 font-bold text-md text-[rgb(var(--color-text))]" colSpan="8">
                                 {subtotal.toFixed(2)} MXN
                             </td>
                         </tr>
-
-                        <tr className="bg-[rgb(var(--color-card-white))] border-b border-[rgb(var(--color-border))]">
+                        <tr className="bg-[rgb(var(--color-card))] border-b border-[rgb(var(--color-border))]">
                             <td className="py-4 px-3 font-bold">TOTAL:</td>
-                            <td className="py-4 px-1 font-bold text-xl text-green-600"
-                                colSpan="8">
-                                {totalWithDiscount.toFixed(2)} MXN
+                            <td className="py-4 px-1 font-bold text-xl text-green-600" colSpan="8">
+                                {totalWithTax.toFixed(2)} MXN
                             </td>
                         </tr>
                     </tbody>

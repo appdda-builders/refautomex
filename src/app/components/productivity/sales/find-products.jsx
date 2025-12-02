@@ -197,6 +197,7 @@ const FindProducts = forwardRef(({
     selectedProducts = [],
     hideSearchModeToggle = false,
     allowedSearchTypes,
+    hideSearchInput = false,
 }, ref) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [products, setProducts] = useState([]);
@@ -508,62 +509,73 @@ const FindProducts = forwardRef(({
 
     return (
         <div className="relative w-full max-w-[480px] lg:max-w-[520px] mx-auto overflow-x-hidden">
-            <div className='flex justify-center px-5 py-2 gap-x-4'>
-                <div className="flex justify-between items-center px-3 text-xs text-[rgb(var(--color-text))]">
-                    <div className="font-bold uppercase tracking-wide bg-[rgb(var(--color-card))] py-1 px-2 rounded-md shadow shadow-[rgb(var(--color-galaxy))] inline-flex items-center gap-2">
+            {hideSearchInput ? (
+                <div className="flex justify-center items-center py-3">
+                    <div className="font-bold uppercase tracking-wide bg-[rgb(var(--color-card))] py-1 px-2 rounded-md shadow shadow-[rgb(var(--color-galaxy))] inline-flex items-center gap-2 text-xs">
                         <span className="opacity-70">RESULTADOS:</span>
                         <span className='text-[rgb(var(--color-refautomex))]'>{filteredProducts.length}</span>
                     </div>
                 </div>
-                {!hideSearchModeToggle && (
-                    <div className='flex justify-between items-center'>
-                        <button
-                            type="button"
-                            onClick={handleTypeClick}
-                            className="inline-flex items-center gap-2 px-4 py-1 rounded-md w-[240px] bg-[rgb(var(--color-card))] cursor-pointer text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-galaxy))] text-xs font-semibold tracking-wide uppercase transition hover:scale-105 hover:shadow-md"
-                        >
-                            <span className="opacity-70">POR:</span>
-                            <span className='text-[rgb(var(--color-refautomex))]'>{searchType.toUpperCase()}</span>
-                        </button>
+            ) : (
+                <>
+                    <div className='flex justify-center px-5 py-2 gap-x-4'>
+                        <div className="flex justify-between items-center px-3 text-xs text-[rgb(var(--color-text))]">
+                            <div className="font-bold uppercase tracking-wide bg-[rgb(var(--color-card))] py-1 px-2 rounded-md shadow shadow-[rgb(var(--color-galaxy))] inline-flex items-center gap-2">
+                                <span className="opacity-70">RESULTADOS:</span>
+                                <span className='text-[rgb(var(--color-refautomex))]'>{filteredProducts.length}</span>
+                            </div>
+                        </div>
+                        {!hideSearchModeToggle && (
+                            <div className='flex justify-between items-center'>
+                                <button
+                                    type="button"
+                                    onClick={handleTypeClick}
+                                    className="inline-flex items-center gap-2 px-4 py-1 rounded-md w-[240px] bg-[rgb(var(--color-card))] cursor-pointer text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-galaxy))] text-xs font-semibold tracking-wide uppercase transition hover:scale-105 hover:shadow-md"
+                                >
+                                    <span className="opacity-70">POR:</span>
+                                    <span className='text-[rgb(var(--color-refautomex))]'>{searchType.toUpperCase()}</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
-                )}
-            </div>
-            <div className='flex justify-center items-start m-0.5 mt-4 w-full'>
-                <input
-                    type="text"
-                    name="client-search"
-                    placeholder='Buscar productos'
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                    className="uppercase w-[300px] block border-0 rounded-full py-1.5 p-3 -mt-1 text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-galaxy))] placeholder:text-[rgb(var(--color-text))] bg-[rgb(var(--color-bg))] sm:text-sm sm:leading-6"
-                />
-                <div
-                    onMouseEnter={deleteTooltip.show}
-                    onMouseLeave={deleteTooltip.hide}
-                    onClick={() => setSearchTerm('')}
-                    className='mx-2 -mt-1 mb-1 text-sm font-bold leading-6 p-2 shadow rounded-full cursor-pointer relative bg-[rgb(var(--color-card))]'>
-                    <FaDeleteLeft size={20}
-                        className='text-md xl:text-lg leading-6 text-[rgb(var(--color-error))]'
-                    />
-                    {deleteTooltip.tooltip}
-                </div>
-            </div>
-            <div className='flex flex-row items-center justify-center mt-1 mb-2'>
-                {searchTerm && (
-                    <div className="italic text-[rgb(var(--color-text))] font-bold ml-5 text-sm mt-1">
-                        Buscando: {searchTerm.toUpperCase()}
+                    <div className='flex justify-center items-start m-0.5 mt-4 w-full'>
+                        <input
+                            type="text"
+                            name="client-search"
+                            placeholder='Buscar productos'
+                            value={searchTerm}
+                            onChange={handleSearchChange}
+                            className="uppercase w-[300px] block border-0 rounded-full py-1.5 p-3 -mt-1 text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-galaxy))] placeholder:text-[rgb(var(--color-text))] bg-[rgb(var(--color-bg))] sm:text-sm sm:leading-6"
+                        />
+                        <div
+                            onMouseEnter={deleteTooltip.show}
+                            onMouseLeave={deleteTooltip.hide}
+                            onClick={() => setSearchTerm('')}
+                            className='mx-2 -mt-1 mb-1 text-sm font-bold leading-6 p-2 shadow rounded-full cursor-pointer relative bg-[rgb(var(--color-card))]'>
+                            <FaDeleteLeft size={20}
+                                className='text-md xl:text-lg leading-6 text-[rgb(var(--color-error))]'
+                            />
+                            {deleteTooltip.tooltip}
+                        </div>
                     </div>
-                )}
-                {isWarehouse && searchTerm.trim() && !isPickerMode && (
-                    <button
-                        onClick={handleAddAllClick}
-                        className="ml-2 h-5 w-5 p-1 cursor-pointer rounded-full bg-amber-700 text-white flex items-center justify-center shadow-lg mt-0.5"
-                        title="Agregar todos los resultados"
-                    >
-                        <LuListPlus className="size-4" />
-                    </button>
-                )}
-            </div>
+                    <div className='flex flex-row items-center justify-center mt-1 mb-2'>
+                        {searchTerm && (
+                            <div className="italic text-[rgb(var(--color-text))] font-bold ml-5 text-sm mt-1">
+                                Buscando: {searchTerm.toUpperCase()}
+                            </div>
+                        )}
+                        {isWarehouse && searchTerm.trim() && !isPickerMode && (
+                            <button
+                                onClick={handleAddAllClick}
+                                className="ml-2 h-5 w-5 p-1 cursor-pointer rounded-full bg-amber-700 text-white flex items-center justify-center shadow-lg mt-0.5"
+                                title="Agregar todos los resultados"
+                            >
+                                <LuListPlus className="size-4" />
+                            </button>
+                        )}
+                    </div>
+                </>
+            )}
             <div className='flex justify-center overflow-y-auto h-[570px] w-full max-w-[520px] mx-auto'>
             {isLoading ? (
                 <Spinner />
