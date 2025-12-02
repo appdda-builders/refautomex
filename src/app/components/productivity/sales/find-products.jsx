@@ -115,6 +115,14 @@ function filterProductsByCategory(products, searchTerm, searchType) {
             );
             result.type = 'localizacion';
             break;
+        case 'Existentes':
+            result.dataProducts = products.filter(product =>
+                product.__origin === 'pending' &&
+                (searchWords.length === 0 ||
+                    searchWords.every(word => product.descripcion.toLowerCase().includes(word)))
+            );
+            result.type = 'descripcion';
+            break;
         default:
             result.dataProducts = products.filter(product =>
                 searchWords.length === 0 ||
@@ -162,7 +170,34 @@ const createTooltip = (icon, label, id, visibleTooltip, setVisibleTooltip) => {
     return { show, hide, tooltip };
 };
 
-const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, isWarehouse, isCapture, isMissing, folio }, ref) => {
+const PRODUCT_STATUS_VARIANTS = {
+    active: {
+        className: 'bg-[rgb(var(--color-gray))]/50 text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-galaxy))]/50',
+    },
+    web: {
+        className: 'bg-[rgb(var(--color-gray))]/50 text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-galaxy))]/50',
+    },
+    pending: {
+        className: 'bg-[rgb(var(--color-gray))]/50 text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-galaxy))]/50',
+    },
+};
+
+const FindProducts = forwardRef(({
+    onAddProduct,
+    onRemoveProduct,
+    addedItems,
+    isWarehouse,
+    isCapture,
+    isMissing,
+    folio,
+    includeWebBranch = true,
+    includePendingProducts = true,
+    showAllBranches = false,
+    onProductPick,
+    selectedProducts = [],
+    hideSearchModeToggle = false,
+    allowedSearchTypes,
+}, ref) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -175,6 +210,7 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [stockAlerts, setStockAlerts] = useState({});
     const deleteTooltip = createTooltip(FaDeleteLeft, 'Eliminar', 'delete', visibleTooltip, setVisibleTooltip);
+    const isPickerMode = typeof onProductPick === 'function';
 
     const cognitoUserSession = getStorageValue('CognitoUserSession');
     const username = cognitoUserSession?.idToken?.payload?.["cognito:username"];
@@ -190,7 +226,10 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
         setSearchTerm(event.target.value);
     };
 
-    const searchTypes = ['Descripcion', 'Parte', 'Localizacion'];
+    const baseSearchTypes = ['Descripcion', 'Parte', 'Localizacion', 'Existentes'];
+    const searchTypes = Array.isArray(allowedSearchTypes) && allowedSearchTypes.length
+        ? baseSearchTypes.filter(type => allowedSearchTypes.includes(type))
+        : baseSearchTypes;
 
     const handleTypeClick = () => {
         const currentTypeIndex = searchTypes.indexOf(searchType);
@@ -198,34 +237,164 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
         setSearchType(searchTypes[nextTypeIndex]);
     };
 
+    const createProductRecord = (product, origin = 'active') => {
+        const rutas = parseProductRoutes(product.rutas);
+        const primaryImage = rutas.length > 0 ? rutas[0] : '';
+        return {
+            ...product,
+            rutas,
+            ruta: primaryImage,
+            imageSrc: resolveProductImage(primaryImage, multimediaSrc),
+            __origin: origin,
+            branchBadges: [],
+            variants: [],
+        };
+    };
+
+    const buildBadgeLabel = (product) => {
+        if (product.__origin === 'web') {
+            return 'Web';
+        }
+        if (product.__origin === 'pending') {
+            return product.sucursal || 'Por asignar';
+        }
+        return product.sucursal || 'Sucursal';
+    };
+
+    const mergeProducts = (records = []) => {
+        const map = new Map();
+
+        records.forEach((record) => {
+            if (!record?.num_parte) {
+                return;
+            }
+            const key = record.num_parte;
+            const badgeLabel = buildBadgeLabel(record);
+            const badgeType = record.__origin || 'active';
+            const badge = {
+                label: badgeLabel,
+                type: badgeType,
+                idsucursal: record.idsucursal,
+            };
+
+            if (!map.has(key)) {
+                const base = {
+                    ...record,
+                    branchBadges: [badge],
+                    variants: [record],
+                };
+                map.set(key, base);
+                return;
+            }
+
+            const existing = map.get(key);
+            existing.variants.push(record);
+            const hasBadge = existing.branchBadges.some((item) => item.label === badge.label && item.type === badge.type);
+            if (!hasBadge) {
+                existing.branchBadges.push(badge);
+            }
+
+            const preferUserBranch =
+                userBranchId &&
+                String(record.idsucursal) === userBranchId &&
+                String(existing.idsucursal) !== userBranchId &&
+                record.__origin === 'active';
+
+            const preferActive = existing.__origin !== 'active' && record.__origin === 'active';
+            const preferWeb = existing.__origin === 'pending' && record.__origin === 'web';
+
+            if (preferUserBranch || preferActive || preferWeb) {
+                map.set(key, {
+                    ...record,
+                    branchBadges: existing.branchBadges,
+                    variants: existing.variants,
+                });
+            } else {
+                map.set(key, existing);
+            }
+        });
+
+        return Array.from(map.values());
+    };
+
+    const fetchBranchProducts = async (branchId) => {
+        const response = await fetch(buildApiUrl('/getAllProducts'), {
+            method: 'POST',
+            cache: 'no-store',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json, text/plain, */*',
+            },
+            body: JSON.stringify({
+                idsucursal: branchId,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+
+        const payload = await response.json();
+        const rawProducts = Array.isArray(payload?.[0]) ? payload[0] : [];
+        return rawProducts.map((product) => createProductRecord(product, branchId === 1 ? 'web' : 'active'));
+    };
+
+    const fetchPendingProductsList = async () => {
+        const response = await fetch(buildApiUrl('/getWarehouseProducts'), {
+            cache: 'no-store',
+            headers: { Accept: 'application/json, text/plain, */*' },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const formattedExisting = (data?.[0] || []).map(product => createProductRecord({
+            ...product,
+            idsucursal: product.idsucursal ?? null,
+            sucursal: product.sucursal || 'Pendiente',
+            existencia: product.existencia ?? 0,
+            precio: product.precio ?? 0,
+            costo: product.costo ?? 0,
+            localizacion: product.localizacion || '—',
+        }, 'pending'));
+        return formattedExisting;
+    };
+
     const fetchProducts = async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(buildApiUrl('/getAllProducts'), {
-                method: 'POST',
-                cache: 'no-store',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json, text/plain, */*',
-                },
-                body: JSON.stringify({
-                    idsucursal: userBranchId ? Number(userBranchId) : null,
-                }),
-            });
+            const branchFilter = showAllBranches ? null : (userBranchId ? Number(userBranchId) : null);
+            const baseProductsPromise = fetchBranchProducts(branchFilter);
 
-            if (!response.ok) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
-            }
+            const webProductsPromise = (includeWebBranch && branchFilter !== null && Number(branchFilter) !== 1)
+                ? fetchBranchProducts(1).catch((webError) => {
+                    console.warn('No se pudieron cargar productos web:', webError);
+                    return [];
+                })
+                : Promise.resolve([]);
 
-            const payload = await response.json();
-            const rawProducts = Array.isArray(payload?.[0]) ? payload[0] : [];
-            const filteredByBranch = userBranchId
-                ? rawProducts.filter(
-                    (product) => String(product.idsucursal) === userBranchId
-                )
-                : rawProducts;
-            setProducts(filteredByBranch);
+            const pendingProductsPromise = includePendingProducts
+                ? fetchPendingProductsList().catch((pendingError) => {
+                    console.warn('No se pudieron cargar productos pendientes:', pendingError);
+                    return [];
+                })
+                : Promise.resolve([]);
+
+            const [baseProducts, webProducts, pendingProducts] = await Promise.all([
+                baseProductsPromise,
+                webProductsPromise,
+                pendingProductsPromise,
+            ]);
+
+            const combined = mergeProducts([
+                ...baseProducts,
+                ...webProducts,
+                ...pendingProducts,
+            ]);
+            setProducts(combined);
         } catch (error) {
             console.error('Error fetching products:', error);
             setError(error);
@@ -241,7 +410,7 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
 
     useEffect(() => {
         fetchProducts();
-    }, [userBranchId]);
+    }, [userBranchId, showAllBranches, includePendingProducts, includeWebBranch]);
 
     useEffect(() => {
         const result = filterProductsByCategory(products, searchTerm, searchType);
@@ -250,6 +419,11 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
 
     const handleAddClick = (product) => {
         if (folio) return;
+
+        if (isPickerMode) {
+            onProductPick(product);
+            return;
+        }
 
         if (!isWarehouse && !isCapture && product.existencia === 0) {
             setStockAlerts((prev) => ({ ...prev, [product.num_parte]: true }));
@@ -296,6 +470,7 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
     };
 
     const handleAddAllClick = () => {
+        if (isPickerMode) return;
         const newProducts = filteredProducts.filter(product => !isProductAdded(product));
         newProducts.forEach(product => {
             onAddProduct({
@@ -324,18 +499,33 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
         });
     };
 
-    const isProductAdded = (product) => addedItems.some(item => item.refaccion === product.num_parte);
+    const isProductAdded = (product) => {
+        if (isPickerMode) {
+            return selectedProducts.includes(product.num_parte);
+        }
+        return addedItems.some(item => item.refaccion === product.num_parte);
+    };
 
     return (
         <div className="relative w-full max-w-[480px] lg:max-w-[520px] mx-auto overflow-x-hidden">
-            <div className="flex justify-between items-center px-3 mt-6 text-xs text-[rgb(var(--color-text))]">
-                <span className="font-semibold uppercase tracking-wide">
-                    Resultados: {filteredProducts.length}
-                </span>
-                {searchTerm && (
-                    <span className="italic text-[rgb(var(--color-refautomex))]">
-                        Buscando: {searchTerm.toUpperCase()}
-                    </span>
+            <div className='flex justify-center px-5 py-2 gap-x-4'>
+                <div className="flex justify-between items-center px-3 text-xs text-[rgb(var(--color-text))]">
+                    <div className="font-bold uppercase tracking-wide bg-[rgb(var(--color-card))] py-1 px-2 rounded-md shadow shadow-[rgb(var(--color-galaxy))] inline-flex items-center gap-2">
+                        <span className="opacity-70">RESULTADOS:</span>
+                        <span className='text-[rgb(var(--color-refautomex))]'>{filteredProducts.length}</span>
+                    </div>
+                </div>
+                {!hideSearchModeToggle && (
+                    <div className='flex justify-between items-center'>
+                        <button
+                            type="button"
+                            onClick={handleTypeClick}
+                            className="inline-flex items-center gap-2 px-4 py-1 rounded-md w-[240px] bg-[rgb(var(--color-card))] cursor-pointer text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-galaxy))] text-xs font-semibold tracking-wide uppercase transition hover:scale-105 hover:shadow-md"
+                        >
+                            <span className="opacity-70">POR:</span>
+                            <span className='text-[rgb(var(--color-refautomex))]'>{searchType.toUpperCase()}</span>
+                        </button>
+                    </div>
                 )}
             </div>
             <div className='flex justify-center items-start m-0.5 mt-4 w-full'>
@@ -357,18 +547,22 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
                     />
                     {deleteTooltip.tooltip}
                 </div>
-                {isWarehouse && searchTerm.trim() && (
+            </div>
+            <div className='flex flex-row items-center justify-center mt-1 mb-2'>
+                {searchTerm && (
+                    <div className="italic text-[rgb(var(--color-text))] font-bold ml-5 text-sm mt-1">
+                        Buscando: {searchTerm.toUpperCase()}
+                    </div>
+                )}
+                {isWarehouse && searchTerm.trim() && !isPickerMode && (
                     <button
                         onClick={handleAddAllClick}
-                        className="ml-2 h-10 w-10 rounded-full bg-violet-700 text-white flex items-center justify-center shadow-lg mt-0.5"
-                        title="Agregar todos los resultados visibles"
+                        className="ml-2 h-5 w-5 p-1 cursor-pointer rounded-full bg-amber-700 text-white flex items-center justify-center shadow-lg mt-0.5"
+                        title="Agregar todos los resultados"
                     >
-                        <LuListPlus className="text-lg" />
+                        <LuListPlus className="size-4" />
                     </button>
                 )}
-            </div>
-            <div className='bg-[rgb(var(--color-card))] flex justify-center px-3 cursor-pointer' onClick={handleTypeClick}>
-                <span className='px-2 my-0.5 rounded-full bg-[rgb(var(--color-bg))] shadow shadow-[rgb(var(--color-galaxy))] animate-out italic'>POR: {searchType.toUpperCase()}</span>
             </div>
             <div className='flex justify-center overflow-y-auto h-[570px] w-full max-w-[520px] mx-auto'>
             {isLoading ? (
@@ -410,6 +604,19 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
                                                 </div>
                                                 <div className="flex flex-col flex-1 gap-2">
                                                     <div className="flex flex-col flex-1">
+                                                        <div className="flex flex-wrap gap-1 mb-1">
+                                                            {(product.branchBadges || [{ label: buildBadgeLabel(product), type: product.__origin || 'active' }]).map((badge, idx) => {
+                                                                const variant = PRODUCT_STATUS_VARIANTS[badge.type] || PRODUCT_STATUS_VARIANTS.active;
+                                                                return (
+                                                                    <span
+                                                                        key={`${product.num_parte}-${badge.label}-${idx}`}
+                                                                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${variant.className}`}
+                                                                    >
+                                                                        {badge.label}
+                                                                    </span>
+                                                                );
+                                                            })}
+                                                        </div>
                                                         <div className="text-sm sm:text-base text-[rgb(var(--color-text))] min-h-[4.5rem] max-h-[4.5rem] overflow-y-auto">
                                                             {highlightText(product.descripcion, searchTerm)}
                                                         </div>
@@ -417,9 +624,11 @@ const FindProducts = forwardRef(({ onAddProduct, onRemoveProduct, addedItems, is
                                                             <p className="sm:text-sm font-bold text-[rgb(var(--color-refautomex))] bg-[rgb(var(--color-gray))]/20 rounded-full px-2 shadow shadow-[rgb(var(--color-galaxy))]">
                                                                 {highlightText(product.num_parte, searchTerm)}
                                                             </p>
-                                                            <p className="sm:text-sm font-bold text-[rgb(var(--color-refautomex))] bg-[rgb(var(--color-gray))]/20 rounded-full px-2 shadow shadow-[rgb(var(--color-galaxy))] truncate">
-                                                                {highlightText(product.localizacion, searchTerm)}
-                                                            </p>
+                                                            {product.localizacion && product.localizacion !== '0' && (
+                                                                <p className="sm:text-sm font-bold text-[rgb(var(--color-refautomex))] bg-[rgb(var(--color-gray))]/20 rounded-full px-2 shadow shadow-[rgb(var(--color-galaxy))] truncate">
+                                                                    {highlightText(product.localizacion, searchTerm)}
+                                                                </p>
+                                                            )}
                                                         </div>
                                                         <div className="flex flex-row justify-between h-full">
                                                             <p className="text-lg font-bold text-[rgb(var(--color-success))] mt-1">

@@ -80,7 +80,7 @@ export const ShoppingProvider = ({ children }) => {
         );
     }, []);
 
-    const cartItemCount = totalUnits;
+    const cartItemCount = cart.length;
 
     const contextValue = useMemo(
         () => ({

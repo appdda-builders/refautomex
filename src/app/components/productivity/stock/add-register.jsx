@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Select from 'react-select';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { MdAddCircle, MdAssignmentAdd } from 'react-icons/md';
+import FindProducts from '@/app/components/productivity/sales/find-products';
 
 const parseRoutes = (raw) => {
     if (!raw) return [];
@@ -28,7 +29,7 @@ const getSelectValue = (options = [], value) => {
     return options.find((option) => option.value === value) || NOT_ASSIGNED_OPTION;
 };
 
-export default function AddRegistry({ onCancelEdit }) {
+export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
     const [productForm, setProductForm] = useState({
         refaccion: '',
         descripcion: '',
@@ -63,6 +64,8 @@ export default function AddRegistry({ onCancelEdit }) {
     const [errorMessage, setErrorMessage] = useState('');
     const [errorMessages, setErrorMessages] = useState({});
 
+    const findProductsRef = useRef(null);
+
     const extractGroupOptionsFromProducts = (products = []) => {
         const uniqueGroups = new Map();
         products.forEach((product) => {
@@ -84,10 +87,42 @@ export default function AddRegistry({ onCancelEdit }) {
         pendingProducts.find((product) => product.num_parte === selectedPendingPart) ||
         activeProducts.find((product) => product.num_parte === selectedPendingPart);
 
+    const handleSearchProductPick = (product) => {
+        if (!product?.num_parte) return;
+        setSelectedPendingPart(product.num_parte);
+        setActiveStep('detail');
+        setDetailForm({
+            idsucursal: '',
+            localizacion: '',
+            existencia: '',
+            costo: '',
+            precio: '',
+            aiva: '',
+            utilidad: '',
+        });
+    };
+
+    const prefillDetailFromExisting = (detail) => {
+        if (!detail) return;
+        setDetailForm(prev => ({
+            ...prev,
+            idsucursal: '',
+            localizacion: detail.localizacion ? detail.localizacion.toUpperCase() : '',
+            existencia: detail.existencia ?? '',
+            costo: detail.costo ?? '',
+            precio: detail.precio ?? '',
+            aiva: detail.aiva ?? '',
+            utilidad: detail.utilidad ?? '',
+        }));
+    };
+
     const handleProductInputChange = (field, value) => {
+        const normalizedValue = field === 'descripcion' && typeof value === 'string'
+            ? value.toUpperCase()
+            : value;
         setProductForm((prev) => ({
             ...prev,
-            [field]: value,
+            [field]: normalizedValue,
         }));
     };
 
@@ -219,6 +254,10 @@ export default function AddRegistry({ onCancelEdit }) {
         }
 
         const isWebBranch = isWebBranchValue(detailForm.idsucursal);
+        const normalizedForm = {
+            ...detailForm,
+            localizacion: detailForm.localizacion ? detailForm.localizacion.toUpperCase() : '',
+        };
 
         if (!detailForm.idsucursal) {
             valid = false;
@@ -229,7 +268,7 @@ export default function AddRegistry({ onCancelEdit }) {
             if (isWebBranch && (field === 'localizacion' || field === 'existencia')) {
                 return;
             }
-            if (!regex.test(detailForm[field] || '')) {
+            if (!regex.test(normalizedForm[field] || '')) {
                 valid = false;
                 newErrors[field] = `${field} es inválido.`;
             }
@@ -237,6 +276,34 @@ export default function AddRegistry({ onCancelEdit }) {
 
         setErrorMessages(newErrors);
         return valid;
+    };
+
+    const checkLocationAvailability = async ({ idsucursal, localizacion, refaccion }) => {
+        if (!idsucursal || !localizacion || isWebBranchValue(idsucursal)) {
+            return { ok: true };
+        }
+        try {
+            const params = new URLSearchParams({
+                localizacion,
+                idsucursal,
+                num_parte: refaccion,
+            });
+            const response = await fetch(`${buildApiUrl('/verifyLocation')}?${params.toString()}`, {
+                cache: 'no-store',
+                headers: { Accept: 'application/json, text/plain, */*' },
+            });
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+            const data = await response.json();
+            if (data.exists) {
+                return { ok: false, message: data.message || 'Localización ya ocupada.' };
+            }
+            return { ok: true };
+        } catch (error) {
+            console.error('Error verificando localización:', error);
+            return { ok: false, message: 'Error al verificar la localización.' };
+        }
     };
 
     const handleProductSubmit = async (event) => {
@@ -250,9 +317,11 @@ export default function AddRegistry({ onCancelEdit }) {
             return;
         }
 
+        const normalizedDescription = (productForm.descripcion || '').toUpperCase();
+
         const payload = {
             refaccion: productForm.refaccion,
-            descripcion: productForm.descripcion,
+            descripcion: normalizedDescription,
             mod_ini: productForm.mod_ini,
             mod_fin: productForm.mod_fin,
             idgrupo: productForm.idgrupo,
@@ -283,8 +352,10 @@ export default function AddRegistry({ onCancelEdit }) {
                 idgrupo: '',
                 idmarca: '',
                 idproveedor: '',
-        });
+            });
             fetchPendingProducts();
+            findProductsRef.current?.refreshProducts?.();
+            onRefreshProducts?.();
         } catch (error) {
             console.error('Error al guardar registro:', error);
             setErrorMessage('Hubo un error al guardar los datos. Intenta de nuevo.');
@@ -303,10 +374,23 @@ export default function AddRegistry({ onCancelEdit }) {
         }
 
         const isWebBranch = isWebBranchValue(detailForm.idsucursal);
+        const normalizedLocalizacion = detailForm.localizacion ? detailForm.localizacion.toUpperCase() : '';
+
+        const locationValidation = await checkLocationAvailability({
+            idsucursal: detailForm.idsucursal,
+            localizacion: normalizedLocalizacion,
+            refaccion: selectedPendingProduct?.num_parte,
+        });
+
+        if (!isWebBranch && !locationValidation.ok) {
+            setErrorMessages(prev => ({ ...prev, localizacion: locationValidation.message }));
+            setErrorMessage(locationValidation.message);
+            return;
+        }
         const payload = {
             refaccion: selectedPendingProduct.num_parte,
             idsucursal: detailForm.idsucursal,
-            localizacion: isWebBranch ? '0' : detailForm.localizacion,
+            localizacion: isWebBranch ? '0' : normalizedLocalizacion,
             existencia: isWebBranch ? '0' : detailForm.existencia,
             costo: detailForm.costo,
             precio: detailForm.precio,
@@ -340,6 +424,8 @@ export default function AddRegistry({ onCancelEdit }) {
             });
             setSelectedPendingPart(null);
             fetchPendingProducts();
+            findProductsRef.current?.refreshProducts?.();
+            onRefreshProducts?.();
         } catch (error) {
             console.error('Error al asignar detalle:', error);
             setErrorMessage('Hubo un error al asignar el detalle. Intenta de nuevo.');
@@ -540,26 +626,6 @@ export default function AddRegistry({ onCancelEdit }) {
         label: `${product.num_parte} | ${product.descripcion}`,
         status: 'A'
     }));
-
-    const combinedProductOptions = [
-        ...(existingProductOptions.length
-            ? [{ label: 'Productos existentes', options: existingProductOptions }]
-            : []),
-        ...(activeProductOptions.length
-            ? [{ label: 'Productos activos en sucursales', options: activeProductOptions }]
-            : [])
-    ];
-
-    const formatProductOptionLabel = (option) => (
-        <div className="flex items-center gap-2">
-            <span
-                className={`w-2 h-2 rounded-full ${
-                    option.status === 'E' ? 'bg-amber-500' : 'bg-emerald-500'
-                }`}
-            />
-            <span className="truncate">{option.label}</span>
-        </div>
-    );
 
     const selectedActiveProduct = activeProducts.find(product => product.num_parte === selectedPendingPart);
 
@@ -766,10 +832,6 @@ export default function AddRegistry({ onCancelEdit }) {
             { value: 1.35, label: '35%' },
         ]);
 
-        const combinedOptionValue = selectedPendingPart
-            ? [...existingProductOptions, ...activeProductOptions].find(option => option.value === selectedPendingPart)
-            : null;
-
         const activeBranchIds = new Set(
             selectedActiveProduct?.detalles?.map(detail => String(detail.idsucursal)) || []
         );
@@ -783,187 +845,201 @@ export default function AddRegistry({ onCancelEdit }) {
 
         return (
         <form onSubmit={handleDetailSubmit}>
-            <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-                <div className="sm:col-span-3">
-                    <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
-                        Producto de lista:
-                    </label>
-                    <Select
-                        options={combinedProductOptions}
-                        value={combinedOptionValue || null}
-                        onChange={(option) => setSelectedPendingPart(option ? option.value : null)}
-                        isLoading={pendingLoading}
-                        placeholder="Selecciona un producto"
-                        formatOptionLabel={formatProductOptionLabel}
-                        formatGroupLabel={(group) => (
-                            <div className="text-xs uppercase text-[rgb(var(--color-text))]/70 px-2 py-1">
-                                {group.label}
-                            </div>
-                        )}
-                        classNamePrefix="react-select"
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] md:px-5 lg:px-0">
+                <div className="rounded-3xl bg-[rgb(var(--color-card))] shadow-lg border border-[rgb(var(--color-border))]">
+                    <FindProducts
+                        ref={findProductsRef}
+                        onAddProduct={handleSearchProductPick}
+                        onRemoveProduct={() => {}}
+                        addedItems={[]}
+                        isWarehouse={false}
+                        includePendingProducts
+                        includeWebBranch
+                        showAllBranches
+                        onProductPick={handleSearchProductPick}
+                        selectedProducts={selectedPendingPart ? [selectedPendingPart] : []}
                     />
-                    {errorMessages.selectedProduct && (
-                        <span className="text-red-600 text-sm">{errorMessages.selectedProduct}</span>
-                    )}
-                    {selectedPendingProduct && (
-                        <div className="mt-3 p-3 rounded-xl bg-[rgb(var(--color-card))] text-xs text-[rgb(var(--color-text))] shadow-inner space-y-2">
-                            <div>
-                                <p><span className="font-semibold">Descripción:</span> {selectedPendingProduct.descripcion}</p>
-                                <p><span className="font-semibold">Modelos:</span> {selectedPendingProduct.mod_ini} - {selectedPendingProduct.mod_fin}</p>
-                            </div>
+                </div>
+                <div className="grid grid-cols-1 gap-x-2 gap-y-8 sm:grid-cols-6">
+                    <div className="sm:col-span-3">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
+                            Producto seleccionado
+                        </label>
+                        {selectedPendingProduct ? (
+                            <div className="mt-2 p-3 rounded-xl bg-[rgb(var(--color-bg))] text-xs text-[rgb(var(--color-text))] shadow-inner space-y-2">
+                                <div>
+                                    <p><span className="font-semibold">Descripción:</span> {selectedPendingProduct.descripcion}</p>
+                                    <p><span className="font-semibold">Modelos:</span> {selectedPendingProduct.mod_ini} - {selectedPendingProduct.mod_fin}</p>
+                                </div>
                             {selectedActiveProduct?.detalles?.length > 0 && (
                                 <div className="space-y-1">
                                     <p className="font-semibold text-emerald-500">Asignaciones existentes</p>
                                     {selectedActiveProduct.detalles.map((detail, idx) => (
-                                        <div key={`${selectedActiveProduct.num_parte}-${detail.idsucursal}-${idx}`} className="flex flex-col rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1">
-                                            <span className="text-[rgb(var(--color-text))]">
+                                        <button
+                                            type="button"
+                                            key={`${selectedActiveProduct.num_parte}-${detail.idsucursal}-${idx}`}
+                                            onClick={() => prefillDetailFromExisting(detail)}
+                                            className="flex flex-col rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-left hover:border-emerald-400 hover:shadow transition"
+                                        >
+                                            <span className="text-gray-500">
                                                 <span className="font-semibold">Sucursal:</span> {detail.sucursal || detail.idsucursal}
                                             </span>
-                                            <span className="text-[rgb(var(--color-text))]">
+                                            <span className="text-gray-500">
                                                 <span className="font-semibold">Localización:</span> {detail.localizacion || '—'}
                                             </span>
-                                        </div>
+                                            <span className="text-gray-500">
+                                                <span className="font-semibold">Existencia:</span> {detail.existencia ?? '—'}
+                                            </span>
+                                        </button>
                                     ))}
                                 </div>
                             )}
-                        </div>
-                    )}
-                </div>
+                            </div>
+                        ) : (
+                            <div className="mt-2 p-3 rounded-xl bg-amber-50 text-amber-700 text-sm border border-amber-200">
+                                No has seleccionado ninguna refacción.
+                            </div>
+                        )}
+                        {errorMessages.selectedProduct && (
+                            <span className="text-red-600 text-sm">{errorMessages.selectedProduct}</span>
+                        )}
+                    </div>
 
-                <div className="sm:col-span-3">
-                    <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
-                        Sucursal por asignar
-                    </label>
-                    {noAvailableSucursal ? (
-                        <div className="mt-2 p-3 rounded-xl bg-amber-50 text-amber-700 text-sm border border-amber-200">
-                            Producto asignado en todas las sucursales. No se puede asignar nuevamente.
-                        </div>
-                    ) : (
-                        <>
+                    <div className="sm:col-span-3">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
+                            Sucursal por asignar
+                        </label>
+                        {noAvailableSucursal ? (
+                            <div className="mt-2 p-3 rounded-xl bg-amber-50 text-amber-700 text-sm border border-amber-200">
+                                Producto asignado en todas las sucursales. No se puede asignar nuevamente.
+                            </div>
+                        ) : (
+                            <>
+                                <Select
+                                    options={displayedSucursalOptions}
+                                    value={getSelectValue(displayedSucursalOptions, detailForm.idsucursal)}
+                                    onChange={(selectedOption) =>
+                                        handleDetailInputChange('idsucursal', selectedOption ? selectedOption.value : '')
+                                    }
+                                    isOptionDisabled={(option) => option.isDisabled}
+                                    classNamePrefix="react-select"
+                                />
+                                {errorMessages.idsucursal && (
+                                    <span className="text-red-600 text-sm">{errorMessages.idsucursal}</span>
+                                )}
+                            </>
+                        )}
+                    </div>
+
+                    <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
+                            Localización
+                        </label>
+                        <input
+                            type="text"
+                            value={detailForm.localizacion}
+                            onChange={(e) => handleDetailInputChange('localizacion', e.target.value)}
+                            disabled={webBranchSelected}
+                            className={`block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] shadow focus:ring-2 focus:ring-indigo-500 uppercase ${
+                                webBranchSelected
+                                    ? 'bg-gray-100 cursor-not-allowed'
+                                    : 'bg-[rgb(var(--color-card))]'
+                            }`}
+                        />
+                        {errorMessages.localizacion && (
+                            <span className="text-red-600 text-sm">{errorMessages.localizacion}</span>
+                        )}
+                    </div>
+
+                    <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
+                            Existencia
+                        </label>
+                        {webBranchSelected ? (
+                            <input
+                                type="text"
+                                value="0"
+                                disabled
+                                className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-gray-100 shadow cursor-not-allowed"
+                            />
+                        ) : (
                             <Select
-                                options={displayedSucursalOptions}
-                                value={getSelectValue(displayedSucursalOptions, detailForm.idsucursal)}
+                                options={quantitySelectOptions}
+                                value={getSelectValue(quantitySelectOptions, detailForm.existencia)}
                                 onChange={(selectedOption) =>
-                                    handleDetailInputChange('idsucursal', selectedOption ? selectedOption.value : '')
+                                    handleDetailInputChange('existencia', selectedOption ? selectedOption.value : '')
                                 }
                                 isOptionDisabled={(option) => option.isDisabled}
                                 classNamePrefix="react-select"
                             />
-                            {errorMessages.idsucursal && (
-                                <span className="text-red-600 text-sm">{errorMessages.idsucursal}</span>
-                            )}
-                        </>
-                    )}
-                </div>
+                        )}
+                        {errorMessages.existencia && (
+                            <span className="text-red-600 text-sm">{errorMessages.existencia}</span>
+                        )}
+                    </div>
 
-                <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
-                        Localización
-                    </label>
-                    <input
-                        type="text"
-                        value={detailForm.localizacion}
-                        onChange={(e) => handleDetailInputChange('localizacion', e.target.value)}
-                        disabled={webBranchSelected}
-                        className={`block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] shadow focus:ring-2 focus:ring-indigo-500 uppercase ${
-                            webBranchSelected
-                                ? 'bg-gray-100 cursor-not-allowed'
-                                : 'bg-[rgb(var(--color-card))]'
-                        }`}
-                    />
-                    {errorMessages.localizacion && (
-                        <span className="text-red-600 text-sm">{errorMessages.localizacion}</span>
-                    )}
-                </div>
-
-                <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
-                        Existencia
-                    </label>
-                    {webBranchSelected ? (
-                        <input
-                            type="text"
-                            value="0"
-                            disabled
-                            className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-gray-100 shadow cursor-not-allowed"
-                        />
-                    ) : (
+                    <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
+                            Utilidad
+                        </label>
                         <Select
-                            options={quantitySelectOptions}
-                            value={getSelectValue(quantitySelectOptions, detailForm.existencia)}
+                            options={utilitySelectOptions}
+                            value={getSelectValue(utilitySelectOptions, detailForm.utilidad)}
                             onChange={(selectedOption) =>
-                                handleDetailInputChange('existencia', selectedOption ? selectedOption.value : '')
+                                handleDetailInputChange('utilidad', selectedOption ? selectedOption.value : '')
                             }
                             isOptionDisabled={(option) => option.isDisabled}
                             classNamePrefix="react-select"
                         />
-                    )}
-                    {errorMessages.existencia && (
-                        <span className="text-red-600 text-sm">{errorMessages.existencia}</span>
-                    )}
-                </div>
+                        {errorMessages.utilidad && (
+                            <span className="text-red-600 text-sm">{errorMessages.utilidad}</span>
+                        )}
+                    </div>
 
-                <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
-                        Utilidad
-                    </label>
-                    <Select
-                        options={utilitySelectOptions}
-                        value={getSelectValue(utilitySelectOptions, detailForm.utilidad)}
-                        onChange={(selectedOption) =>
-                            handleDetailInputChange('utilidad', selectedOption ? selectedOption.value : '')
-                        }
-                        isOptionDisabled={(option) => option.isDisabled}
-                        classNamePrefix="react-select"
-                    />
-                    {errorMessages.utilidad && (
-                        <span className="text-red-600 text-sm">{errorMessages.utilidad}</span>
-                    )}
-                </div>
+                    <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium text-gray-500">
+                            Costo
+                        </label>
+                        <input
+                            type="text"
+                            value={detailForm.costo}
+                            readOnly
+                            className="block w-full rounded-xl border-0 py-2 px-3 text-gray-500 bg-gray-100 shadow focus:ring-2 focus:ring-indigo-500 uppercase cursor-not-allowed"
+                        />
+                        {errorMessages.costo && (
+                            <span className="text-red-600 text-sm">{errorMessages.costo}</span>
+                        )}
+                    </div>
 
-                <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
-                        Costo
-                    </label>
-                    <input
-                        type="text"
-                        value={detailForm.costo}
-                        readOnly
-                        className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-gray-100 shadow focus:ring-2 focus:ring-indigo-500 uppercase cursor-not-allowed"
-                    />
-                    {errorMessages.costo && (
-                        <span className="text-red-600 text-sm">{errorMessages.costo}</span>
-                    )}
-                </div>
+                    <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium text-gray-500">
+                            A IVA
+                        </label>
+                        <input
+                            type="text"
+                            value={detailForm.aiva}
+                            readOnly
+                            className="block w-full rounded-xl border-0 py-2 px-3 text-gray-500 bg-gray-100 shadow focus:ring-2 focus:ring-indigo-500 uppercase cursor-not-allowed"
+                        />
+                        {errorMessages.aiva && (
+                            <span className="text-red-600 text-sm">{errorMessages.aiva}</span>
+                        )}
+                    </div>
 
-                <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
-                        A IVA
-                    </label>
-                    <input
-                        type="text"
-                        value={detailForm.aiva}
-                        readOnly
-                        className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-gray-100 shadow focus:ring-2 focus:ring-indigo-500 uppercase cursor-not-allowed"
-                    />
-                    {errorMessages.aiva && (
-                        <span className="text-red-600 text-sm">{errorMessages.aiva}</span>
-                    )}
-                </div>
-
-                <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
-                        Precio
-                    </label>
-                    <input
-                        type="text"
-                        value={detailForm.precio}
-                        onChange={(e) => handleDetailInputChange('precio', e.target.value)}
-                        className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] shadow focus:ring-2 focus:ring-indigo-500 uppercase"
-                    />
-                    {errorMessages.precio && (
-                        <span className="text-red-600 text-sm">{errorMessages.precio}</span>
-                    )}
+                    <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
+                            Precio
+                        </label>
+                        <input
+                            type="text"
+                            value={detailForm.precio}
+                            onChange={(e) => handleDetailInputChange('precio', e.target.value)}
+                            className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] shadow focus:ring-2 focus:ring-indigo-500 uppercase"
+                        />
+                        {errorMessages.precio && (
+                            <span className="text-red-600 text-sm">{errorMessages.precio}</span>
+                        )}
+                    </div>
                 </div>
             </div>
 

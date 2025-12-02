@@ -6,9 +6,9 @@ import { FaExchangeAlt } from 'react-icons/fa';
 import { FaBoxesPacking } from 'react-icons/fa6';
 import { IoSaveSharp } from 'react-icons/io5';
 import { PiStickerFill } from 'react-icons/pi';
-import EditRegistry from './edit-registry';
+import EditRegister from './edit-register';
 import MigrateModal from './migrate-modal';
-import AddRegistry from './add-registry';
+import AddRegister from './add-register';
 import Labels from './labels';
 import { useReactToPrint } from 'react-to-print';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
@@ -414,7 +414,7 @@ export default function Warehouse() {
                 </div>
             </div>
             <div className={isEditing ? 'block' : 'hidden'}>
-                <EditRegistry
+                <EditRegister
                     prodOverview={prodOverview}
                     onCancelEdit={onCancelEdit}
                     setProdOverview={setProdOverview}
@@ -422,7 +422,10 @@ export default function Warehouse() {
                 />
             </div>
             <div className={isAdding ? 'block' : 'hidden'}>
-                <AddRegistry onCancelEdit={onCancelEdit} />
+                <AddRegister
+                    onCancelEdit={onCancelEdit}
+                    onRefreshProducts={() => findProductsRef.current?.refreshProducts?.()}
+                />
             </div>
             {/* Modales */}
             <MigrateModal

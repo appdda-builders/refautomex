@@ -353,6 +353,9 @@ export default function Tickets() {
                                 onRemoveProduct={handleRemoveProduct}
                                 addedItems={items}
                                 folio={folio}
+                                includePendingProducts={false}
+                                includeWebBranch={false}
+                                allowedSearchTypes={['Descripcion', 'Parte', 'Localizacion']}
                             />
                         </div>
                         <div className='grid-cols-1 lg:col-span-2 w-auto 2xl:flex'>

@@ -151,12 +151,14 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                 <div className="flex items-center gap-1">
                                     <button
                                         onClick={handleListPrint}
+                                        title="Listar para impresión"
                                         className="bg-gray-700 text-white rounded-full p-1.5 self-center flex items-center cursor-pointer mx-0.5"
                                     >
                                         <CiBoxList className="text-lg" />
                                     </button>
                                     <button
                                         onClick={handleClearTable}
+                                        title="Limpiar tabla"
                                         className="bg-red-700 text-white rounded-full p-1.5 self-center flex items-center cursor-pointer mx-0.5"
                                     >
                                         <LuListRestart className="text-lg" />
