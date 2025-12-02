@@ -600,6 +600,37 @@ app.patch('/api/patchProduct', (req, res) => {
     handleQuery(query, params, res);
 });
 
+// DELETE: remove one product detail and update product status if needed
+app.delete('/api/deleteProductDetail', (req, res) => {
+    const { refaccion, idsucursal } = req.body || {};
+
+    if (!refaccion || !idsucursal) {
+        return res.status(400).json({
+            error: 'Bad Request',
+            details: 'Missing refaccion or idsucursal.',
+        });
+    }
+
+    const query = 'CALL DeleteProductDetail(?, ?)';
+    const params = [refaccion, idsucursal];
+    handleQuery(query, params, res);
+});
+
+// DELETE: deactivate product and remove all details
+app.delete('/api/deleteProductCascade', (req, res) => {
+    const { refaccion } = req.body || {};
+
+    if (!refaccion) {
+        return res.status(400).json({
+            error: 'Bad Request',
+            details: 'Missing refaccion parameter.',
+        });
+    }
+
+    const query = 'CALL DeleteProductCascade(?)';
+    handleQuery(query, [refaccion], res);
+});
+
 // PATCH: update sale status
 app.patch('/api/patchSaleStatus', (req, res) => {
     const {

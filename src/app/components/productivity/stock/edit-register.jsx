@@ -65,7 +65,7 @@ const MODEL_YEAR_OPTIONS = Array.from({ length: 36 }, (_, i) => {
     return { value: year, label: `${year}` };
 });
 
-export default function EditRegistry({ prodOverview, onCancelEdit, setProdOverview, onRefreshProducts }) {
+export default function EditRegister({ prodOverview, onCancelEdit, setProdOverview, onRefreshProducts }) {
     const multimediaSrc = process.env.NEXT_PUBLIC_S3;
     const [isSuccessfull, setIsSuccessfull] = useState(false);
     const [brandOptions, setBrandOptions] = useState([]);
@@ -114,6 +114,8 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
     const [userBranchId, setUserBranchId] = useState(null);
     const [deletingBranchId, setDeletingBranchId] = useState(null);
     const [detailPendingDelete, setDetailPendingDelete] = useState(null);
+    const [productDeleting, setProductDeleting] = useState(false);
+    const [productPendingDelete, setProductPendingDelete] = useState(false);
     const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
     const activeBranchId = selectedBranchId || (currentProduct?.idsucursal ? String(currentProduct.idsucursal) : null);
     const isWebBranchSelected = isWebBranchValue(activeBranchId);
@@ -567,6 +569,47 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
         handleDeleteBranchDetail(detailPendingDelete);
     };
 
+    const handleConfirmDeleteProduct = () => {
+        if (!currentProduct?.refaccion) return;
+        setProductPendingDelete(true);
+    };
+
+    const cancelProductDelete = () => {
+        setProductPendingDelete(false);
+    };
+
+    const handleProductSoftDelete = async () => {
+        if (!currentProduct?.refaccion) return;
+        setProductDeleting(true);
+        setErrorMessage('');
+        try {
+            const response = await fetch(buildApiUrl('/deleteProductCascade'), {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json, text/plain, */*',
+                },
+                body: JSON.stringify({
+                    refaccion: currentProduct.refaccion,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            setSuccessMessage('Producto dado de baja correctamente.');
+            onRefreshProducts?.();
+            onCancelEdit?.();
+        } catch (error) {
+            console.error('Error al dar de baja producto:', error);
+            setErrorMessage('No se pudo dar de baja el producto. Intenta nuevamente.');
+        } finally {
+            setProductDeleting(false);
+            setProductPendingDelete(false);
+        }
+    };
+
     const handleRemoveImage = (route) => {
         if (!route) return;
         const updatedRoutes = imageRoutes.filter(existingRoute => existingRoute !== route);
@@ -684,11 +727,12 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
             const resolvedBranchId = activeBranchId ? Number(activeBranchId) : currentProduct.idsucursal;
             const payloadLocalizacion = isWebBranchSelected ? '0' : prodOverview.localizacion;
             const payloadExistencia = isWebBranchSelected ? '0' : prodOverview.existencia;
+            const normalizedDescription = (prodOverview.descripcion || '').toUpperCase();
             const update_data = {
                 refaccion: currentProduct.refaccion,
                 sucursal: currentProduct.sucursal,
                 localizacion: payloadLocalizacion,
-                descripcion: prodOverview.descripcion,
+                descripcion: normalizedDescription,
                 existencia: payloadExistencia,
                 costo: parseFloat(prodOverview.costo).toFixed(2),
                 precio: parseFloat(prodOverview.precio).toFixed(2),
@@ -979,6 +1023,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                                             {detail.sucursal || 'Sucursal'}
                                                         </div>
                                                         <button
+                                                            type="button"
                                                             className="p-1 rounded-full bg-red-100 text-red-600 hover:bg-red-200 cursor-pointer"
                                                             onClick={(event) => {
                                                                 event.stopPropagation();
@@ -1074,7 +1119,7 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                                     autoComplete="descripcions"
                                     value={currentProduct.descripcion ?? ''}
                                     className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase"
-                                    onChange={(e) => setProdOverview(prevState => ({ ...prevState, descripcion: e.target.value }))}
+                                    onChange={(e) => setProdOverview(prevState => ({ ...prevState, descripcion: e.target.value?.toUpperCase() }))}
                                     />
                                     {errorMessages.descripcion && (
                                         <span className="text-[rgb(var(--color-error))] text-sm">
@@ -1236,12 +1281,20 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                     )}
                 </div>
                 <div className="flex flex-col justify-center items-center mt-3 max-w-7xl">
-                    <div className="grid grid-cols-2 mt-6 items-center justify-end gap-x-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 mt-6 items-center justify-end gap-4">
                         <button
                         onClick={onCancelEdit}
                         type="button"
                         className="bg-gradient-to-bl hover:bg-gradient-to-tr bg-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out text-[rgb(var(--color-text))]">
                         Regresar
+                        </button>
+                        <button
+                        type="button"
+                        onClick={handleConfirmDeleteProduct}
+                        className="bg-gradient-to-bl from-red-500 via-rose-500 to-red-700 text-white shadow p-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 disabled:opacity-60"
+                        disabled={productDeleting}
+                        >
+                        {productDeleting ? 'Dando de baja...' : 'Dar de baja'}
                         </button>
                         <button
                         type="submit"
@@ -1253,31 +1306,35 @@ export default function EditRegistry({ prodOverview, onCancelEdit, setProdOvervi
                     </div>
                 </div>
             </div>
-            {detailPendingDelete && (
+            {(detailPendingDelete || productPendingDelete) && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="bg-[rgb(var(--color-card))] rounded-2xl shadow-2xl max-w-md w-full p-6 border border-[rgb(var(--color-border))]">
                         <h3 className="text-lg font-semibold text-[rgb(var(--color-text))]">
-                            Confirmar eliminación
+                            {productPendingDelete ? 'Dar de baja producto' : 'Confirmar eliminación'}
                         </h3>
                         <p className="text-sm text-[rgb(var(--color-text))]/80 mt-2">
-                            ¿Estás seguro que deseas dar de baja el detalle de esta sucursal?
+                            {productPendingDelete
+                                ? '¿Deseas dar de baja este producto? Se eliminarán todos sus detalles.'
+                                : '¿Estás seguro que deseas dar de baja el detalle de esta sucursal?'}
                         </p>
                         <div className="mt-6 flex justify-end gap-3">
                             <button
                                 type="button"
                                 className="px-4 py-2 rounded-full bg-gray-200 text-gray-800 hover:bg-gray-300"
-                                onClick={cancelDeleteDetail}
-                                disabled={!!deletingBranchId}
+                                onClick={productPendingDelete ? cancelProductDelete : cancelDeleteDetail}
+                                disabled={!!deletingBranchId || productDeleting}
                             >
                                 Cancelar
                             </button>
                             <button
                                 type="button"
                                 className="px-4 py-2 rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-70"
-                                onClick={handleConfirmDelete}
-                                disabled={!!deletingBranchId}
+                                onClick={productPendingDelete ? handleProductSoftDelete : handleConfirmDelete}
+                                disabled={!!deletingBranchId || productDeleting}
                             >
-                                {deletingBranchId ? 'Eliminando...' : 'Eliminar'}
+                                {productPendingDelete
+                                    ? (productDeleting ? 'Dando de baja...' : 'Dar de baja')
+                                    : (deletingBranchId ? 'Eliminando...' : 'Eliminar')}
                             </button>
                         </div>
                     </div>

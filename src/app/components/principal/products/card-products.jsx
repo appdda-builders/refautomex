@@ -3,19 +3,17 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, Variants } from 'framer-motion';
-import { IoMdCloseCircle } from 'react-icons/io';
 import { CgMoreO } from 'react-icons/cg';
 import { MdOutlineViewInAr, MdDelete } from 'react-icons/md';
 import { FaCircleMinus, FaCirclePlus } from 'react-icons/fa6';
+import { createPortal } from 'react-dom';
 import Spinner from '@/app/components/principal/spinner';
 import ProductOverview from '@/app/components/principal/products/product-overview';
 import { useCart } from '@/app/lib/shopping-context';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import '@/app/translations/i18next-translation';
 
-// ---- UI & UX constants (ported from Pulsety style) ----------------------
-
-const PAGE_SIZE = 16;
+const PAGE_SIZE = 25;
 
 const gridVariants = {
   hidden: { opacity: 0, y: 40 },
@@ -54,6 +52,7 @@ function normalizeGrupo(grupo) {
 
 function displayGrupo(grupo) {
   const g = normalizeGrupo(grupo);
+  if (!g) return 'Sin grupo';
   return g.charAt(0).toUpperCase() + g.slice(1);
 }
 
@@ -94,6 +93,7 @@ export default function CardProducts({ showSearchBar = true }) {
   const [quantities, setQuantities] = useState({});
   const [isMobile, setIsMobile] = useState(false);
   const [refreshIndex, setRefreshIndex] = useState(0);
+  const [isModalMounted, setIsModalMounted] = useState(false);
 
   const { cart, addToCart, removeFromCart } = useCart();
 
@@ -159,6 +159,29 @@ export default function CardProducts({ showSearchBar = true }) {
   const totalPages = Math.max(1, Math.ceil(source.length / PAGE_SIZE));
   const start = (page - 1) * PAGE_SIZE;
   const pageItems = source.slice(start, start + PAGE_SIZE);
+  const groupedPageItems = useMemo(() => {
+    const categoryOrder = categories;
+    const map = new Map();
+    pageItems.forEach((product) => {
+      const key = normalizeGrupo(product.grupo) || 'otros';
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          label: displayGrupo(product.grupo),
+          items: [],
+        });
+      }
+      map.get(key).items.push(product);
+    });
+    return Array.from(map.values()).sort((a, b) => {
+      const ia = categoryOrder.indexOf(a.key);
+      const ib = categoryOrder.indexOf(b.key);
+      if (ia === -1 && ib === -1) return a.label.localeCompare(b.label);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  }, [pageItems, categories]);
 
   useEffect(() => { setPage(1); }, [searchTerm, selectedSection]);
 
@@ -174,6 +197,10 @@ export default function CardProducts({ showSearchBar = true }) {
     document.body.classList.toggle('overflow-hidden', showModal);
     return () => { document.body.classList.remove('overflow-hidden'); };
   }, [showModal]);
+
+  useEffect(() => {
+    setIsModalMounted(true);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -281,6 +308,7 @@ export default function CardProducts({ showSearchBar = true }) {
   }
 
   const animationDisabled = isMobile;
+  let animationCounter = 0;
   const GridComponent = animationDisabled ? 'div' : motion.div;
   const CardComponent = animationDisabled ? 'div' : motion.div;
   const ImageWrapper = animationDisabled ? 'div' : motion.div;
@@ -371,123 +399,142 @@ export default function CardProducts({ showSearchBar = true }) {
             </p>
           )}
 
-          {pageItems.map((product, idx) => {
-            const productInCart = cart.find(item => item.num_parte === product.num_parte);
-            const productId = product.num_parte;
-            const storedValue = quantities[productId];
-            const inputValue = productInCart
-              ? (productInCart.quantity || MIN_QTY)
-              : (storedValue === undefined ? MIN_QTY : storedValue);
-            const img = product.rutasParsed?.[0]
-              ? `${multimediaSrc}${product.rutasParsed[0]}`
-              : `${multimediaSrc}productos/no-img.png`;
-            const inCart = Boolean(productInCart);
-
+          {pageItems.length > 0 && groupedPageItems.map((section) => {
             return (
-              <Fragment key={`${product.grupo}-${product.num_parte}-${idx}`}>
-                <CardComponent
-                  {...(!animationDisabled ? { custom: idx, variants: cardVariants } : {})}
-                  className="group relative flex flex-col justify-between rounded-3xl shadow-lg overflow-hidden transition-all duration-500 hover:shadow-[rgb(var(--color-med))]/30 hover:-translate-y-1 hover:scale-[1.02)] bg-[rgb(var(--color-card))]"
-                >
-                  <ImageWrapper
-                    className="relative w-full aspect-4/3 overflow-hidden"
-                    {...(!animationDisabled
-                      ? {
-                          whileHover: { scale: 1.05 },
-                          transition: { duration: 0.3 },
-                        }
-                      : {})}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleOpenOverview(product)}
-                      className="absolute top-3 right-3 z-10 flex items-center justify-center h-9 w-9 rounded-full bg-[rgb(var(--color-bg))]/80 shadow text-[rgb(var(--color-text))] hover:scale-105 transition-all"
-                      aria-label={t('products.details', { defaultValue: 'Ver detalles' })}
-                    >
-                      <CgMoreO />
-                    </button>
-                    <ProductImage
-                      src={img}
-                      alt={product.descripcion}
-                      className="h-full w-full object-cover object-center"
-                    />
-                  </ImageWrapper>
-
-                  <div className="flex flex-col justify-between flex-1 p-4">
-                    <h4 className="text-lg font-semibold linear-text-title text-center line-clamp-2" title={product.descripcion}>
-                      {product.descripcion}
-                    </h4>
-                    <div className="flex items-center justify-center mt-2">
-                      <span className="mt-1 text-base sm:text-lg font-semibold text-[rgb(var(--color-text))]">
-                        $ {Math.ceil(Number(product.precio)).toFixed(2)} MXN
-                      </span>
-                    </div>
-                    <div className="mt-6 grid grid-cols-2 items-center gap-2 border-t border-[rgb(var(--color-text))]/10 pt-4">
-                      <div className={`col-span-1 flex ${inCart ? 'items-start justify-start' : 'items-center justify-center'} gap-2`}>
-                        <button
-                          type="button"
-                          onClick={() => handleDecrement(productId)}
-                          className={`${inCart ? 'cursor-not-allowed opacity-0 pointer-events-none' : 'cursor-pointer'} flex items-center justify-center h-6 w-6 rounded-full shadow shadow-[rgb(var(--color-med))]/70 text-[rgb(var(--color-med))] hover:bg-[rgb(var(--color-bg))]/60 transition`}
-                          disabled={inCart}
-                          aria-label={t('products.decrease', { defaultValue: 'Disminuir' })}
-                        >
-                          <FaCircleMinus />
-                        </button>
-                        <input
-                          type="number"
-                          min={MIN_QTY}
-                          max={MAX_QTY}
-                          value={inputValue}
-                          disabled={inCart}
-                          onChange={(e) => handleQuantityInputChange(productId, e.target.value)}
-                          onBlur={(e) => handleQuantityBlur(productId, e.target.value)}
-                          className="w-14 text-center rounded-md shadow shadow-[rgb(var(--color-med))]/50 bg-transparent text-[rgb(var(--color-text))] focus:outline-none focus:ring-1 focus:ring-teal-400"
-                          placeholder={`${MIN_QTY}`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleIncrement(productId)}
-                          className={`${inCart ? 'cursor-not-allowed opacity-0 pointer-events-none' : 'cursor-pointer'} flex items-center justify-center h-6 w-6 rounded-full shadow shadow-[rgb(var(--color-med))]/70 text-[rgb(var(--color-med))] hover:bg-[rgb(var(--color-bg))]/60 transition`}
-                          disabled={inCart}
-                          aria-label={t('products.increase', { defaultValue: 'Incrementar' })}
-                        >
-                          <FaCirclePlus />
-                        </button>
-                      </div>
-
-                      <div className="col-span-1 flex justify-end">
-                        {inCart ? (
-                          <ActionButton
-                            {...(!animationDisabled
-                              ? {
-                                  whileTap: { scale: 0.95 },
-                                  whileHover: { scale: 1.05 },
-                                }
-                              : {})}
-                            onClick={() => handleRemoveProduct(product)}
-                            className="flex items-center gap-2 rounded-full bg-red-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 transition-all"
-                          >
-                            <MdDelete className="text-base" />
-                            {t('products.remove', { defaultValue: 'Quitar' })}
-                          </ActionButton>
-                        ) : (
-                          <ActionButton
-                            {...(!animationDisabled
-                              ? {
-                                  whileTap: { scale: 0.95 },
-                                  whileHover: { scale: 1.05 },
-                                }
-                              : {})}
-                            onClick={() => handleAddProduct(product)}
-                            className="rounded-full cursor-pointer bg-[rgb(var(--color-text))] px-4 py-2 text-sm font-semibold text-[rgb(var(--color-card))] transition-all"
-                          >
-                            {t('products.add', { defaultValue: 'Agregar' })}
-                          </ActionButton>
-                        )}
-                      </div>
-                    </div>
+              <Fragment key={section.key}>
+                <div className="col-span-full flex flex-col sm:flex-row sm:items-center sm:justify-between bg-[rgb(var(--color-bg))]/60 border border-dashed border-[rgb(var(--color-text))]/20 rounded-2xl px-5 py-3 mb-4">
+                  <div className="text-left">
+                    <p className="text-xs uppercase tracking-[0.25em] text-[rgb(var(--color-text))]/50">Categoría</p>
+                    <p className="text-lg font-semibold text-[rgb(var(--color-text))]">{section.label}</p>
                   </div>
-                </CardComponent>
+                  <span className="text-xs text-[rgb(var(--color-text))]/60 mt-2 sm:mt-0">
+                    {section.items.length} {section.items.length === 1 ? 'producto' : 'productos'}
+                  </span>
+                </div>
+                {section.items.map((product) => {
+                  const productInCart = cart.find(item => item.num_parte === product.num_parte);
+                  const productId = product.num_parte;
+                  const storedValue = quantities[productId];
+                  const inputValue = productInCart
+                    ? (productInCart.quantity || MIN_QTY)
+                    : (storedValue === undefined ? MIN_QTY : storedValue);
+                  const img = product.rutasParsed?.[0]
+                    ? `${multimediaSrc}${product.rutasParsed[0]}`
+                    : `${multimediaSrc}productos/no-img.png`;
+                  const inCart = Boolean(productInCart);
+                  const cardIndex = animationCounter++;
+                  const groupLabel = displayGrupo(product.grupo);
+
+                  return (
+                    <CardComponent
+                      key={product.num_parte}
+                      {...(!animationDisabled ? { custom: cardIndex, variants: cardVariants } : {})}
+                      className="group relative flex flex-col justify-between rounded-3xl shadow-lg overflow-hidden transition-all duration-500 hover:shadow-[rgb(var(--color-med))]/30 hover:-translate-y-1 hover:scale-[1.02)] bg-[rgb(var(--color-card))]"
+                    >
+                      <ImageWrapper
+                        className="relative w-full aspect-4/3 overflow-hidden"
+                        {...(!animationDisabled
+                          ? {
+                              whileHover: { scale: 1.05 },
+                              transition: { duration: 0.3 },
+                            }
+                          : {})}
+                      >
+                        <span className="absolute top-3 left-3 z-10 inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-[rgb(var(--color-gray))]/70 text-[rgb(var(--color-text))] shadow">
+                          {groupLabel}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenOverview(product)}
+                          className="absolute top-3 right-3 z-10 flex items-center justify-center h-9 w-9 rounded-full bg-[rgb(var(--color-bg))]/80 shadow text-[rgb(var(--color-text))] hover:scale-105 transition-all"
+                          aria-label={t('products.details', { defaultValue: 'Ver detalles' })}
+                        >
+                          <CgMoreO />
+                        </button>
+                        <ProductImage
+                          src={img}
+                          alt={product.descripcion}
+                          className="h-full w-full object-cover object-center"
+                        />
+                      </ImageWrapper>
+
+                      <div className="flex flex-col justify-between flex-1 p-4">
+                        <h4 className="text-lg font-semibold linear-text-title text-center line-clamp-2" title={product.descripcion}>
+                          {product.descripcion}
+                        </h4>
+                        <div className="flex items-center justify-center mt-2">
+                          <span className="mt-1 text-base sm:text-lg font-semibold text-[rgb(var(--color-success))]">
+                            $ {Math.ceil(Number(product.precio)).toFixed(2)} MXN
+                          </span>
+                        </div>
+                        <div className="mt-6 grid grid-cols-2 items-center gap-2 border-t border-[rgb(var(--color-text))]/10 pt-4">
+                          <div className={`col-span-1 flex ${inCart ? 'items-start justify-start' : 'items-center justify-center'} gap-2`}>
+                            <button
+                              type="button"
+                              onClick={() => handleDecrement(productId)}
+                              className={`${inCart ? 'cursor-not-allowed opacity-0 pointer-events-none' : 'cursor-pointer'} flex items-center justify-center h-6 w-6 rounded-full shadow shadow-[rgb(var(--color-med))]/70 text-[rgb(var(--color-med))] hover:bg-[rgb(var(--color-bg))]/60 transition`}
+                              disabled={inCart}
+                              aria-label={t('products.decrease', { defaultValue: 'Disminuir' })}
+                            >
+                              <FaCircleMinus />
+                            </button>
+                            <input
+                              type="number"
+                              min={MIN_QTY}
+                              max={MAX_QTY}
+                              value={inputValue}
+                              disabled={inCart}
+                              onChange={(e) => handleQuantityInputChange(productId, e.target.value)}
+                              onBlur={(e) => handleQuantityBlur(productId, e.target.value)}
+                              className="w-14 text-center rounded-md shadow shadow-[rgb(var(--color-galaxy))] bg-transparent text-[rgb(var(--color-text))] focus:outline-none focus:ring-1 focus:ring-amber-400"
+                              placeholder={`${MIN_QTY}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleIncrement(productId)}
+                              className={`${inCart ? 'cursor-not-allowed opacity-0 pointer-events-none' : 'cursor-pointer'} flex items-center justify-center h-6 w-6 rounded-full shadow shadow-[rgb(var(--color-med))]/70 text-[rgb(var(--color-med))] hover:bg-[rgb(var(--color-bg))]/60 transition`}
+                              disabled={inCart}
+                              aria-label={t('products.increase', { defaultValue: 'Incrementar' })}
+                            >
+                              <FaCirclePlus />
+                            </button>
+                          </div>
+
+                          <div className="col-span-1 flex justify-end">
+                            {inCart ? (
+                              <ActionButton
+                                {...(!animationDisabled
+                                  ? {
+                                      whileTap: { scale: 0.95 },
+                                      whileHover: { scale: 1.05 },
+                                    }
+                                  : {})}
+                                onClick={() => handleRemoveProduct(product)}
+                                className="flex items-center gap-2 rounded-full bg-red-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 transition-all"
+                              >
+                                <MdDelete className="text-base" />
+                                {t('products.remove', { defaultValue: 'Quitar' })}
+                              </ActionButton>
+                            ) : (
+                              <ActionButton
+                                {...(!animationDisabled
+                                  ? {
+                                      whileTap: { scale: 0.95 },
+                                      whileHover: { scale: 1.05 },
+                                    }
+                                  : {})}
+                                onClick={() => handleAddProduct(product)}
+                                className="rounded-full cursor-pointer bg-[rgb(var(--color-text))] px-4 py-2 text-sm font-semibold text-[rgb(var(--color-card))] transition-all"
+                              >
+                                {t('products.add', { defaultValue: 'Agregar' })}
+                              </ActionButton>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardComponent>
+                  );
+                })}
               </Fragment>
             );
           })}
@@ -508,23 +555,47 @@ export default function CardProducts({ showSearchBar = true }) {
         )}
       </div>
 
-      {showModal && prodOverview && (
-        <div className="fixed z-40 inset-0 overflow-y-auto bg-[rgb(var(--color-gray))]/80">
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="relative max-w-7xl sm:px-10 lg:px-20 bg-gradient-to-tl from-[rgb(var(--color-bg))] via-[rgb(var(--color-bg))] to-[rgb(var(--color-galaxy))] py-12 sm:rounded-xl shadow-xl">
-              <div className="absolute -top-5 right-1/2 translate-x-1/2 shadow rounded-full p-3 shadow-[rgb(var(--color-text))]">
-                <MdOutlineViewInAr className="h-9 w-9 text-[rgb(var(--color-text))]" />
+      {isModalMounted && showModal && prodOverview &&
+        createPortal(
+          <div className="fixed inset-0 z-[1400] flex items-center justify-center px-4 py-10">
+            <div
+              className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm"
+              onClick={handleCloseModal}
+              aria-hidden="true"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative z-10 w-full max-w-6xl overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-[rgb(var(--color-card))]/95 via-[rgb(var(--color-bg))] to-[rgb(var(--color-gray))]/95 shadow-[0_30px_70px_rgba(2,6,23,0.85)]"
+              role="dialog"
+              aria-modal="true"
+            >
+              <div className="flex items-center justify-between border-b border-white/10 px-6 py-4 text-[rgb(var(--color-text))]">
+                <div>
+                  <p className="flex items-center gap-2 text-xs uppercase tracking-[0.35em] text-[rgb(var(--color-text))]/50">
+                    <MdOutlineViewInAr className="h-4 w-4" />
+                    Detalle del producto
+                  </p>
+                  <h3 className="mt-1 text-lg font-semibold line-clamp-2">
+                    {prodOverview.descripcion}
+                  </h3>
+                </div>
+                <button
+                  onClick={handleCloseModal}
+                  className="rounded-full border border-[rgb(var(--color-text))]/30 px-4 py-1 text-sm font-semibold text-[rgb(var(--color-text))] transition hover:bg-[rgb(var(--color-card))]"
+                  aria-label={t('common.close', { defaultValue: 'Cerrar' })}
+                >
+                  {t('common.close', { defaultValue: 'Cerrar' })}
+                </button>
               </div>
-              <button onClick={handleCloseModal} className="absolute top-2 right-2 text-red-500 text-xl z-50">
-                <IoMdCloseCircle className="h-7 w-7 animate-out" />
-              </button>
-              <div className="relative overflow-y-auto w-screen sm:w-auto h-[450px] sm:h-[500px]">
+              <div className="max-h-[80vh] overflow-y-auto px-4 py-6 sm:px-8">
                 <ProductOverview prodOverview={prodOverview} />
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </div>,
+          document.body
+        )}
     </section>
   );
 }
