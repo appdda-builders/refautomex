@@ -1,20 +1,5 @@
 import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
-
-let stripeClient;
-
-const getStripe = () => {
-  if (stripeClient) return stripeClient;
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) {
-    console.error('STRIPE_SECRET_KEY is not configured in create-checkout-session route');
-    throw new Error('STRIPE_SECRET_KEY is not configured');
-  }
-  stripeClient = new Stripe(key, {
-    apiVersion: '2024-06-20',
-  });
-  return stripeClient;
-};
+import getStripe from '../orders/stripe-client';
 
 const generateFriendlyFolio = () => {
   const random = Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -72,7 +57,7 @@ export async function POST(request) {
   const orderContext = payload?.orderContext || {};
 
   try {
-    const stripe = getStripe();
+    const stripe = await getStripe();
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
