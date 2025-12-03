@@ -23,3 +23,5 @@ applications:
       serverEnvironmentVariables:
         STRIPE_SECRET_KEY: $STRIPE_SECRET_KEY
         STRIPE_WEBHOOK_SECRET: $STRIPE_WEBHOOK_SECRET
+        AMPLIFY_APP_ID: d2g1ywdiqouily
+        REGION: us-east-1

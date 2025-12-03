@@ -1,5 +1,9 @@
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 
+const DEFAULT_REGION = 'us-east-1';
+const DEFAULT_APP_ID = 'd2g1ywdiqouily';
+const DEFAULT_BRANCH = 'main';
+
 let ssmClient;
 
 const getSSMClient = () => {
@@ -7,7 +11,8 @@ const getSSMClient = () => {
   const region =
     process.env.AWS_REGION ||
     process.env.AWS_DEFAULT_REGION ||
-    process.env.REGION;
+    process.env.REGION ||
+    DEFAULT_REGION;
   if (!region) {
     console.error('AWS region is not defined; cannot initialize SSM client');
     return null;
@@ -24,7 +29,8 @@ const buildParameterNames = (name) => {
   const appId =
     process.env.AMPLIFY_APP_ID ||
     process.env.AMPLIFY_APPID ||
-    process.env.APP_ID;
+    process.env.APP_ID ||
+    DEFAULT_APP_ID;
   if (!appId) {
     console.error(`AMPLIFY_APP_ID is not defined; cannot derive SSM path for ${name}`);
     return paths;
@@ -33,7 +39,7 @@ const buildParameterNames = (name) => {
     process.env.AMPLIFY_BRANCH ||
     process.env.AMPLIFY_BRANCH_NAME ||
     process.env.BRANCH ||
-    'main';
+    DEFAULT_BRANCH;
   paths.push(`/amplify/${appId}/${branch}/${name}`);
   paths.push(`/amplify/shared/${appId}/${name}`);
   return paths;
