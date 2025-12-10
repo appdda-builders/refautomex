@@ -63,6 +63,8 @@ export async function POST(request) {
       mode: 'payment',
       line_items: lineItems,
       phone_number_collection: { enabled: true },
+      billing_address_collection: 'required',
+      shipping_address_collection: { allowed_countries: ['MX'] },
       success_url: `${origin}/section/shopping?lang=es&status=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/section/shopping?lang=es&status=cancelled`,
       metadata: {
