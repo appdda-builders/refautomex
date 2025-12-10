@@ -96,9 +96,17 @@ export default function Labels({ products }) {
                             return (
                             <div
                                 key={`${product.refaccion}-${index}`}
-                                className="flex p-3 border border-gray-300 rounded-lg bg-white shadow-sm print:border print:shadow-none"
+                                className="relative flex p-3 border border-gray-300 rounded-lg bg-white shadow-sm print:border print:shadow-none"
                                 style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}
                             >
+                                <div className="absolute top-2 right-2 pointer-events-none z-10 bg-white/90 rounded px-1">
+                                    <img
+                                        loading="lazy"
+                                        className="h-8"
+                                        src={`${multimediaSrc}refautomex_n.svg`}
+                                        alt="Refautomex"
+                                    />
+                                </div>
                                 <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
                                     <img
                                         src={resolveLabelImageSrc(product, multimediaSrc)}
@@ -116,15 +124,7 @@ export default function Labels({ products }) {
                                             {displayedIndex}
                                         </span>
                                     </div>
-                                    <div className="absolute -top-2 -right-2 ">
-                                        <img
-                                            loading="lazy"
-                                            className="h-8"
-                                            src={`${multimediaSrc}refautomex_n.svg`}
-                                            alt="Refautomex"
-                                        />
-                                    </div>
-                                    <div className="flex justify-start text-md font-normal text-gray-900 overflow-x-hidden h-[66px] w-40 overflow-y-auto">
+                                    <div className="flex justify-start text-md font-normal text-gray-900 overflow-hidden h-[66px] w-36">
                                         <h3 className="italic">
                                             {product.descripcion}
                                         </h3>

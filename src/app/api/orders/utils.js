@@ -14,12 +14,36 @@ const buildLineItems = (raw) =>
     currency: item.currency,
   }));
 
+const formatAddress = (address) => {
+  if (!address) return null;
+  const parts = [
+    address.line1,
+    address.line2,
+    address.postal_code,
+    address.city,
+    address.state,
+    address.country,
+  ]
+    .filter(Boolean)
+    .join(', ');
+  return parts || null;
+};
+
 export const formatOrderFromSession = (session, rawLineItems) => {
   const metadata = session.metadata || {};
   const lineItems = buildLineItems(rawLineItems);
   const contactEmail =
     metadata.contactEmail || session.customer_details?.email || session.customer_email || null;
-  const contactPhone = metadata.contactPhone || session.customer_details?.phone || null;
+  const contactPhone =
+    metadata.contactPhone ||
+    session.shipping_details?.phone ||
+    session.customer_details?.phone ||
+    null;
+  const contactAddress =
+    metadata.contactAddress ||
+    formatAddress(session.shipping_details?.address) ||
+    formatAddress(session.customer_details?.address) ||
+    null;
 
   return {
     id: session.id,
@@ -34,7 +58,7 @@ export const formatOrderFromSession = (session, rawLineItems) => {
     fulfillmentReturn: normalizeReturnStatus(metadata.fulfillmentReturn),
     fulfillmentNote: metadata.fulfillmentNote || null,
     contactPhone,
-    contactAddress: metadata.contactAddress || null,
+    contactAddress,
     contactEmail,
     contactName: metadata.contactName || null,
     lineItems,
@@ -42,14 +66,14 @@ export const formatOrderFromSession = (session, rawLineItems) => {
 };
 
 export const fetchOrderSummary = async (sessionId) => {
-  const stripe = getStripe();
+  const stripe = await getStripe();
   const session = await stripe.checkout.sessions.retrieve(sessionId);
   const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, { limit: 100 });
   return formatOrderFromSession(session, lineItems);
 };
 
 export const listOrders = async (limit = 25) => {
-  const stripe = getStripe();
+  const stripe = await getStripe();
   const sessions = await stripe.checkout.sessions.list({
     limit,
     expand: ['data.total_details', 'data.customer'],
@@ -66,7 +90,7 @@ export const listOrders = async (limit = 25) => {
 export const findSessionByFriendlyFolio = async (folio) => {
   if (!folio) return null;
   const normalized = folio.trim().toUpperCase();
-  const stripe = getStripe();
+  const stripe = await getStripe();
   try {
     const result = await stripe.checkout.sessions.search({
       query: `metadata['friendlyFolio']:'${normalized}'`,

@@ -62,6 +62,10 @@ export default function Checkout() {
   const searchParams = useSearchParams();
   const { items: cart, removeItem, totalUnits, clearCart } = useCart();
   const statusParam = searchParams.get('status');
+  const successParam = searchParams.get('success');
+  const redirectStatus = searchParams.get('redirect_status');
+  const isSuccessStatus =
+    statusParam === 'success' || successParam === 'true' || redirectStatus === 'succeeded';
   const sessionId = searchParams.get('session_id');
 
   const [friendlyFolio, setFriendlyFolio] = useState(null);
@@ -102,13 +106,15 @@ export default function Checkout() {
   );
 
   useEffect(() => {
-    if (statusParam === 'success') {
-      clearCart();
+    if (!isSuccessStatus) return;
+    clearCart();
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('cart');
     }
-  }, [statusParam, clearCart]);
+  }, [isSuccessStatus, clearCart]);
 
   useEffect(() => {
-    if (!statusParam || statusParam !== 'success' || !sessionId) return;
+    if (!isSuccessStatus || !sessionId) return;
     const controller = new AbortController();
     setFriendlyFolio(null);
     setFolioMessage(null);
@@ -132,14 +138,16 @@ export default function Checkout() {
         );
       });
     return () => controller.abort();
-  }, [sessionId, statusParam]);
+  }, [sessionId, isSuccessStatus]);
 
+  // Los precios ya incluyen IVA; solo lo desglosamos sin recargarlo.
   const subtotal = normalizedCart.reduce(
     (acc, product) => acc + product.normalizedPrice * product.normalizedQuantity,
     0
   );
-  const iva = subtotal * 0.16;
-  const total = subtotal + iva;
+  const subtotalSinIva = subtotal > 0 ? subtotal / 1.16 : 0;
+  const ivaIncluido = subtotal - subtotalSinIva;
+  const total = subtotal;
 
   const handleLookup = async (event) => {
     event.preventDefault();
@@ -325,7 +333,7 @@ export default function Checkout() {
                     {product.normalizedDescription}
                   </p>
                   <div className="mt-4 flex justify-between items-center">
-                    <span className="text-base font-semibold text-[rgb(var(--color-text))]">
+                    <span className="text-base text-[rgb(var(--color-success))] font-semibold">
                       {currencyFormatter.format(product.normalizedPrice)}
                     </span>
                     <div className="flex items-center gap-3">
@@ -365,19 +373,19 @@ export default function Checkout() {
             <h3 className="text-2xl font-semibold text-[rgb(var(--color-text))] mb-6 text-center">
               Resumen de compra
             </h3>
-          <div className="space-y-3 text-[rgb(var(--color-text))]/80">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-                <span>{currencyFormatter.format(subtotal)}</span>
-              </div>
+            <div className="space-y-3 text-[rgb(var(--color-text))]/80">
               <div className="flex justify-between">
                 <span>IVA (16%)</span>
-                <span>{currencyFormatter.format(iva)}</span>
+                <span>{currencyFormatter.format(ivaIncluido)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>{currencyFormatter.format(subtotalSinIva)}</span>
               </div>
               <div className="border-t border-[rgb(var(--color-text))]/10 my-4"></div>
               <div className="flex justify-between font-semibold text-[rgb(var(--color-text))]">
                 <span>Total</span>
-                <span>{currencyFormatter.format(total)}</span>
+                <span className='text-[rgb(var(--color-success))]'>{currencyFormatter.format(total)}</span>
               </div>
               <div className="flex justify-between text-xs text-[rgb(var(--color-text))]/60">
                 <span>Productos diferentes</span>
