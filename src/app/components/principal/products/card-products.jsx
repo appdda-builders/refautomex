@@ -539,20 +539,6 @@ export default function CardProducts({ showSearchBar = true }) {
             );
           })}
         </GridComponent>
-
-        {source.length > PAGE_SIZE && (
-          <div className="mt-8 flex items-center justify-center gap-3">
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="rounded-full px-4 py-2 text-sm font-semibold shadow shadow-[rgb(var(--color-med))]/70 text-[rgb(var(--color-text))] disabled:opacity-40">
-              {t('common.prev', { defaultValue: 'Anterior' })}
-            </button>
-            <span className="text-[rgb(var(--color-text))]/70 text-sm">
-              {t('common.pageOf', { defaultValue: 'Página {{page}} de {{total}}', page, total: totalPages })}
-            </span>
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="rounded-full px-4 py-2 text-sm font-semibold shadow shadow-[rgb(var(--color-med))]/70 text-[rgb(var(--color-text))] disabled:opacity-40">
-              {t('common.next', { defaultValue: 'Siguiente' })}
-            </button>
-          </div>
-        )}
       </div>
 
       {isModalMounted && showModal && prodOverview &&
