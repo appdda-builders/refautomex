@@ -1,4 +1,4 @@
-import React, { useContext, useState, useRef } from 'react';
+import React, { useContext, useState, useRef, useEffect } from 'react';
 import Title from '../title';
 import FindProducts from '@/app/components/productivity/sales/find-products';
 import TableDescription from './table-description';
@@ -13,6 +13,13 @@ import Labels from './labels';
 import { useReactToPrint } from 'react-to-print';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { AuthContext } from '@/app/lib/auth-tracker';
+
+const hasLeadingZeroSuffix = (location = '') => {
+    const parts = location.split('-');
+    if (parts.length < 2) return false;
+    const suffix = parts[1] || '';
+    return suffix.length > 1 && suffix.startsWith('0');
+};
 
 export default function Warehouse() {
     const { userData } = useContext(AuthContext);
@@ -50,12 +57,18 @@ export default function Warehouse() {
     const handleAddProduct = (product) => {
         setItems(prevItems => {
             const exists = prevItems.some(item => item.refaccion === product.refaccion);
+            const normalizedProduct = {
+                ...product,
+                descripcion: product.descripcion ? String(product.descripcion).toUpperCase() : '',
+                localizacion: product.localizacion ? String(product.localizacion).toUpperCase() : product.localizacion,
+            };
             const updatedItems = exists
                 ? prevItems.filter(item => item.refaccion !== product.refaccion)
-                : [...prevItems, { ...product, modified: true }];
+                : [...prevItems, { ...normalizedProduct, modified: false }];
             setHasChanges(updatedItems.some(item => item.modified));
             return updatedItems;
         });
+        setSaveStatus({ type: null, message: '' });
     };
 
     const handleRemoveProduct = (refaccion) => {
@@ -64,16 +77,24 @@ export default function Warehouse() {
             setHasChanges(updatedItems.some(item => item.modified));
             return updatedItems;
         });
+        setSaveStatus({ type: null, message: '' });
     };
 
     const handleUpdateProduct = (refaccion, changes) => {
         setItems(prevItems => {
             let didModify = false;
+            const normalizedChanges = { ...changes };
+            if (normalizedChanges.descripcion !== undefined && normalizedChanges.descripcion !== null) {
+                normalizedChanges.descripcion = String(normalizedChanges.descripcion).toUpperCase();
+            }
+            if (normalizedChanges.localizacion !== undefined && normalizedChanges.localizacion !== null) {
+                normalizedChanges.localizacion = String(normalizedChanges.localizacion).toUpperCase();
+            }
             const updatedItems = prevItems.map(item => {
                 if (item.refaccion !== refaccion) {
                     return item;
                 }
-                const nextItem = { ...item, ...changes };
+                const nextItem = { ...item, ...normalizedChanges };
                 const itemChanged = Object.keys(changes).some(
                     key => item[key] !== nextItem[key]
                 );
@@ -87,11 +108,19 @@ export default function Warehouse() {
             setHasChanges(hasModifiedItems || didModify);
             return updatedItems;
         });
+        setSaveStatus({ type: null, message: '' });
     };
 
     const handleMigrateLocation = () => {
         setShowModal(true);
     };
+
+    useEffect(() => {
+        if (!isEditing && !isAdding) {
+            setSaveStatus({ type: null, message: '' });
+            setLocationErrors({});
+        }
+    }, [isEditing, isAdding]);
 
     const toggleModal = () => {
         setShowModal(!showModal);
@@ -174,6 +203,17 @@ export default function Warehouse() {
         let errorMessage = '';
 
         try {
+            if (hasLeadingZeroSuffix(item.localizacion || '')) {
+                errorMessage =
+                    'Índice no puede iniciar con 0, i.e. usa -1 en lugar de -01.';
+                isValid = false;
+                setLocationErrors(prev => ({
+                    ...prev,
+                    [item.refaccion]: errorMessage
+                }));
+                return { isValid, errorMessage };
+            }
+
             const params = new URLSearchParams({
                 localizacion: item.localizacion,
                 idsucursal: item.idsucursal,
@@ -349,12 +389,14 @@ export default function Warehouse() {
             btnconf:`relative tooltip-button p-3 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 color-cultured cursor-pointer inline-block`,
             label: 'Migrar', id: 'migrate', path: '',
             event: handleMigrateLocation,
+            disabled: isSaving,
         },
         {
             icon: FaBoxesPacking,
             btnconf:'relative tooltip-button p-3 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 color-cultured cursor-pointer inline-block',
             label: 'Alta', id: 'new', path: '',
-            event: handleAddClick
+            event: handleAddClick,
+            disabled: isSaving,
         },
         {
             icon: IoSaveSharp,
@@ -367,7 +409,8 @@ export default function Warehouse() {
             icon: PiStickerFill,
             btnconf:`relative blue-circle-button tooltip-button`,
             label: 'Rotular', id: 'list', path: '',
-            event: handleLabelsStickerPrint
+            event: handleLabelsStickerPrint,
+            disabled: isSaving,
         }
     ];
 
@@ -408,6 +451,7 @@ export default function Warehouse() {
                                 handleMouseLeave={handleMouseLeave}
                                 visibleTooltip={visibleTooltip}
                                 onEditClick={handleEditClick}
+                                isSaving={isSaving}
                             />
                         </div>
                     </div>

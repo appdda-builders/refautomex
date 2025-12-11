@@ -20,6 +20,13 @@ const isWebBranchValue = (value) => {
     return normalized === '1' || normalized === 'WEB';
 };
 
+const hasLeadingZeroSuffix = (location = '') => {
+    const parts = location.split('-');
+    if (parts.length < 2) return false;
+    const suffix = parts[1] || '';
+    return suffix.length > 1 && suffix.startsWith('0');
+};
+
 const NOT_ASSIGNED_OPTION = { value: '__NOT_ASSIGNED__', label: 'Selecciona', isDisabled: true };
 
 const withDefaultOption = (options = []) => [NOT_ASSIGNED_OPTION, ...options];
@@ -27,6 +34,11 @@ const withDefaultOption = (options = []) => [NOT_ASSIGNED_OPTION, ...options];
 const getSelectValue = (options = [], value) => {
     if (!value) return NOT_ASSIGNED_OPTION;
     return options.find((option) => option.value === value) || NOT_ASSIGNED_OPTION;
+};
+
+const normalizeNumber = (value, fallback = 0) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : fallback;
 };
 
 export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
@@ -63,6 +75,7 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [errorMessages, setErrorMessages] = useState({});
+    const [detailGroupId, setDetailGroupId] = useState(null);
 
     const findProductsRef = useRef(null);
 
@@ -87,9 +100,76 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
         pendingProducts.find((product) => product.num_parte === selectedPendingPart) ||
         activeProducts.find((product) => product.num_parte === selectedPendingPart);
 
+    const extractGroupId = (product) => {
+        const raw =
+            product?.idgrupo ??
+            product?.id_grupo ??
+            product?.idGrupo ??
+            null;
+        if (raw === null || raw === undefined) return null;
+        const str = String(raw).trim();
+        if (!str || str === '0') return null;
+        return raw;
+    };
+
+    const selectedProductGroupId = extractGroupId(selectedPendingProduct);
+    const selectedProductGroupLabel =
+        selectedProductGroupId &&
+        groupOptions.find((g) => String(g.value) === String(selectedProductGroupId))?.label;
+    const isMissingGroup = !!selectedPendingProduct && !selectedProductGroupId;
+
+    const updateProductGroupForWeb = async (groupId) => {
+        if (!selectedPendingProduct?.num_parte || !groupId) return { ok: true };
+        const normalizedDescription = (selectedPendingProduct.descripcion || '').toUpperCase();
+        const existingRoutes = parseRoutes(selectedPendingProduct.rutas);
+        const rutasPayload = existingRoutes.length ? JSON.stringify(existingRoutes) : undefined;
+        const payload = {
+            refaccion: selectedPendingProduct.num_parte,
+            sucursal: selectedPendingProduct.sucursal || selectedPendingProduct.idsucursal || '',
+            localizacion: '0',
+            descripcion: normalizedDescription,
+            existencia: '0',
+            costo: normalizeNumber(detailForm.costo || selectedPendingProduct.costo).toFixed(2),
+            precio: normalizeNumber(detailForm.precio || selectedPendingProduct.precio).toFixed(2),
+            utilidad: normalizeNumber(selectedPendingProduct.utilidad || 1.3),
+            mod_ini: selectedPendingProduct.mod_ini || '',
+            mod_fin: selectedPendingProduct.mod_fin || '',
+            idmarca: selectedPendingProduct.idmarca || '',
+            idgrupo: groupId,
+            idsucursal: detailForm.idsucursal || selectedPendingProduct.idsucursal || '',
+            rutas: rutasPayload,
+        };
+
+        try {
+            const response = await fetch(buildApiUrl('/patchProduct'), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json, text/plain, */*',
+                },
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                const msg = `No se pudo asignar grupo para web (error ${response.status}).`;
+                return { ok: false, message: msg };
+            }
+            return { ok: true };
+        } catch (error) {
+            console.error('Error actualizando grupo para web:', error);
+            return { ok: false, message: 'No se pudo asignar grupo para web.' };
+        }
+    };
+
+    const handleStepChange = (nextStep) => {
+        setErrorMessage('');
+        setErrorMessages(prev => ({ ...prev, selectedProduct: '' }));
+        setActiveStep(nextStep);
+    };
+
     const handleSearchProductPick = (product) => {
         if (!product?.num_parte) return;
         setSelectedPendingPart(product.num_parte);
+        setDetailGroupId(extractGroupId(product));
         setActiveStep('detail');
         setDetailForm({
             idsucursal: '',
@@ -117,9 +197,8 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
     };
 
     const handleProductInputChange = (field, value) => {
-        const normalizedValue = field === 'descripcion' && typeof value === 'string'
-            ? value.toUpperCase()
-            : value;
+        const shouldUppercase = (field === 'descripcion' || field === 'refaccion') && typeof value === 'string';
+        const normalizedValue = shouldUppercase ? value.toUpperCase() : value;
         setProductForm((prev) => ({
             ...prev,
             [field]: normalizedValue,
@@ -144,8 +223,10 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
     };
 
     const handleDetailInputChange = (field, value) => {
+        const normalizedValue =
+            field === 'localizacion' && typeof value === 'string' ? value.toUpperCase() : value;
         setDetailForm((prev) => {
-            const next = { ...prev, [field]: value };
+            const next = { ...prev, [field]: normalizedValue };
             const currentBranch = field === 'idsucursal' ? value : prev.idsucursal;
             const isWebBranch = isWebBranchValue(currentBranch);
 
@@ -252,8 +333,15 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
             valid = false;
             newErrors.selectedProduct = 'Selecciona un producto pendiente.';
         }
+        const webBranchSelected = isWebBranchValue(detailForm.idsucursal);
+        const effectiveGroupId = detailGroupId || selectedProductGroupId;
+        if (selectedPendingProduct && webBranchSelected && !effectiveGroupId) {
+            valid = false;
+            newErrors.selectedProduct =
+                'Este producto no tiene grupo asignado.';
+        }
 
-        const isWebBranch = isWebBranchValue(detailForm.idsucursal);
+        const isWebBranch = webBranchSelected;
         const normalizedForm = {
             ...detailForm,
             localizacion: detailForm.localizacion ? detailForm.localizacion.toUpperCase() : '',
@@ -273,6 +361,12 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
                 newErrors[field] = `${field} es inválido.`;
             }
         });
+
+        if (!isWebBranch && normalizedForm.localizacion && hasLeadingZeroSuffix(normalizedForm.localizacion)) {
+            valid = false;
+            newErrors.localizacion =
+                'Índice no puede iniciar con 0, i.e. usa -1 en lugar de -01.';
+        }
 
         setErrorMessages(newErrors);
         return valid;
@@ -318,6 +412,7 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
         }
 
         const normalizedDescription = (productForm.descripcion || '').toUpperCase();
+        const normalizedRoutes = parseRoutes(productForm.rutas);
 
         const payload = {
             refaccion: productForm.refaccion,
@@ -328,6 +423,7 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
             idmarca: productForm.idmarca,
             idproveedor: productForm.idproveedor,
             status: 'E',
+            rutas: normalizedRoutes.length ? JSON.stringify(normalizedRoutes) : undefined,
         };
 
         try {
@@ -368,9 +464,28 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
         setSuccessMessage('');
         setErrorMessage('');
 
+        const webBranchSelected = isWebBranchValue(detailForm.idsucursal);
+        const effectiveGroupId = detailGroupId || selectedProductGroupId;
+        if (webBranchSelected && !effectiveGroupId) {
+            setErrorMessages(prev => ({
+                ...prev,
+                selectedProduct: 'Este producto no tiene grupo asignado. Selecciona un grupo para web antes de continuar.',
+            }));
+            setErrorMessage('Selecciona un grupo para web antes de guardar el detalle.');
+            return;
+        }
+
         if (!validateDetailForm()) {
             setErrorMessage('Por favor, corrige los campos marcados como inválidos.');
             return;
+        }
+
+        if (webBranchSelected && effectiveGroupId && effectiveGroupId !== selectedProductGroupId) {
+            const groupResult = await updateProductGroupForWeb(effectiveGroupId);
+            if (!groupResult.ok) {
+                setErrorMessage(groupResult.message);
+                return;
+            }
         }
 
         const isWebBranch = isWebBranchValue(detailForm.idsucursal);
@@ -842,6 +957,8 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
         const noAvailableSucursal =
             selectedActiveProduct && displayedSucursalOptions.length <= 1;
         const webBranchSelected = isWebBranchValue(detailForm.idsucursal);
+        const effectiveGroupId = detailGroupId || selectedProductGroupId;
+        const disableDetail = webBranchSelected && !effectiveGroupId;
 
         return (
         <form onSubmit={handleDetailSubmit}>
@@ -870,6 +987,15 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
                                 <div>
                                     <p><span className="font-semibold">Descripción:</span> {selectedPendingProduct.descripcion}</p>
                                     <p><span className="font-semibold">Modelos:</span> {selectedPendingProduct.mod_ini} - {selectedPendingProduct.mod_fin}</p>
+                                    <p>
+                                        <span className="font-semibold">Grupo:</span>{' '}
+                                        {selectedProductGroupLabel || '— (asignar antes de subir a web)'}
+                                    </p>
+                                    {webBranchSelected && isMissingGroup && (
+                                        <p className="text-[rgb(var(--color-error))] font-semibold">
+                                            Este producto no tiene grupo.
+                                        </p>
+                                    )}
                                 </div>
                             {selectedActiveProduct?.detalles?.length > 0 && (
                                 <div className="space-y-1">
@@ -922,6 +1048,7 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
                                         handleDetailInputChange('idsucursal', selectedOption ? selectedOption.value : '')
                                     }
                                     isOptionDisabled={(option) => option.isDisabled}
+                                    isDisabled={disableDetail}
                                     classNamePrefix="react-select"
                                 />
                                 {errorMessages.idsucursal && (
@@ -931,6 +1058,32 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
                         )}
                     </div>
 
+                    {webBranchSelected && (
+                        <div className="sm:col-span-3">
+                            <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
+                                Grupo (para Web)
+                            </label>
+                            <Select
+                                options={groupOptions}
+                                value={
+                                    groupOptions.find(
+                                        (option) =>
+                                            String(option.value) ===
+                                            String(detailGroupId || selectedProductGroupId || '')
+                                    ) || null
+                                }
+                                onChange={(selectedOption) => setDetailGroupId(selectedOption?.value || null)}
+                                classNamePrefix="react-select"
+                                placeholder="Selecciona un grupo"
+                            />
+                            {disableDetail && (
+                                <span className="text-red-600 text-sm">
+                                    Asigna un grupo para poder activar en web.
+                                </span>
+                            )}
+                        </div>
+                    )}
+
                     <div className="sm:col-span-2">
                         <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
                             Localización
@@ -939,9 +1092,9 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
                             type="text"
                             value={detailForm.localizacion}
                             onChange={(e) => handleDetailInputChange('localizacion', e.target.value)}
-                            disabled={webBranchSelected}
+                            disabled={webBranchSelected || disableDetail}
                             className={`block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] shadow focus:ring-2 focus:ring-indigo-500 uppercase ${
-                                webBranchSelected
+                                webBranchSelected || disableDetail
                                     ? 'bg-gray-100 cursor-not-allowed'
                                     : 'bg-[rgb(var(--color-card))]'
                             }`}
@@ -970,6 +1123,7 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
                                     handleDetailInputChange('existencia', selectedOption ? selectedOption.value : '')
                                 }
                                 isOptionDisabled={(option) => option.isDisabled}
+                                isDisabled={disableDetail}
                                 classNamePrefix="react-select"
                             />
                         )}
@@ -989,6 +1143,7 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
                                 handleDetailInputChange('utilidad', selectedOption ? selectedOption.value : '')
                             }
                             isOptionDisabled={(option) => option.isDisabled}
+                            isDisabled={disableDetail}
                             classNamePrefix="react-select"
                         />
                         {errorMessages.utilidad && (
@@ -1034,7 +1189,8 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
                             type="text"
                             value={detailForm.precio}
                             onChange={(e) => handleDetailInputChange('precio', e.target.value)}
-                            className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] shadow focus:ring-2 focus:ring-indigo-500 uppercase"
+                            disabled={disableDetail}
+                            className="block w-full rounded-xl border-0 py-2 px-3 text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] shadow focus:ring-2 focus:ring-indigo-500 uppercase disabled:cursor-not-allowed disabled:opacity-60"
                         />
                         {errorMessages.precio && (
                             <span className="text-red-600 text-sm">{errorMessages.precio}</span>
@@ -1053,7 +1209,12 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
                 </button>
                 <button
                     type="submit"
-                    className="px-4 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700"
+                    disabled={disableDetail}
+                    className={`px-4 py-2 rounded-full text-white ${
+                        disableDetail
+                            ? 'bg-indigo-300 cursor-not-allowed'
+                            : 'bg-indigo-600 hover:bg-indigo-700'
+                    }`}
                 >
                     Guardar detalle
                 </button>
@@ -1095,7 +1256,7 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
                                     ? 'bg-[rgb(var(--color-galaxy))] text-white shadow-lg'
                                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                             }`}
-                            onClick={() => setActiveStep('detail')}
+                            onClick={() => handleStepChange('detail')}
                         >
                             <MdAssignmentAdd className="text-lg" />
                             Paso 2: Detalle

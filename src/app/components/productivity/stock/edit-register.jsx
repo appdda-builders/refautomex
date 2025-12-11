@@ -60,6 +60,13 @@ const isWebBranchValue = (value) => {
     return normalized === '1' || normalized === 'WEB';
 };
 
+const hasLeadingZeroSuffix = (location = '') => {
+    const parts = location.split('-');
+    if (parts.length < 2) return false;
+    const suffix = parts[1] || '';
+    return suffix.length > 1 && suffix.startsWith('0');
+};
+
 const MODEL_YEAR_OPTIONS = Array.from({ length: 36 }, (_, i) => {
     const year = 1990 + i;
     return { value: year, label: `${year}` };
@@ -659,6 +666,11 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
                 newErrorMessages[key] = '';
             }
         }
+        if (!isWebBranchSelected && prodOverview.localizacion && hasLeadingZeroSuffix(prodOverview.localizacion)) {
+            isValid = false;
+            newErrorMessages.localizacion =
+                'Índice no puede iniciar con 0, i.e. usa -1 en lugar de -01.';
+        }
         // Validar la localización en el servidor
         if (!isWebBranchSelected) {
             try {
@@ -1119,7 +1131,12 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
                                     autoComplete="descripcions"
                                     value={currentProduct.descripcion ?? ''}
                                     className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase"
-                                    onChange={(e) => setProdOverview(prevState => ({ ...prevState, descripcion: e.target.value?.toUpperCase() }))}
+                                    onChange={(e) =>
+                                        setProdOverview(prevState => ({
+                                            ...prevState,
+                                            descripcion: e.target.value ? e.target.value.toUpperCase() : '',
+                                        }))
+                                    }
                                     />
                                     {errorMessages.descripcion && (
                                         <span className="text-[rgb(var(--color-error))] text-sm">
@@ -1141,7 +1158,12 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
                                             autoComplete="location"
                                             value={currentProduct.localizacion ?? ''}
                                             className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase"
-                                            onChange={(e) => setProdOverview(prevState => ({ ...prevState, localizacion: e.target.value }))}
+                                            onChange={(e) =>
+                                                setProdOverview(prevState => ({
+                                                    ...prevState,
+                                                    localizacion: e.target.value ? e.target.value.toUpperCase() : '',
+                                                }))
+                                            }
                                         />
                                         {errorMessages.localizacion && (
                                             <span className="text-[rgb(var(--color-error))] text-sm">
