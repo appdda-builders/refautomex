@@ -521,8 +521,8 @@ const FindProducts = forwardRef(({
                     <div className='flex justify-center px-5 py-2 gap-x-4'>
                         <div className="flex justify-between items-center px-3 text-xs text-[rgb(var(--color-text))]">
                             <div className="font-bold uppercase tracking-wide bg-[rgb(var(--color-card))] py-1 px-2 rounded-md shadow shadow-[rgb(var(--color-galaxy))] inline-flex items-center gap-2">
-                                <span className="opacity-70">RESULTADOS:</span>
-                                <span className='text-[rgb(var(--color-refautomex))]'>{filteredProducts.length}</span>
+                                <span className="opacity-50">RESULTADOS:</span>
+                                <span className='text-[rgb(var(--color-text))]'>{filteredProducts.length}</span>
                             </div>
                         </div>
                         {!hideSearchModeToggle && (
@@ -532,8 +532,8 @@ const FindProducts = forwardRef(({
                                     onClick={handleTypeClick}
                                     className="inline-flex items-center gap-2 px-4 py-1 rounded-md w-[240px] bg-[rgb(var(--color-card))] cursor-pointer text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-galaxy))] text-xs font-semibold tracking-wide uppercase transition hover:scale-105 hover:shadow-md"
                                 >
-                                    <span className="opacity-70">POR:</span>
-                                    <span className='text-[rgb(var(--color-refautomex))]'>{searchType.toUpperCase()}</span>
+                                    <span className="opacity-50">POR:</span>
+                                    <span className='text-[rgb(var(--color-text))]'>{searchType.toUpperCase()}</span>
                                 </button>
                             </div>
                         )}

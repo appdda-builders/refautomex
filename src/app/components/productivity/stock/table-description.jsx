@@ -21,7 +21,7 @@ const resolveProductImage = (ruta, multimediaSrc = '') => {
     return ruta.startsWith('http') ? ruta : `${multimediaSrc}${ruta}`;
 };
 
-export default function TableDescription({ items, buttonConfigs, onRemoveProduct, onUpdateProduct, handleMouseEnter, handleMouseLeave, visibleTooltip, onEditClick }) {
+export default function TableDescription({ items, buttonConfigs, onRemoveProduct, onUpdateProduct, handleMouseEnter, handleMouseLeave, visibleTooltip, onEditClick, isSaving = false }) {
     const [QuantityOptions, setQuantityOptions] = useState([]);
     const listRef = useRef();
     const printRef = useRef(null);
@@ -52,12 +52,12 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
     });
 
     const handleLocationChange = (product, event) => {
-        const newLocation = event.target.value;
+        const newLocation = event.target.value.toUpperCase();
         onUpdateProduct(product.refaccion, { localizacion: newLocation });
     };
 
     const handleDescriptionChange = (product, event) => {
-        const newDescription = event.target.value;
+        const newDescription = event.target.value.toUpperCase();
         onUpdateProduct(product.refaccion, { descripcion: newDescription });
     };
 
@@ -152,14 +152,16 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                     <button
                                         onClick={handleListPrint}
                                         title="Listar para impresión"
-                                        className="bg-gray-700 text-white rounded-full p-1.5 self-center flex items-center cursor-pointer mx-0.5"
+                                        className={`bg-gray-700 text-white rounded-full p-1.5 self-center flex items-center mx-0.5 ${isSaving ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        disabled={isSaving}
                                     >
                                         <CiBoxList className="text-lg" />
                                     </button>
                                     <button
                                         onClick={handleClearTable}
                                         title="Limpiar tabla"
-                                        className="bg-red-700 text-white rounded-full p-1.5 self-center flex items-center cursor-pointer mx-0.5"
+                                        className={`bg-red-700 text-white rounded-full p-1.5 self-center flex items-center mx-0.5 ${isSaving ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        disabled={isSaving}
                                     >
                                         <LuListRestart className="text-lg" />
                                     </button>
@@ -187,7 +189,8 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                             <div className='text-base w-32'>
                                             <button
                                                 onClick={() => onEditClick(item)}
-                                                className="bg-amber-400 mr-1 text-white rounded-full p-1 hover:bg-yellow-600"
+                                                className={`bg-amber-400 mr-1 text-white rounded-full p-1 hover:bg-yellow-600 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                                disabled={isSaving}
                                             >
                                                 <MdEditSquare />
                                             </button>
@@ -213,7 +216,8 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                             type="text"
                                             value={item.descripcion}
                                             onChange={(event) => handleDescriptionChange(item, event)}
-                                            className="block w-96 md:w-96 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 uppercase"
+                                            disabled={isSaving}
+                                            className={`block w-96 md:w-96 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 uppercase ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
                                         />
                                     </td>
                                     <td className="p-2">
@@ -221,7 +225,8 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                             type="text"
                                             value={item.localizacion}
                                             onChange={(event) => handleLocationChange(item, event)}
-                                            className="block p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60"
+                                            disabled={isSaving}
+                                            className={`block p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
                                         />
                                     </td>
                                     <td className="py-2">
@@ -233,6 +238,7 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                             options={QuantityOptions}
                                             classNamePrefix="react-select"
                                             className='m-0 p-0 w-20'
+                                            isDisabled={isSaving}
                                         />
                                     </td>
                                     <td className="p-2">
@@ -253,13 +259,15 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                             step="0.01"
                                             value={item.precio ?? ''}
                                             onChange={(event) => handlePriceChange(item, event)}
-                                            className="block w-24 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60"
+                                            disabled={isSaving}
+                                            className={`block w-24 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
                                         />
                                     </td>
                                     <td className="p-2">
                                         <button
                                             onClick={() => handleRemoveClick(item)}
-                                            className="bg-red-500 mx-2 text-white rounded-full p-2 hover:bg-red-700"
+                                            className={`bg-red-500 mx-2 text-white rounded-full p-2 hover:bg-red-700 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                            disabled={isSaving}
                                         >
                                             <MdDelete />
                                         </button>
