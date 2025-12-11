@@ -386,6 +386,12 @@ app.get('/api/getInvoicesCaptured', (req, res) => {
     handleQuery(query, [], res);
 });
 
+// GET: all web invoices (pendientes/finalizadas)
+app.get('/api/getInvoices', (req, res) => {
+    const query = 'CALL GetInvoices()';
+    handleQuery(query, [], res);
+});
+
 // GET: web history for only one user
 app.get('/api/getUserHistory', async (req, res) => {
     const { id } = req.query;
@@ -743,6 +749,24 @@ app.patch('/api/patchHistoryStatus', (req, res) => {
 
     // Ejecutar el procedimiento almacenado
     handleQuery(query, params, res);
+});
+
+// PATCH: mark invoice as emitted (F)
+app.patch('/api/finalizeInvoice', (req, res) => {
+    const { idfactura, folio } = req.body || {};
+    if (!idfactura && !folio) {
+        return res.status(400).json({
+            error: 'Bad Request',
+            details: 'Missing idfactura or folio.',
+        });
+    }
+
+    const query = idfactura
+        ? 'UPDATE factura SET emitida = "F" WHERE idfactura = ?'
+        : 'UPDATE factura SET emitida = "F" WHERE folio = ?';
+    const param = idfactura || folio;
+
+    handleQuery(query, [param], res);
 });
 
 // PATCH: update table status of multiple products

@@ -674,14 +674,13 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
         // Validar la localización en el servidor
         if (!isWebBranchSelected) {
             try {
-                const params = {
-                    localizacion: prodOverview.localizacion,
-                    idsucursal: activeBranchId ? Number(activeBranchId) : currentProduct.idsucursal,
-                    num_parte: prodOverview.refaccion
-                };
-                const url = getAbsoluteApiUrl('/dataManage');
-                url.searchParams.set('type', 'verifyLocation');
-                url.searchParams.set('params', JSON.stringify(params));
+                const url = getAbsoluteApiUrl('/verifyLocation');
+                url.searchParams.set('localizacion', prodOverview.localizacion || '');
+                url.searchParams.set(
+                    'idsucursal',
+                    activeBranchId ? Number(activeBranchId) : currentProduct.idsucursal
+                );
+                url.searchParams.set('num_parte', prodOverview.refaccion || '');
 
                 const response = await fetch(url.toString(), {
                     method: 'GET',

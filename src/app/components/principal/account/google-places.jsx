@@ -204,8 +204,19 @@ const GooglePlacesAutocomplete = ({ placeId, setPlaceId, setPostalCode, lock }) 
 
   // --- Effects ---
   useEffect(() => {
-    if (!window.google) return;
-    ensureMap();
+    const handleMapsReady = () => {
+      if (!window.google) return;
+      ensureMap();
+    };
+
+    // Si el script ya se cargó, inicializar de inmediato
+    if (typeof window !== 'undefined' && window.google) {
+      handleMapsReady();
+    }
+
+    // Escuchar el evento lanzado al cargar el script en layout.js
+    window.addEventListener('google-maps-loaded', handleMapsReady);
+    return () => window.removeEventListener('google-maps-loaded', handleMapsReady);
   }, [ensureMap]);
 
   useEffect(() => {
