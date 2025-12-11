@@ -10,6 +10,7 @@ import { CiShop, CiStar, CiMail } from "react-icons/ci";
 import { MdShoppingCart } from 'react-icons/md';
 import { PiBooksThin } from "react-icons/pi";
 import { useTranslation } from 'react-i18next';
+import { TbChristmasTreeFilled } from "react-icons/tb";
 
 import RefautomexLogo from '@/app/components/refautomex-logo';
 import ShiftModeButton from '@/app/components/principal/shiftmode-button';
@@ -138,8 +139,13 @@ export default function Navbar() {
           </div>
           <Link href={`/?lang=${selectedLanguage}`}>
             <RefautomexLogo classAttr="max-h-20 md:max-h-24 2xl:max-h-28 w-auto p-2 md:p-4 -my-1 ml-1" />
-          </Link>
 
+            <span className='flex flex-row justify-center items-center gradient-text-title -mt-4 md:-mt-6 mb-1 font-bold'>
+              <TbChristmasTreeFilled className='m-1 text-[rgb(var(--color-success))] size-5'/>
+              ¡FELICES FIESTAS!
+            </span>
+
+          </Link>
           <div className="lg:hidden absolute right-1">
             <MenuSlide
               menuItems={menuItems}
