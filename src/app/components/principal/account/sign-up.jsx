@@ -14,6 +14,7 @@ import GooglePlacesAutocomplete from './google-places';
 import Link from 'next/link';
 
 import '@/app/translations/i18next-translation';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 
 function classNames(...classes) {
@@ -162,7 +163,7 @@ export default function SignUp() {
                 setLoading(true);
 
                 try {
-                    const response = await fetch('/api/dataManage?type=newUser', {
+                    const response = await fetch(buildApiUrl('/newUser'), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

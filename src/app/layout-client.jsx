@@ -1,6 +1,7 @@
 'use client';
 
 import TagManager from 'react-gtm-module';
+import Script from 'next/script';
 import Navbar from '@/app/components/principal/navbar';
 import Footer from '@/app/components/principal/footer';
 import { TimeZoneProvider } from '@/app/lib/time-zone-context';
@@ -48,18 +49,27 @@ export default function RootLayoutClient({ children }) {
   }
 
   return (
-    <ThemeProvider>
-      <TimeZoneProvider>
-        <AuthChecker>
-          <ShoppingProvider>
-            <div className="flex flex-col min-h-screen">
-              <Navbar />
-              <main className="flex-grow z-0">{children}</main>
-              <Footer />
-            </div>
-          </ShoppingProvider>
-        </AuthChecker>
-      </TimeZoneProvider>
-    </ThemeProvider>
+    <>
+      <Script
+        src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}
+        strategy="afterInteractive"
+        onLoad={() => {
+          window.dispatchEvent(new Event('google-maps-loaded'));
+        }}
+      />
+      <ThemeProvider>
+        <TimeZoneProvider>
+          <AuthChecker>
+            <ShoppingProvider>
+              <div className="flex flex-col min-h-screen">
+                <Navbar />
+                <main className="flex-grow z-0">{children}</main>
+                <Footer />
+              </div>
+            </ShoppingProvider>
+          </AuthChecker>
+        </TimeZoneProvider>
+      </ThemeProvider>
+    </>
   );
 }

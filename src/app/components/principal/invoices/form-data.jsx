@@ -106,7 +106,7 @@ export default function FormData({ t, formState, setFormState, account }) {
         };
 
         try {
-            const response = await fetch('/api/dataManage?type=addInvoice', {
+            const response = await fetch(buildApiUrl('/addInvoice'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -225,7 +225,7 @@ export default function FormData({ t, formState, setFormState, account }) {
         fetchCFDI();
         fetchRegimen();
     }, []);
-    
+
     const invalidWrapper = (hasError) => hasError ? 'ring-2 ring-red-500 rounded-md p-1' : '';
 
     return (
