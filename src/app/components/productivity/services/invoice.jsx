@@ -36,9 +36,10 @@ const statusBadgeClass = (status) =>
 const isLikelyPlaceId = (val) => {
     if (typeof val !== 'string') return false;
     const trimmed = val.trim();
-    if (trimmed.length < 12 || trimmed.length > 120) return false;
+    if (trimmed.length < 5 || trimmed.length > 250) return false;
+    // Google place_id no lleva espacios
     if (/\s/.test(trimmed)) return false;
-    return /^[A-Za-z0-9_-]+$/.test(trimmed);
+    return true;
 };
 
 export default function Invoice() {
@@ -114,8 +115,10 @@ export default function Invoice() {
 
     useEffect(() => {
         const uniquePlaceIds = Array.from(
-            new Set(invoices.map((inv) => inv.domicilio).filter(isLikelyPlaceId))
-        ).slice(0, 50); // evita demasiadas llamadas
+            new Set(invoices.map((inv) => inv.domicilio).filter(Boolean))
+        )
+            .filter(isLikelyPlaceId)
+            .slice(0, 50); // evita demasiadas llamadas
         uniquePlaceIds.forEach(resolvePlace);
     }, [invoices, resolvePlace]);
 
