@@ -33,6 +33,14 @@ const statusBadgeClass = (status) =>
         ? 'bg-green-500 text-white'
         : 'bg-amber-500 text-[rgb(var(--color-text))]';
 
+const isLikelyPlaceId = (val) => {
+    if (typeof val !== 'string') return false;
+    const trimmed = val.trim();
+    if (trimmed.length < 12 || trimmed.length > 120) return false;
+    if (/\s/.test(trimmed)) return false;
+    return /^[A-Za-z0-9_-]+$/.test(trimmed);
+};
+
 export default function Invoice() {
     const [invoices, setInvoices] = useState([]);
     const [filter, setFilter] = useState('');
@@ -83,6 +91,7 @@ export default function Invoice() {
 
     const resolvePlace = useCallback((placeId) => {
         if (!placeId || placeCacheRef.current[placeId]) return;
+        if (!isLikelyPlaceId(placeId)) return;
         const service = placesServiceRef.current;
         if (!service) return;
 
@@ -105,7 +114,7 @@ export default function Invoice() {
 
     useEffect(() => {
         const uniquePlaceIds = Array.from(
-            new Set(invoices.map((inv) => inv.domicilio).filter(Boolean))
+            new Set(invoices.map((inv) => inv.domicilio).filter(isLikelyPlaceId))
         ).slice(0, 50); // evita demasiadas llamadas
         uniquePlaceIds.forEach(resolvePlace);
     }, [invoices, resolvePlace]);
