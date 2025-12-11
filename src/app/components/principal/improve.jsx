@@ -17,7 +17,6 @@ export default function Improve() {
 
     useEffect(() => {
         const detectLanguage = () => {
-            // Puedes obtener el idioma de la URL o de localStorage
             const langFromUrl = window.location.pathname.split('/')[1];
             if (langFromUrl && langFromUrl !== selectedLanguage) {
                 i18n.changeLanguage(langFromUrl);
