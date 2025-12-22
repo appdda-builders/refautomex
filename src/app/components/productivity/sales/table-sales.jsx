@@ -55,10 +55,28 @@ const customStyles = {
     }),
 };
 
+const MAX_QUANTITY_OPTIONS = 300;
+const STOCK_WARNING_LABEL = 'disponibles en esta sucursal';
+
+const getMaxAllowedQuantity = (item) => {
+    const stock = Number(item.existencia);
+    if (Number.isFinite(stock) && stock > 0) {
+        return Math.max(1, Math.min(MAX_QUANTITY_OPTIONS, Math.floor(stock)));
+    }
+    return MAX_QUANTITY_OPTIONS;
+};
+
+const buildQuantityOptions = (item) => {
+    const max = getMaxAllowedQuantity(item);
+    return Array.from({ length: max }, (_, i) => ({
+        value: i + 1,
+        label: (i + 1).toString(),
+    }));
+};
 
 export default function TableSales({ items, buttonConfigs, completeConfigs, onRemoveProduct, onUpdateProduct, handleMouseEnter, handleMouseLeave, onShowTextArea, visibleTooltip, discount, folio, onDiscountChange, onTogglePedido, setItems, handleAddNote, notes }) {
     const [quantities, setQuantities] = useState(() =>
-        items.reduce((acc, item) => ({ ...acc, [item.refaccion]: item.cantidad || 1 }), {})
+        items.reduce((acc, item) => ({ ...acc, [item.refaccion]: item.cantidad ?? 1 }), {})
     );
     const [prices, setPrices] = useState(() =>
         items.reduce((acc, item) => ({ ...acc, [item.refaccion]: item.precio }), {})
@@ -77,18 +95,77 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
     const prevPricesRef = useRef(prices);
 
     useEffect(() => {
+        const clampedWarnings = {};
+        setQuantities((prev) => {
+            const next = {};
+            let changed = false;
+
+            items.forEach((item) => {
+                const limit = getMaxAllowedQuantity(item);
+                const prevQtyRaw = prev[item.refaccion] ?? item.cantidad ?? 1;
+                const prevQtyNumber = Number(prevQtyRaw);
+                const normalizedQty = Number.isFinite(prevQtyNumber) && prevQtyNumber > 0 ? prevQtyNumber : 1;
+                const safeQty = Math.min(normalizedQty, limit);
+                next[item.refaccion] = safeQty;
+                if (safeQty !== normalizedQty) {
+                    changed = true;
+                    clampedWarnings[item.refaccion] = `Solo hay ${limit} ${STOCK_WARNING_LABEL}.`;
+                }
+            });
+
+            if (Object.keys(prev).length !== Object.keys(next).length) {
+                changed = true;
+            } else if (!changed) {
+                const keys = Object.keys(next);
+                for (let i = 0; i < keys.length; i += 1) {
+                    const key = keys[i];
+                    if (prev[key] !== next[key]) {
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+
+            return changed ? next : prev;
+        });
+
+        if (Object.keys(clampedWarnings).length > 0) {
+            setWarnings((prev) => ({ ...prev, ...clampedWarnings }));
+        }
+    }, [items]);
+
+    useEffect(() => {
+        setWarnings((prev) => {
+            const activeRefs = new Set(items.map((item) => item.refaccion));
+            const next = {};
+            Object.keys(prev).forEach((ref) => {
+                if (activeRefs.has(ref)) {
+                    next[ref] = prev[ref];
+                }
+            });
+            return next;
+        });
+    }, [items]);
+
+    useEffect(() => {
         const hasItemsChanged = JSON.stringify(prevItemsRef.current) !== JSON.stringify(items);
         const hasQuantitiesChanged = JSON.stringify(prevQuantitiesRef.current) !== JSON.stringify(quantities);
         const hasPricesChanged = JSON.stringify(prevPricesRef.current) !== JSON.stringify(prices);
 
         if (hasItemsChanged || hasQuantitiesChanged || hasPricesChanged) {
             const newItems = items.map((item) => {
-                const price = parseFloat(prices[item.refaccion]) || parseFloat(item.precio);
+                const priceFromState = parseFloat(prices[item.refaccion]);
+                const resolvedPrice = Number.isFinite(priceFromState) ? priceFromState : parseFloat(item.precio);
+                const price = Number.isFinite(resolvedPrice) ? resolvedPrice : 0;
                 const calculatedAIva = (price / 1.16).toFixed(2);
-                const monto = (quantities[item.refaccion] || 1) * price;
+                const qtyRaw = quantities[item.refaccion] ?? item.cantidad ?? 1;
+                const qtyNumber = Number(qtyRaw);
+                const qty = Number.isFinite(qtyNumber) && qtyNumber > 0 ? qtyNumber : 1;
+                const monto = qty * price;
 
                 return {
                     ...item,
+                    cantidad: qty,
                     monto: monto,
                     aIva: aIvas[item.refaccion] !== undefined ? aIvas[item.refaccion] : calculatedAIva
                 };
@@ -103,12 +180,25 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
 
     const handleQuantityChange = (product, selectedOption) => {
         const newQuantity = selectedOption.value;
-        setQuantities(prevQuantities => ({ ...prevQuantities, [product.refaccion]: newQuantity }));
+        const maxAllowed = getMaxAllowedQuantity(product);
+        const adjustedQuantity = Math.min(newQuantity, maxAllowed);
+
+        setQuantities(prevQuantities => ({ ...prevQuantities, [product.refaccion]: adjustedQuantity }));
         setItems(prevItems =>
             prevItems.map(item =>
-                item.refaccion === product.refaccion ? { ...item, cantidad: newQuantity } : item
+                item.refaccion === product.refaccion ? { ...item, cantidad: adjustedQuantity } : item
             )
         );
+
+        setWarnings((prev) => {
+            const next = { ...prev };
+            if (newQuantity > maxAllowed) {
+                next[product.refaccion] = `Solo hay ${maxAllowed} ${STOCK_WARNING_LABEL}.`;
+            } else if (next[product.refaccion] && next[product.refaccion].includes(STOCK_WARNING_LABEL)) {
+                delete next[product.refaccion];
+            }
+            return next;
+        });
     };
 
     const handlePriceChange = (product, event) => {
@@ -125,7 +215,10 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
             const calculatedAIva = (newPrice / 1.16).toFixed(2);
 
             setAIvas(prevAIvas => ({ ...prevAIvas, [product.refaccion]: calculatedAIva }));
-            const newMonto = (quantities[product.refaccion] || 1) * newPrice;
+            const qtyRaw = quantities[product.refaccion] ?? product.cantidad ?? 1;
+            const qtyNumber = Number(qtyRaw);
+            const currentQty = Number.isFinite(qtyNumber) && qtyNumber > 0 ? qtyNumber : 1;
+            const newMonto = currentQty * newPrice;
 
             setItems(prevItems =>
                 prevItems.map(item =>
@@ -166,7 +259,10 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
             setAIvas(prevAIvas => ({ ...prevAIvas, [product.refaccion]: newAiva }));
             const newPrice = (newAiva * 1.16).toFixed(2);
             setPrices(prevPrices => ({ ...prevPrices, [product.refaccion]: newPrice }));
-            const newMonto = (quantities[product.refaccion] || 1) * newPrice;
+            const qtyRaw = quantities[product.refaccion] ?? product.cantidad ?? 1;
+            const qtyNumber = Number(qtyRaw);
+            const currentQty = Number.isFinite(qtyNumber) && qtyNumber > 0 ? qtyNumber : 1;
+            const newMonto = currentQty * newPrice;
             setItems(prevItems =>
                 prevItems.map(item =>
                     item.refaccion === product.refaccion ? { ...item, monto: newMonto } : item
@@ -240,7 +336,6 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
         });
     };
 
-    const quantityOptions = Array.from({ length: 300 }, (_, i) => ({ value: i + 1, label: (i + 1).toString() }));
     const discountOptions = [
         { value: 0, label: '0%' },
         { value: 5, label: '5%' },
@@ -248,7 +343,15 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
         { value: 10, label: '10%' }
     ];
 
-    const subtotal = items.reduce((acc, item) => acc + (quantities[item.refaccion] || 1) * (parseFloat(prices[item.refaccion]) || parseFloat(item.precio)), 0);
+    const subtotal = items.reduce((acc, item) => {
+        const qtyRaw = quantities[item.refaccion] ?? item.cantidad ?? 1;
+        const qtyNumber = Number(qtyRaw);
+        const qty = Number.isFinite(qtyNumber) && qtyNumber > 0 ? qtyNumber : 1;
+        const priceFromState = parseFloat(prices[item.refaccion]);
+        const priceCandidate = Number.isFinite(priceFromState) ? priceFromState : parseFloat(item.precio);
+        const safePrice = Number.isFinite(priceCandidate) ? priceCandidate : 0;
+        return acc + qty * safePrice;
+    }, 0);
     const discountAmount = subtotal * discount / 100;
     const totalWithDiscount = subtotal - discountAmount;
 
@@ -308,9 +411,19 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
                     </thead>
                     <tbody>
                         {items.map((item, index) => {
-                            const price = parseFloat(prices[item.refaccion]) || parseFloat(item.precio);
-                            const aiva = parseFloat(aIvas[item.refaccion]) || (price / 1.16).toFixed(2);
-                            const monto = (quantities[item.refaccion] || 1) * price;
+                            const priceFromState = parseFloat(prices[item.refaccion]);
+                            const rawPrice = Number.isFinite(priceFromState) ? priceFromState : parseFloat(item.precio);
+                            const price = Number.isFinite(rawPrice) ? rawPrice : 0;
+                            const aivaFromState = parseFloat(aIvas[item.refaccion]);
+                            const aiva = Number.isFinite(aivaFromState) ? aivaFromState : (price / 1.16).toFixed(2);
+                            const selectedQuantityRaw = quantities[item.refaccion] ?? item.cantidad ?? 1;
+                            const selectedQuantityNumber = Number(selectedQuantityRaw);
+                            const selectedQuantity = Number.isFinite(selectedQuantityNumber) && selectedQuantityNumber > 0 ? selectedQuantityNumber : 1;
+                            const quantityOptions = buildQuantityOptions(item);
+                            const selectedQuantityOption =
+                                quantityOptions.find(option => option.value === selectedQuantity) ||
+                                quantityOptions[quantityOptions.length - 1];
+                            const monto = selectedQuantity * price;
                             return (
                                 <tr
                                     className={`${item.isPedido ? 'bg-[rgb(var(--color-blue))] text-white' : item.existencia === 0 ? 'bg-[rgb(var(--color-error-base))]' : 'bg-[rgb(var(--color-card))]'} border-b border-[rgb(var(--color-gray))] relative text-[rgb(var(--color-text))]`}
@@ -340,7 +453,7 @@ export default function TableSales({ items, buttonConfigs, completeConfigs, onRe
                                     </td>
                                     <td className="py-4">
                                         <Select
-                                            value={quantityOptions.find(option => option.value === (quantities[item.refaccion] || 1))}
+                                            value={selectedQuantityOption}
                                             onChange={(selectedOption) => handleQuantityChange(item, selectedOption)}
                                             options={quantityOptions}
                                             styles={customStyles}
