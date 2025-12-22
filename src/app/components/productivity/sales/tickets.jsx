@@ -268,13 +268,19 @@ export default function Tickets() {
 
     const hasPedido = items.some(item => item.isPedido);
     const ceroExistencia = items.some(item => item.existencia === 0);
+    const stockExceeded = items.some(item => {
+        const stock = Number(item.existencia);
+        if (!Number.isFinite(stock) || stock < 0) return false;
+        const quantity = Number(item.cantidad ?? 1);
+        return quantity > stock;
+    });
     const ceroMonto = items.some(item => item.monto === 0);
     const ceroTotal = total <= 0;
     const ceroItems = items.length === 0;
     const manualRowsIncomplete = items.some(
         item => item.isEditable && (item.descripcion.trim() === '' || Number(item.precio) <= 0)
     );
-    const canCompleteSale = !(hasPedido || ceroExistencia || ceroMonto || ceroTotal || ceroItems || manualRowsIncomplete);
+    const canCompleteSale = !(hasPedido || ceroExistencia || stockExceeded || ceroMonto || ceroTotal || ceroItems || manualRowsIncomplete);
     const validaTextArea = hasPedido ? 'block' : 'hidden';
     const validaHiddenLista = ceroItems ? 'hidden' : 'block';
 
