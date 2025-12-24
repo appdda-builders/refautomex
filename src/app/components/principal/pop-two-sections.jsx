@@ -10,7 +10,7 @@ export default function PopTwoSections ({tracking, title, sectionOne, sectionTwo
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-2 px-2">
                 <div className="lg:col-span-2">
                     <h2 className="text-md hover:opacity-80 text-[rgb(var(--color-gray-base))] font-semibold tracking-wide uppercase">{t(tracking)}</h2>
-                    <h3 className="text-4xl italic mt-2 gradient-text-light cursor-pointer">{t(title)}</h3>
+                    <h3 className="text-4xl italic mt-2 gradient-text-title cursor-pointer">{t(title)}</h3>
                 </div>
                 <div className="lg:col-span-1">
                     <p className="text-[rgb(var(--color-text))] mt-2">

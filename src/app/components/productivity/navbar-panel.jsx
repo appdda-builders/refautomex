@@ -114,6 +114,7 @@ export default function NavbarPanel() {
         name: 'Servicios',
         icon: FaUsersViewfinder,
         subNav: [
+            { name: 'Calendario', href: '/productivity?load=calendar' },
             { name: 'Facturación Web', href: '/productivity?load=invoice' },
             { name: 'Gestión de cuentas activas', href: '/productivity?load=personal' },
         ],

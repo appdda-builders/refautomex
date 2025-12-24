@@ -71,15 +71,15 @@ export default function Beginning() {
                     <div className="absolute top-0 left-0 w-full h-full py-5 md:py-10 z-10 flex items-end justify-start bg-stone-950/60 bg-cover">
                         <div className="absolute w-full px-10 md:px-16">
                         <div className="flex sm:flex-row flex-col justify-between items-center">
-                            <h1 className="lg:text-5xl text-center sm:text-left text-4xl gradient-text-light-white font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                            <h1 className="lg:text-5xl text-center sm:text-left text-4xl gradient-text-title font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
                             {image.title}
                             </h1>
                             <button
-                            className="bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 px-2 py-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer font-bold"
+                            className="bg-gradient-to-bl hover:bg-gradient-to-tr from-[rgb(var(--color-galaxy))] to-[rgb(var(--color-card))] shadow shadow-[rgb(var(--color-galaxy))] text-[rgb(var(--color-text))] px-2 py-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer font-bold"
                             onClick={() => handleOpenModal(image)}
                             >
                             <span className="flex px-1 justify-center items-center">
-                                <FaRegLightbulb className="inline-block text-xl md:text-2xl mx-1.5 p-0.5 rounded-full bg-amber-100 shadow" />
+                                <FaRegLightbulb className="inline-block text-xl md:text-2xl mx-1.5 p-0.5 rounded-full bg-[rgb(var(--color-galaxy))]/10 shadow shadow-[rgb(var(--color-galaxy))]" />
                                 {image.caption}
                             </span>
                             </button>
@@ -93,8 +93,8 @@ export default function Beginning() {
                             <div className="flex items-center justify-center min-h-screen">
                                 <div className='relative max-w-7xl sm:px-10 lg:px-20 bg-[rgb(var(--color-bg))] text-[rgb(var(--color-text-base))]
                                 p-3 sm:rounded-xl shadow-xl py-12'>
-                                    <div className='absolute -top-5 right-1/2 translate-x-1/2 shadow bg-[rgb(var(--color-gray))] rounded-full p-3 cursor-pointer animate-out'>
-                                        <FaRegLightbulb className='h-9 w-9 text-amber-500 hover:opacity-80'/>
+                                    <div className='absolute -top-5 right-1/2 translate-x-1/2 shadow bg-[rgb(var(--color-bg))] shadow-[rgb(var(--color-galaxy))] rounded-full p-3 cursor-pointer animate-out'>
+                                        <FaRegLightbulb className='h-9 w-9 text-[rgb(var(--color-galaxy))] hover:opacity-80'/>
                                     </div>
                                     <button onClick={handleCloseModal} className="absolute top-2 right-2 text-red-500 text-xl z-10">
                                         <IoMdCloseCircle className='h-7 w-7 animate-out' />

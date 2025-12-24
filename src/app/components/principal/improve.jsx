@@ -32,7 +32,7 @@ export default function Improve() {
         text-[rgb(var(--color-text-base))]
         min-h-[300px] sm:min-h-[500px]'>
             <div className="relative sm:h-screen overflow-hidden
-                bg-[rgb(var(--color-bg)/0.95)]
+                bg-[rgb(var(--color-bg)/70)]
             ">
                 <div className="pb-80 pt-16 sm:pb-40 sm:pt-24 lg:pb-48 lg:pt-40">
                     <div className="relative mx-auto max-w-7xl px-4 sm:static lg:px-6">
@@ -111,9 +111,9 @@ export default function Improve() {
                                 <Link
                                     href={{ pathname: "/section/products",
                                     query: { lang: selectedLanguage } }}
-                                    className="inline-block bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 px-2 py-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer font-bold">
+                                    className="inline-block bg-gradient-to-bl hover:bg-gradient-to-tr from-[rgb(var(--color-galaxy))] to-[rgb(var(--color-card))] shadow shadow-[rgb(var(--color-galaxy))] text-[rgb(var(--color-text))] px-2 py-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 cursor-pointer font-bold">
                                         <span className='flex px-1 justify-center items-center'>
-                                            <FaShoppingBag className="inline-block text-xl md:text-2xl mx-1.5 p-0.5 rounded-full bg-amber-100 shadow" />
+                                            <FaShoppingBag className="inline-block text-xl md:text-2xl mx-1.5 p-0.5 rounded-full bg-[rgb(var(--color-galaxy))]/10 shadow shadow-[rgb(var(--color-galaxy))]" />
                                             {t('index.improve.btnCaption')}
                                         </span>
                                 </Link>

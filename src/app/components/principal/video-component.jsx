@@ -85,10 +85,10 @@ export default function VideoComponent() {
                 {isPlaying ? <FaRegStopCircle size={40}/> : <FaPlayCircle size={40}/>}
             </button>
             <div className='relative w-full h-full'>
-                <div className="absolute top-0 left-0 w-full h-full bg-[rgb(var(--color-slate))]/50 p-5 z-0 flex items-end justify-start bg-cover">
+                <div className="absolute top-0 left-0 w-full h-full bg-[rgb(var(--color-video))]/60 p-5 z-0 flex items-end justify-start bg-cover">
                 </div>
                 <div className="absolute bottom-14 sm:bottom-5 xl:max-w-[1650px] xl:mx-auto px-20 sm:pl-56 sm:px-auto">
-                    <h1 className="text-4xl md:text-5xl xl:text-6xl 3xl:text-6xl font-bold mt-5 py-1 gradient-text-light">
+                    <h1 className="text-4xl md:text-5xl xl:text-6xl 3xl:text-6xl font-bold mt-5 py-1 gradient-text-title">
                         {t('index.video.title')}
                     </h1>
                     <p className="text-xl lg:text-3xl text-slate-100 pt-5 italic">

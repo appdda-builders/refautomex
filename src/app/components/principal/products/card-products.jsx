@@ -328,7 +328,7 @@ export default function CardProducts({ showSearchBar = true }) {
       </svg>
 
       <div className="mx-auto max-w-7xl px-6 lg:px-8 text-center">
-        <h2 className="text-4xl font-bold tracking-tight sm:text-5xl gradient-text-title py-1">
+        <h2 className="text-4xl font-bold tracking-tight sm:text-5xl gradient-text-title py-1 pt-3">
           {t('products.title', { defaultValue: 'Productos' })}
         </h2>
         <p className="mt-4 text-lg text-[rgb(var(--color-text))]/70 max-w-2xl mx-auto">
@@ -354,7 +354,7 @@ export default function CardProducts({ showSearchBar = true }) {
               placeholder={t('products.filter', { defaultValue: 'Buscar producto…' })}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full max-w-md rounded-full px-5 py-3 bg-[rgb(var(--color-bg))] text-[rgb(var(--color-text))] border border-[rgb(var(--color-text))]/20 focus:outline-none focus:ring-2 focus:ring-teal-400 placeholder:text-[rgb(var(--color-text))]/50"
+              className="w-full max-w-md rounded-full px-5 py-3 bg-[rgb(var(--color-bg))] text-[rgb(var(--color-text))] border border-[rgb(var(--color-text))]/20 focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-galaxy))] placeholder:text-[rgb(var(--color-text))]/50"
             />
           )}
         </div>

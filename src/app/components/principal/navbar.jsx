@@ -34,18 +34,17 @@ const MenuItems = ({ items, selectedLanguage, pathPage }) => (
             : 'text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-text))]/30'}
         `}
       >
-        <div className="text-sm font-bold leading-6 p-1.5 shadow bg-[rgb(var(--color-gray))]/60 rounded-full">
+        <div className="text-sm font-bold leading-6 p-1.5 shadow shadow-[rgb(var(--color-galaxy))] bg-[rgb(var(--color-bg))] rounded-full">
           <item.icon
-            size={25}
             className={`
-              leading-6
+              leading-6 size-5 md:size-7 2xl:size-10
               ${pathPage === item.link
-                ? 'text-yellow-500'
+                ? 'text-[rgb(var(--color-galaxy))]'
                 : 'text-[rgb(var(--color-text))]'}
             `}
           />
         </div>
-        <div className="ml-1 mr-3 text-md xl:text-lg 2xl:text-lg">{item.name}</div>
+        <div className="ml-1 mr-3 text-md xl:text-lg 2xl:text-xl">{item.name}</div>
       </Link>
     ))}
   </>
