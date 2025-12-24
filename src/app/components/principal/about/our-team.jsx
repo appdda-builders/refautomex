@@ -42,9 +42,9 @@ export default function OurTeam() {
                     }}
                 />
                 </div>
-            <div className="bg-[rgb(var(--color-slate))]/70 p-3 relative left-auto w-full px-2 h-full flex justify-center">
+            <div className="bg-[rgb(var(--color-video))]/70 p-3 relative left-auto w-full px-2 h-full flex justify-center">
                 <div className="mx-auto xl:max-w-7xl xl:mx-auto absolute bottom-72 sm:bottom-40 w-full px-2">
-                    <h2 className="font-bold tracking-tight gradient-text-light-white text-3xl md:text-4xl">{t('about.team.title')}</h2>
+                    <h2 className="font-bold tracking-tight gradient-text-title text-3xl md:text-4xl">{t('about.team.title')}</h2>
                     <p className="mt-6 xl:pb-16 text-md sm:text-lg leading-8 text-gray-200 w-[90%] font-semibold">
                         {t('about.team.subtitle')}
                     </p>

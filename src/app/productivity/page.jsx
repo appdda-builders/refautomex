@@ -10,6 +10,7 @@ import Tickets from '@/app/components/productivity/sales/tickets';
 import Devolution from '@/app/components/productivity/sales/devolution';
 import History from '@/app/components/productivity/sales/history';
 import Personal from '@/app/components/productivity/services/personal';
+import Calendar from '@/app/components/productivity/services/calendar';
 import Invoice from '@/app/components/productivity/services/invoice';
 import Warehouse from '@/app/components/productivity/stock/warehouse';
 import Missing from '@/app/components/productivity/stock/missing';
@@ -51,6 +52,7 @@ export default function Productivity() {
       case 'providers': return <Providers />;
       case 'personal': return <Personal />;
       case 'site': return <Site />;
+      case 'calendar': return <Calendar />;
       case 'delivery': return <Delivery />;
       case 'invoice': return <Invoice />;
       default: return <Home />;

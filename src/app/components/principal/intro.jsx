@@ -48,8 +48,8 @@ export default function Intro() {
                         {features.map((feature) => (
                         <div key={feature.name} className="relative pl-16">
                             <dt className="text-xl font-semibold leading-7 text-[rgb(var(--color-slate-base))]">
-                            <div className="absolute left-0 top-0 flex h-12 w-12 items-center justify-center bg-amber-400 rounded-full animate-pulse cursor-pointer">
-                                <feature.icon className="h-8 w-8 text-white" aria-hidden="true" />
+                            <div className="absolute left-0 top-0 flex h-12 w-12 items-center justify-center bg-[rgb(var(--color-galaxy))] shadow rounded-full animate-pulse cursor-pointer">
+                                <feature.icon className="h-8 w-8 text-[rgb(var(--color-text))]" aria-hidden="true" />
                             </div>
                             {feature.name}
                             </dt>

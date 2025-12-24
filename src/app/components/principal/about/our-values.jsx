@@ -37,8 +37,8 @@ export default function OurValues() {
                         {values.map((value) => (
                         <div key={value.id}>
                             <dt>
-                                <div className="absolute flex items-center justify-center h-12 w-12 bg-amber-400 rounded-full animate-pulse cursor-pointer">
-                                    <value.icon className="h-6 w-6 text-white" aria-hidden="true" />
+                                <div className="absolute flex items-center justify-center h-12 w-12 bg-[rgb(var(--color-galaxy))] rounded-full animate-pulse cursor-pointer">
+                                    <value.icon className="h-6 w-6 text-[rgb(var(--color-text))]" aria-hidden="true" />
                                 </div>
                                 <p className="ml-16 text-lg leading-6 font-medium text-[rgb(var(--color-gray-base))]">{value.title}</p>
                             </dt>

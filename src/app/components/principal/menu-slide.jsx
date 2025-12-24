@@ -135,9 +135,9 @@ export default function MenuSlide({menuItems, callsToAction, selectedLanguage, p
                                                 : 'text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-text))]/10'}
                                             `}
                                     >
-                                        <div className="mt-1 flex h-8 w-8 flex-none items-center justify-center rounded-full shadow bg-[rgb(var(--color-card))]">
+                                        <div className="mt-1 flex h-8 w-8 flex-none items-center justify-center rounded-full shadow shadow-[rgb(var(--color-galaxy))] bg-[rgb(var(--color-bg))]">
                                             <item.icon
-                                                className={`h-6 w-6 ${isActive ? 'text-yellow-500' : 'text-[rgb(var(--color-text))]'}`}
+                                                className={`h-6 w-6 ${isActive ? 'text-[rgb(var(--color-galaxy))]' : 'text-[rgb(var(--color-text))]'}`}
                                                 aria-hidden="true"
                                             />
                                         </div>
