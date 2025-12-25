@@ -8,7 +8,6 @@ import { IoSaveSharp } from 'react-icons/io5';
 import { PiStickerFill } from 'react-icons/pi';
 import EditRegister from './edit-register';
 import MigrateModal from './migrate-modal';
-import AddRegister from './add-register';
 import Labels from './labels';
 import { useReactToPrint } from 'react-to-print';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
@@ -24,12 +23,12 @@ const hasLeadingZeroSuffix = (location = '') => {
 export default function Warehouse() {
     const { userData } = useContext(AuthContext);
     const userBranchId = userData?.idsucursal || null;
+    const isAdmin = String(userData?.categoria || '').toUpperCase() === 'A';
     const [items, setItems] = useState([]);
     const [hasChanges, setHasChanges] = useState(false);
     const [visibleTooltip, setVisibleTooltip] = useState({});
     const [prodOverview, setProdOverview] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
-    const [isAdding, setIsAdding] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [locationErrors, setLocationErrors] = useState({});
     const [saveStatus, setSaveStatus] = useState({ type: null, message: '' });
@@ -116,11 +115,11 @@ export default function Warehouse() {
     };
 
     useEffect(() => {
-        if (!isEditing && !isAdding) {
+        if (!isEditing) {
             setSaveStatus({ type: null, message: '' });
             setLocationErrors({});
         }
-    }, [isEditing, isAdding]);
+    }, [isEditing]);
 
     const toggleModal = () => {
         setShowModal(!showModal);
@@ -189,10 +188,6 @@ export default function Warehouse() {
         setProdOverview(product);
         setIsEditing(true);
     };
-
-    const handleAddClick = () => {
-        setIsAdding(true);
-    }
 
     const handleClearTable = () => {
         items.forEach(item => handleRemoveProduct(item.refaccion));
@@ -379,8 +374,6 @@ export default function Warehouse() {
         handleClearTable();
         // Cancelar la edición
         setIsEditing(false);
-        // Cancelar insertar nuevo producto
-        setIsAdding(false);
     };
 
     const buttonConfigs = [
@@ -390,20 +383,15 @@ export default function Warehouse() {
             label: 'Migrar', id: 'migrate', path: '',
             event: handleMigrateLocation,
             disabled: isSaving,
-        },
-        {
-            icon: FaBoxesPacking,
-            btnconf:'relative tooltip-button p-3 m-1 rounded-full shadow hover:shadow-xl bg-amber-500 color-cultured cursor-pointer inline-block',
-            label: 'Alta', id: 'new', path: '',
-            event: handleAddClick,
-            disabled: isSaving,
+            adminOnly: true,
         },
         {
             icon: IoSaveSharp,
             btnconf:'relative blue-circle-button tooltip-button',
             label: isSaving ? 'Guardando' : 'Actualizar lista', id: 'update', path: '',
             event: handleSaveClick,
-            disabled: isSaving
+            disabled: isSaving,
+            adminOnly: true,
         },
         {
             icon: PiStickerFill,
@@ -412,7 +400,7 @@ export default function Warehouse() {
             event: handleLabelsStickerPrint,
             disabled: isSaving,
         }
-    ];
+    ].filter((config) => !config.adminOnly || isAdmin);
 
     return (
         <div className="bg-gradient-to-b min-h-screen from-[rgb(var(--color-bg))] via-[rgb(var(--color-card))] to-[rgb(var(--color-gray))] backdrop-blur-md pt-28">
@@ -422,7 +410,7 @@ export default function Warehouse() {
                 back='Volver al panel'
                 path='/productivity'
             />
-            <div className={isEditing || isAdding ? 'hidden' : 'block'}>
+            <div className={isEditing ? 'hidden' : 'block'}>
             <div className="mx-auto max-w-[1700px] xl:px-8 mt-5 overflow-hidden">
                     {saveStatus.message && (
                         <div
@@ -452,6 +440,7 @@ export default function Warehouse() {
                                 visibleTooltip={visibleTooltip}
                                 onEditClick={handleEditClick}
                                 isSaving={isSaving}
+                                isAdmin={isAdmin}
                             />
                         </div>
                     </div>
@@ -465,12 +454,6 @@ export default function Warehouse() {
                     onRefreshProducts={() => findProductsRef.current?.refreshProducts?.()}
                 />
             </div>
-            <div className={isAdding ? 'block' : 'hidden'}>
-                <AddRegister
-                    onCancelEdit={onCancelEdit}
-                    onRefreshProducts={() => findProductsRef.current?.refreshProducts?.()}
-                />
-            </div>
             {/* Modales */}
             <MigrateModal
                 isOpen={showModal}
@@ -478,7 +461,7 @@ export default function Warehouse() {
                 onSubmit={handleModalSubmit}
             />
             {/* Componente oculto para impresión */}
-            <div className="hidden">
+            <div className="print-labels-root">
                 <div ref={labelsRef}>
                     <Labels products={items} />
                 </div>

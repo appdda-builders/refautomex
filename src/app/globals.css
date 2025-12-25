@@ -173,9 +173,30 @@ html, body {
   html, body {
     -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+    overflow: hidden !important;
+    height: auto !important;
   }
   .avoid-break { break-inside: avoid; page-break-inside: avoid; }
   .force-break-after { break-after: page; page-break-after: always; }
+  .print-labels-root {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+  .print-no-scroll {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+}
+
+.print-labels-root {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 @layer base {

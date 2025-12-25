@@ -148,7 +148,7 @@ app.get('/api/verifyLocation', async (req, res) => {
 
 // GET: all users
 app.get('/api/getAllUsers', (req, res) => {
-    const query = 'SELECT * FROM usuario';
+    const query = 'CALL GetAllExistingUsers()';
     handleQuery(query, [], res);
 });
 
@@ -164,27 +164,13 @@ app.get('/api/getAllProviders', (req, res) => {
     handleQuery(query, [], res);
 });
 
-// GET: all products for CALIDAD
-app.get('/api/getAllProducts', async (req, res) => {
-    const { idsucursal } = req.query;
-    const parsedBranch = idsucursal ? parseInt(idsucursal, 10) : null;
-
-    try {
-        const data = await executeQuery('CALL allProducts(?)', [Number.isNaN(parsedBranch) ? null : parsedBranch]);
-        res.json(data);
-    } catch (error) {
-        console.error('Error fetching products:', error);
-        res.status(500).json({ error: 'Internal Server Error', details: error.message });
-    }
-});
-
 // POST: all products filtered by branch
 app.post('/api/getAllProducts', async (req, res) => {
     const { idsucursal } = req.body || {};
     const parsedBranch = idsucursal ? parseInt(idsucursal, 10) : null;
 
     try {
-        const data = await executeQuery('CALL allProducts(?)', [Number.isNaN(parsedBranch) ? null : parsedBranch]);
+        const data = await executeQuery('CALL GetAllProducts(?)', [Number.isNaN(parsedBranch) ? null : parsedBranch]);
         res.json(data);
     } catch (error) {
         console.error('Error fetching products via POST:', error);
@@ -665,6 +651,38 @@ app.patch('/api/patchUser', (req, res) => {
         genero, rfc, domicilio, categoria, empleado, idusuario
     ];
 
+    handleQuery(query, params, res);
+});
+
+// PATCH: update user employment status and branch
+app.patch('/api/patchUserEmployment', (req, res) => {
+    const { idusuario, empleado, idsucursal } = req.body || {};
+
+    if (!idusuario) {
+        return res.status(400).json({
+            error: 'Bad Request',
+            details: 'Missing idusuario.',
+        });
+    }
+
+    const query = 'UPDATE usuario SET empleado = ?, idsucursal = ? WHERE idusuario = ?';
+    const params = [empleado, idsucursal ?? null, idusuario];
+    handleQuery(query, params, res);
+});
+
+// PATCH: update user category
+app.patch('/api/patchUserCategory', (req, res) => {
+    const { idusuario, categoria } = req.body || {};
+
+    if (!idusuario || !categoria) {
+        return res.status(400).json({
+            error: 'Bad Request',
+            details: 'Missing idusuario or categoria.',
+        });
+    }
+
+    const query = 'UPDATE usuario SET categoria = ? WHERE idusuario = ?';
+    const params = [categoria, idusuario];
     handleQuery(query, params, res);
 });
 

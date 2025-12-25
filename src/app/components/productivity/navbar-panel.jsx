@@ -84,20 +84,23 @@ export default function NavbarPanel() {
     const searchParams = useSearchParams();
     const lang = searchParams.get('lang') || 'es';
 
+    const isAdmin = String(userData?.categoria || '').toUpperCase() === 'A';
+
     const navItems = [
         {
         name: 'Ventas',
         icon: MdSell,
         subNav: [
             { name: 'Tickets a clientes', href: '/productivity?load=tickets' },
-            { name: 'Devoluciones', href: '/productivity?load=devolution' },
-            { name: 'Historial de ventas', href: '/productivity?load=history' },
+            { name: 'Devoluciones', href: '/productivity?load=devolution', adminOnly: true },
+            { name: 'Historial de ventas', href: '/productivity?load=history', adminOnly: true },
         ],
         },
         {
         name: 'Almacén',
         icon: FaBoxesPacking,
         subNav: [
+            { name: 'Inventarios', href: '/productivity?load=inventories', adminOnly: true },
             { name: 'Gestión de Almacén', href: '/productivity?load=warehouse' },
             { name: 'Faltantes', href: '/productivity?load=missing' },
         ],
@@ -105,6 +108,7 @@ export default function NavbarPanel() {
         {
         name: 'Compras',
         icon: HiClipboardDocumentList,
+        adminOnly: true,
         subNav: [
             { name: 'Capturación de productos', href: '/productivity?load=capture' },
             { name: 'Gestión de proveedores', href: '/productivity?load=providers' },
@@ -113,6 +117,7 @@ export default function NavbarPanel() {
         {
         name: 'Servicios',
         icon: FaUsersViewfinder,
+        adminOnly: true,
         subNav: [
             { name: 'Calendario', href: '/productivity?load=calendar' },
             { name: 'Facturación Web', href: '/productivity?load=invoice' },
@@ -124,12 +129,22 @@ export default function NavbarPanel() {
         icon: GiAutoRepair,
         subNav: [
             { name: 'En Sucursal', href: '/productivity?load=site' },
-            { name: 'Web (Stripe)', href: '/productivity?load=delivery' },
+            { name: 'Web (Stripe)', href: '/productivity?load=delivery', adminOnly: true },
         ],
         },
         { name: 'Home', icon: AiOutlineDashboard, href: '/productivity?load=home' },
         { name: 'Configuración', icon: HiMiniCog6Tooth, href: '/productivity?load=user-settings' },
     ];
+
+    const filteredNavItems = navItems
+        .map((item) => {
+            if (item.adminOnly && !isAdmin) return null;
+            if (!item.subNav) return item;
+            const allowedSubNav = item.subNav.filter((subItem) => !subItem.adminOnly || isAdmin);
+            if (!allowedSubNav.length) return null;
+            return { ...item, subNav: allowedSubNav };
+        })
+        .filter(Boolean);
 
     useEffect(() => {
         if (!id || !multimediaSrc) return;
@@ -210,7 +225,7 @@ export default function NavbarPanel() {
 
                     <div className="flex flex-col flex-1 mt-5">
                     <nav className="flex-1 space-y-2">
-                        <MenuItems items={navItems} closeMenu={() => setMobileMenuOpen(false)} lang={lang} />
+                        <MenuItems items={filteredNavItems} closeMenu={() => setMobileMenuOpen(false)} lang={lang} />
 
                         <div
                         key="salir"

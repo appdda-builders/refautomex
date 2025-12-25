@@ -54,7 +54,7 @@ export default function Labels({ products }) {
     }, {});
 
     return (
-        <div className="p-4">
+        <div className="p-4 print-no-scroll">
             {Object.entries(groupedProducts).map(([mainLocation, locationProducts]) => {
                 const sortedProducts = locationProducts.slice().sort(compareBySuffix);
 
@@ -74,7 +74,7 @@ export default function Labels({ products }) {
                             <div className="flex flex-col w-full">
                                 <div className="w-full flex items-center justify-center">
                                     <img
-                                        loading="lazy"
+                                        loading="eager"
                                         className="h-8"
                                         src={`${multimediaSrc}refautomex_n.svg`}
                                         alt="Refautomex"
@@ -101,7 +101,7 @@ export default function Labels({ products }) {
                             >
                                 <div className="absolute top-2 right-2 pointer-events-none z-10 bg-white/90 rounded px-1">
                                     <img
-                                        loading="lazy"
+                                        loading="eager"
                                         className="h-8"
                                         src={`${multimediaSrc}refautomex_n.svg`}
                                         alt="Refautomex"
@@ -109,6 +109,7 @@ export default function Labels({ products }) {
                                 </div>
                                 <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
                                     <img
+                                        loading="eager"
                                         src={resolveLabelImageSrc(product, multimediaSrc)}
                                         alt={product.refaccion}
                                         className="h-full w-full object-contain object-center"

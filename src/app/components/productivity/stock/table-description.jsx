@@ -21,7 +21,18 @@ const resolveProductImage = (ruta, multimediaSrc = '') => {
     return ruta.startsWith('http') ? ruta : `${multimediaSrc}${ruta}`;
 };
 
-export default function TableDescription({ items, buttonConfigs, onRemoveProduct, onUpdateProduct, handleMouseEnter, handleMouseLeave, visibleTooltip, onEditClick, isSaving = false }) {
+export default function TableDescription({
+    items,
+    buttonConfigs,
+    onRemoveProduct,
+    onUpdateProduct,
+    handleMouseEnter,
+    handleMouseLeave,
+    visibleTooltip,
+    onEditClick,
+    isSaving = false,
+    isAdmin = false,
+}) {
     const [QuantityOptions, setQuantityOptions] = useState([]);
     const listRef = useRef();
     const printRef = useRef(null);
@@ -187,13 +198,15 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                     <td className="p-2">
                                         <div className='italic text-xs flex flex-col justify-center items-start'>
                                             <div className='text-base w-32'>
-                                            <button
-                                                onClick={() => onEditClick(item)}
-                                                className={`bg-amber-400 mr-1 text-white rounded-full p-1 hover:bg-yellow-600 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
-                                                disabled={isSaving}
-                                            >
-                                                <MdEditSquare />
-                                            </button>
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={() => onEditClick(item)}
+                                                    className={`bg-amber-400 mr-1 text-white rounded-full p-1 hover:bg-yellow-600 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                                    disabled={isSaving}
+                                                >
+                                                    <MdEditSquare />
+                                                </button>
+                                            )}
                                             {item.refaccion}
                                             </div>
                                         </div>
@@ -212,65 +225,89 @@ export default function TableDescription({ items, buttonConfigs, onRemoveProduct
                                         </div>
                                     </td>
                                     <td className="p-2">
-                                        <input
-                                            type="text"
-                                            value={item.descripcion}
-                                            onChange={(event) => handleDescriptionChange(item, event)}
-                                            disabled={isSaving}
-                                            className={`block w-96 md:w-96 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 uppercase ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
-                                        />
+                                        {isAdmin ? (
+                                            <input
+                                                type="text"
+                                                value={item.descripcion}
+                                                onChange={(event) => handleDescriptionChange(item, event)}
+                                                disabled={isSaving}
+                                                className={`block w-96 md:w-96 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 uppercase ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                            />
+                                        ) : (
+                                            <span className="text-xs text-[rgb(var(--color-text))]">{item.descripcion || '-'}</span>
+                                        )}
                                     </td>
                                     <td className="p-2">
-                                        <input
-                                            type="text"
-                                            value={item.localizacion}
-                                            onChange={(event) => handleLocationChange(item, event)}
-                                            disabled={isSaving}
-                                            className={`block p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
-                                        />
+                                        {isAdmin ? (
+                                            <input
+                                                type="text"
+                                                value={item.localizacion}
+                                                onChange={(event) => handleLocationChange(item, event)}
+                                                disabled={isSaving}
+                                                className={`block p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                            />
+                                        ) : (
+                                            <span className="text-xs text-[rgb(var(--color-text))]">{item.localizacion || '-'}</span>
+                                        )}
                                     </td>
                                     <td className="py-2">
-                                        <Select
-                                            id="existencia"
-                                            name="existencia"
-                                            value={QuantityOptions.find(option => option.value === item.existencia)}
-                                            onChange={(selectedOption) => handleQuantityChange(item, selectedOption)}
-                                            options={QuantityOptions}
-                                            classNamePrefix="react-select"
-                                            className='m-0 p-0 w-20'
-                                            isDisabled={isSaving}
-                                        />
+                                        {isAdmin ? (
+                                            <Select
+                                                id="existencia"
+                                                name="existencia"
+                                                value={QuantityOptions.find(option => option.value === item.existencia)}
+                                                onChange={(selectedOption) => handleQuantityChange(item, selectedOption)}
+                                                options={QuantityOptions}
+                                                classNamePrefix="react-select"
+                                                className='m-0 p-0 w-20'
+                                                isDisabled={isSaving}
+                                            />
+                                        ) : (
+                                            <span className="text-xs text-[rgb(var(--color-text))]">{item.existencia ?? '-'}</span>
+                                        )}
                                     </td>
                                     <td className="p-2">
-                                        <input
-                                            id={`costo-${item.refaccion}`}
-                                            type="number"
-                                            step="0.01"
-                                            value={item.costo ?? ''}
-                                            readOnly
-                                            disabled
-                                            className="block w-24 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-gray-100 text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 cursor-not-allowed"
-                                        />
+                                        {isAdmin ? (
+                                            <input
+                                                id={`costo-${item.refaccion}`}
+                                                type="number"
+                                                step="0.01"
+                                                value={item.costo ?? ''}
+                                                readOnly
+                                                disabled
+                                                className="block w-24 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-gray-100 text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 cursor-not-allowed"
+                                            />
+                                        ) : (
+                                            <span className="text-xs text-[rgb(var(--color-text))]">{item.costo ?? '-'}</span>
+                                        )}
                                     </td>
                                     <td className="p-2">
-                                        <input
-                                            id={`precio-${item.refaccion}`}
-                                            type="number"
-                                            step="0.01"
-                                            value={item.precio ?? ''}
-                                            onChange={(event) => handlePriceChange(item, event)}
-                                            disabled={isSaving}
-                                            className={`block w-24 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
-                                        />
+                                        {isAdmin ? (
+                                            <input
+                                                id={`precio-${item.refaccion}`}
+                                                type="number"
+                                                step="0.01"
+                                                value={item.precio ?? ''}
+                                                onChange={(event) => handlePriceChange(item, event)}
+                                                disabled={isSaving}
+                                                className={`block w-24 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                            />
+                                        ) : (
+                                            <span className="text-xs text-[rgb(var(--color-text))]">{item.precio ?? '-'}</span>
+                                        )}
                                     </td>
                                     <td className="p-2">
-                                        <button
-                                            onClick={() => handleRemoveClick(item)}
-                                            className={`bg-red-500 mx-2 text-white rounded-full p-2 hover:bg-red-700 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
-                                            disabled={isSaving}
-                                        >
-                                            <MdDelete />
-                                        </button>
+                                        {isAdmin ? (
+                                            <button
+                                                onClick={() => handleRemoveClick(item)}
+                                                className={`bg-red-500 mx-2 text-white rounded-full p-2 hover:bg-red-700 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                                disabled={isSaving}
+                                            >
+                                                <MdDelete />
+                                            </button>
+                                        ) : (
+                                            <span className="text-xs text-[rgb(var(--color-text))]/70">-</span>
+                                        )}
                                     </td>
                                 </tr>
                             );

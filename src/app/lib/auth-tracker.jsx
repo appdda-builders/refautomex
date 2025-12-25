@@ -12,6 +12,9 @@ export const AuthChecker = ({ children }) => {
     const [userData, setUserData] = useState(null);
     const cognitoUserSession = getStorageValue('CognitoUserSession');
     const username = cognitoUserSession ? cognitoUserSession.idToken.payload["cognito:username"] : null;
+    const forceRefreshUser = typeof window !== 'undefined'
+        ? window.location.pathname.startsWith('/calidad')
+        : false;
 
     useEffect(() => {
         try {
@@ -40,9 +43,12 @@ export const AuthChecker = ({ children }) => {
 
     useEffect(() => {
         const fetchUserData = async () => {
-            if (!username) return;
+            if (!username) {
+                setUserData(null);
+                return;
+            }
 
-            let fetchedUserData = getStorageValue(`user_${username}`);
+            let fetchedUserData = forceRefreshUser ? null : getStorageValue(`user_${username}`);
             if (!fetchedUserData) {
                 try {
                     const params = new URLSearchParams({ id: username });
@@ -68,7 +74,7 @@ export const AuthChecker = ({ children }) => {
         };
 
         fetchUserData();
-    }, [username]);
+    }, [username, forceRefreshUser]);
 
     return (
         <AuthContext.Provider value={{ isAuthenticated, authStatusChecked, userData, setUserData }}>
