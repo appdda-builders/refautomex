@@ -1,17 +1,57 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Title from '../title';
+import { FaStar } from 'react-icons/fa';
 import { FaUsersViewfinder } from 'react-icons/fa6';
-import { BiSolidUserCircle } from "react-icons/bi";
-import { GrStatusGoodSmall } from "react-icons/gr";
+import { BiSolidUserCircle } from 'react-icons/bi';
+import { BsStars } from 'react-icons/bs';
+import {
+    FiCalendar,
+    FiChevronDown,
+    FiDatabase,
+    FiMail,
+    FiMapPin,
+    FiPhone,
+    FiSearch,
+    FiTag,
+    FiUser,
+    FiUserCheck,
+    FiUserX,
+    FiUsers,
+} from 'react-icons/fi';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
+import { getStorageValue } from '@/app/lib/storage-values';
+
+const isLikelyPlaceId = (val) => {
+    if (typeof val !== 'string') return false;
+    const trimmed = val.trim();
+    if (trimmed.length < 5 || trimmed.length > 250) return false;
+    if (/\s/.test(trimmed)) return false;
+    return true;
+};
 
 export default function Personal() {
-    const router = useRouter();
     const [users, setUsers] = useState([]);
     const [searchEmail, setSearchEmail] = useState('');
     const [imgErrors, setImgErrors] = useState({});
+    const [expandedUserId, setExpandedUserId] = useState(null);
+    const [activeTab, setActiveTab] = useState('employees');
+    const [activationByUser, setActivationByUser] = useState({});
+    const [branches, setBranches] = useState([]);
+    const [branchesLoading, setBranchesLoading] = useState(false);
+    const [editingUserId, setEditingUserId] = useState(null);
+    const [editFormByUser, setEditFormByUser] = useState({});
+    const [currentUserId, setCurrentUserId] = useState(null);
+    const [currentUserCategory, setCurrentUserCategory] = useState(null);
+    const [placeCache, setPlaceCache] = useState({});
+    const placeCacheRef = useRef({});
+    const placesServiceRef = useRef(null);
     const multimediaSrc = process.env.NEXT_PUBLIC_S3;
+
+    useEffect(() => {
+        if (!placesServiceRef.current && typeof window !== 'undefined' && window.google?.maps?.places) {
+            placesServiceRef.current = new window.google.maps.places.PlacesService(document.createElement('div'));
+        }
+    }, []);
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -26,7 +66,12 @@ export default function Personal() {
                 }
 
                 const data = await response.json();
-                setUsers(data);
+                const rows = Array.isArray(data?.[0]) ? data[0] : Array.isArray(data) ? data : [];
+                const normalized = rows.map((user, index) => ({
+                    ...user,
+                    __key: user.idusuario ?? user.email ?? `user-${index}`,
+                }));
+                setUsers(normalized);
             } catch (error) {
                 console.error('Error fetching users:', error);
             }
@@ -35,8 +80,331 @@ export default function Personal() {
         fetchUsers();
     }, []);
 
+    useEffect(() => {
+        const session = getStorageValue('CognitoUserSession');
+        const username = session?.idToken?.payload?.['cognito:username'];
+        const userData = username ? getStorageValue(`user_${username}`) : null;
+        setCurrentUserId(userData?.idusuario ?? null);
+        setCurrentUserCategory(userData?.categoria ?? null);
+    }, []);
+
+    useEffect(() => {
+        const fetchBranches = async () => {
+            setBranchesLoading(true);
+            try {
+                const response = await fetch(buildApiUrl('/getSucursal'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const rows = Array.isArray(data?.[0]) ? data[0] : Array.isArray(data) ? data : [];
+                const normalized = rows
+                    .map((branch) => ({
+                        id: branch.idsucursal ?? branch.idSucursal ?? branch.id,
+                        name: branch.sucursal ?? branch.nombre ?? branch.branch,
+                    }))
+                    .filter((branch) => {
+                        if (branch.id == null || !branch.name) return false;
+                        if (Number(branch.id) === 1) return false;
+                        return !String(branch.name).toLowerCase().includes('web');
+                    });
+                setBranches(normalized);
+            } catch (error) {
+                console.error('Error fetching branches:', error);
+                setBranches([]);
+            } finally {
+                setBranchesLoading(false);
+            }
+        };
+
+        fetchBranches();
+    }, []);
+
     const handleSearchChange = (event) => {
         setSearchEmail(event.target.value);
+    };
+
+    const safeValue = (value) => {
+        if (value === null || value === undefined || value === '') return 'Sin dato';
+        return String(value);
+    };
+
+    const formatBirthDate = (value) => {
+        if (!value) return value;
+        if (typeof value === 'string') return value.split('T')[0];
+        if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            return value.toISOString().split('T')[0];
+        }
+        return value;
+    };
+
+    const getUserKey = (user) => user.__key ?? user.idusuario ?? user.email;
+    const isEmployee = (user) => Number(user.empleado) === 1;
+
+    const toggleDetails = (userKey) => {
+        setExpandedUserId((prev) => (prev === userKey ? null : userKey));
+    };
+
+    const handleGroupChange = (userKey, nextValue) => {
+        setUsers((prevUsers) => prevUsers.map((user) => {
+            const key = getUserKey(user);
+            if (key !== userKey) return user;
+            return { ...user, empleado: nextValue };
+        }));
+    };
+
+    const updateUserEmployment = async ({ idusuario, empleado, idsucursal }) => {
+        const response = await fetch(buildApiUrl('/patchUserEmployment'), {
+            method: 'PATCH',
+            cache: 'no-store',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json, text/plain, */*',
+            },
+            body: JSON.stringify({
+                idusuario,
+                empleado,
+                idsucursal,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+
+        return response.json().catch(() => null);
+    };
+
+    const updateUserCategory = async ({ idusuario, categoria }) => {
+        const response = await fetch(buildApiUrl('/patchUserCategory'), {
+            method: 'PATCH',
+            cache: 'no-store',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json, text/plain, */*',
+            },
+            body: JSON.stringify({
+                idusuario,
+                categoria,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+
+        return response.json().catch(() => null);
+    };
+
+    const startEditUser = (user) => {
+        const userKey = getUserKey(user);
+        const branchId = Number(user.idsucursal) === 1 ? '' : (user.idsucursal ?? '');
+        setExpandedUserId(userKey);
+        setEditingUserId(userKey);
+        setEditFormByUser((prev) => ({
+            ...prev,
+            [userKey]: {
+                telefono: user.telefono ?? '',
+                branchId,
+            },
+        }));
+    };
+
+    const handleEditChange = (userKey, field, value) => {
+        setEditFormByUser((prev) => ({
+            ...prev,
+            [userKey]: {
+                ...(prev[userKey] || {}),
+                [field]: value,
+            },
+        }));
+    };
+
+    const cancelEditUser = (userKey) => {
+        setEditingUserId((prev) => (prev === userKey ? null : prev));
+        setEditFormByUser((prev) => {
+            if (!prev[userKey]) return prev;
+            const next = { ...prev };
+            delete next[userKey];
+            return next;
+        });
+    };
+
+    const saveEditUser = (userKey) => {
+        const draft = editFormByUser[userKey];
+        if (!draft) return;
+        const branch = branches.find((item) => String(item.id) === String(draft.branchId));
+        setUsers((prevUsers) => prevUsers.map((user) => {
+            const key = getUserKey(user);
+            if (key !== userKey) return user;
+            return {
+                ...user,
+                telefono: draft.telefono,
+                idsucursal: branch?.id ?? user.idsucursal,
+                sucursal: branch?.name ?? user.sucursal,
+            };
+        }));
+        cancelEditUser(userKey);
+    };
+
+    const handleRemoveEmployee = async (userKey, userId) => {
+        const isAdmin = String(currentUserCategory || '').toUpperCase() === 'A';
+        if (!isAdmin) return;
+        if (!userId) {
+            if (typeof window !== 'undefined') {
+                window.alert('No se pudo identificar al usuario.');
+            }
+            return;
+        }
+        if (currentUserId != null && String(userId) === String(currentUserId)) {
+            if (typeof window !== 'undefined') {
+                window.alert('No puedes remover tu propia cuenta.');
+            }
+            return;
+        }
+        const confirmRemoval = typeof window === 'undefined'
+            ? true
+            : window.confirm('¿Quieres remover a este empleado?');
+        if (!confirmRemoval) return;
+
+        try {
+            await updateUserEmployment({ idusuario: userId, empleado: 0, idsucursal: null });
+            setUsers((prevUsers) => prevUsers.map((user) => {
+                const key = getUserKey(user);
+                if (key !== userKey) return user;
+                return { ...user, empleado: 0, idsucursal: null, sucursal: null };
+            }));
+            cancelEditUser(userKey);
+        } catch (error) {
+            console.error('Error removing employee:', error);
+            if (typeof window !== 'undefined') {
+                window.alert('No fue posible remover al empleado.');
+            }
+        }
+    };
+
+    const handleBranchSelect = (userKey, value) => {
+        setActivationByUser((prev) => ({
+            ...prev,
+            [userKey]: {
+                ...(prev[userKey] || {}),
+                branchId: value,
+            },
+        }));
+    };
+
+    const handleActivateUser = async (userKey, userId) => {
+        const isAdmin = String(currentUserCategory || '').toUpperCase() === 'A';
+        if (!isAdmin) return;
+        if (!userId) {
+            if (typeof window !== 'undefined') {
+                window.alert('No se pudo identificar al usuario.');
+            }
+            return;
+        }
+        const selectedId = activationByUser[userKey]?.branchId;
+        if (!selectedId) return;
+        const branch = branches.find((item) => String(item.id) === String(selectedId));
+        if (!branch) {
+            if (typeof window !== 'undefined') {
+                window.alert('Selecciona una sucursal válida.');
+            }
+            return;
+        }
+
+        try {
+            await updateUserEmployment({ idusuario: userId, empleado: 1, idsucursal: branch.id });
+            setUsers((prevUsers) => prevUsers.map((user) => {
+                const key = getUserKey(user);
+                if (key !== userKey) return user;
+                return {
+                    ...user,
+                    empleado: 1,
+                    idsucursal: branch.id,
+                    sucursal: branch.name,
+                };
+            }));
+
+            setActivationByUser((prev) => {
+                const next = { ...prev };
+                delete next[userKey];
+                return next;
+            });
+        } catch (error) {
+            console.error('Error activating employee:', error);
+            if (typeof window !== 'undefined') {
+                window.alert('No fue posible activar al usuario.');
+            }
+        }
+    };
+
+    const handlePromoteAdmin = async (userKey, userId) => {
+        const isAdmin = String(currentUserCategory || '').toUpperCase() === 'A';
+        if (!isAdmin) return;
+        if (!userId) {
+            if (typeof window !== 'undefined') {
+                window.alert('No se pudo identificar al usuario.');
+            }
+            return;
+        }
+        const confirmPromotion = typeof window === 'undefined'
+            ? true
+            : window.confirm('¿Quieres hacer administrador a este empleado?');
+        if (!confirmPromotion) return;
+
+        try {
+            await updateUserCategory({ idusuario: userId, categoria: 'A' });
+            setUsers((prevUsers) => prevUsers.map((user) => {
+                const key = getUserKey(user);
+                if (key !== userKey) return user;
+                return { ...user, categoria: 'A' };
+            }));
+        } catch (error) {
+            console.error('Error promoting admin:', error);
+            if (typeof window !== 'undefined') {
+                window.alert('No fue posible actualizar el rol del empleado.');
+            }
+        }
+    };
+
+    const handleDemoteAdmin = async (userKey, userId) => {
+        const isAdmin = String(currentUserCategory || '').toUpperCase() === 'A';
+        if (!isAdmin) return;
+        if (!userId) {
+            if (typeof window !== 'undefined') {
+                window.alert('No se pudo identificar al usuario.');
+            }
+            return;
+        }
+        if (currentUserId != null && String(userId) === String(currentUserId)) {
+            if (typeof window !== 'undefined') {
+                window.alert('No puedes quitarte permisos de administrador.');
+            }
+            return;
+        }
+        const confirmDemotion = typeof window === 'undefined'
+            ? true
+            : window.confirm('¿Quieres quitar permisos de administrador?');
+        if (!confirmDemotion) return;
+
+        try {
+            await updateUserCategory({ idusuario: userId, categoria: 'G' });
+            setUsers((prevUsers) => prevUsers.map((user) => {
+                const key = getUserKey(user);
+                if (key !== userKey) return user;
+                return { ...user, categoria: 'G' };
+            }));
+        } catch (error) {
+            console.error('Error demoting admin:', error);
+            if (typeof window !== 'undefined') {
+                window.alert('No fue posible actualizar el rol del empleado.');
+            }
+        }
     };
 
     const handleImageError = (userId) => {
@@ -53,90 +421,445 @@ export default function Personal() {
         }));
     };
 
-    const filteredUsers = users.filter(user =>
-        user.email.toLowerCase().includes(searchEmail.toLowerCase())
+    const normalizedSearch = searchEmail.trim().toLowerCase();
+    const filteredUsers = users.filter((user) =>
+        (user.email || '').toLowerCase().includes(normalizedSearch)
     );
 
-    const employees = filteredUsers.filter(user => user.empleado === 1);
-    const nonEmployees = filteredUsers.filter(user => user.empleado !== 1);
+    const employees = filteredUsers.filter((user) => isEmployee(user));
+    const nonEmployees = filteredUsers.filter((user) => !isEmployee(user));
+
+    const groupOptions = [
+        {
+            value: 1,
+            label: 'Empleado activo',
+            icon: FiUserCheck,
+            activeClass: 'bg-emerald-500 text-white border-emerald-400',
+            softClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            dotClass: 'bg-emerald-500',
+        },
+        {
+            value: 0,
+            label: 'Usuario externo',
+            icon: FiUserX,
+            activeClass: 'bg-rose-500 text-white border-rose-400',
+            softClass: 'bg-rose-50 text-rose-700 border-rose-200',
+            dotClass: 'bg-rose-500',
+        },
+    ];
+
+    const resolvePlace = useCallback((placeId) => {
+        if (!placeId || placeCacheRef.current[placeId]) return;
+        if (!isLikelyPlaceId(placeId)) return;
+        const service = placesServiceRef.current;
+        if (!service) return;
+
+        service.getDetails(
+            { placeId, fields: ['formatted_address'] },
+            (place, status) => {
+                const formatted =
+                    status === window.google.maps.places.PlacesServiceStatus.OK
+                        ? place?.formatted_address || placeId
+                        : placeId;
+                setPlaceCache((prev) => {
+                    if (prev[placeId]) return prev;
+                    const next = { ...prev, [placeId]: formatted };
+                    placeCacheRef.current = next;
+                    return next;
+                });
+            }
+        );
+    }, []);
+
+    useEffect(() => {
+        const uniquePlaceIds = Array.from(
+            new Set(users.map((user) => user.domicilio).filter(Boolean))
+        )
+            .filter(isLikelyPlaceId)
+            .slice(0, 50);
+        uniquePlaceIds.forEach(resolvePlace);
+    }, [users, resolvePlace]);
+
+    const renderUserCard = (user, showActivation) => {
+        const userKey = getUserKey(user);
+        const active = isEmployee(user);
+        const fullName = [user.nombre, user.apellido].filter(Boolean).join(' ') || 'Sin nombre';
+        const expanded = expandedUserId === userKey;
+        const groupMeta = groupOptions.find((option) => option.value === (active ? 1 : 0));
+        const address = user.domicilio ? (placeCache[user.domicilio] || user.domicilio) : user.domicilio;
+
+        const branchName = user.sucursal;
+        const isWebBranch = branchName && String(branchName).toLowerCase().includes('web');
+        const branchDisplay = isWebBranch ? '' : branchName;
+        const primaryDetails = [
+            { label: 'Correo', value: user.email, icon: FiMail },
+            { label: 'Telefono', value: user.telefono, icon: FiPhone, field: 'telefono' },
+            { label: 'Sucursal', value: branchDisplay, icon: FiMapPin, field: 'branch' },
+        ];
+
+        const dbDetails = [
+            { label: 'Genero', value: user.genero, icon: FiUser },
+            { label: 'Nacimiento', value: formatBirthDate(user.f_nacimiento), icon: FiCalendar },
+            { label: 'RFC', value: user.rfc, icon: FiTag },
+            { label: 'Domicilio', value: address, icon: FiMapPin },
+        ];
+
+        const selectedBranch = activationByUser[userKey]?.branchId || '';
+        const canActivate = Boolean(selectedBranch);
+        const isEditing = editingUserId === userKey;
+        const editValues = editFormByUser[userKey] || {};
+        const canEdit = active && !showActivation;
+        const isSelf = currentUserId != null && String(user.idusuario) === String(currentUserId);
+        const isAdmin = String(currentUserCategory || '').toUpperCase() === 'A';
+        const isUserAdmin = String(user.categoria || '').toUpperCase() === 'A';
+        const canPromoteAdmin = canEdit && isAdmin && !isUserAdmin && !isSelf;
+        const canDemoteAdmin = canEdit && isAdmin && isUserAdmin && !isSelf;
+
+        const renderInfoItem = (item) => {
+            const Icon = item.icon;
+            const valueClass =
+                item.label === 'Correo'
+                    ? 'break-all overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]'
+                    : '';
+            const isTelefono = item.field === 'telefono';
+            const isBranch = item.field === 'branch';
+
+            if (isBranch && !isEditing && !branchDisplay) return null;
+
+            if (canEdit && isEditing && (isTelefono || isBranch)) {
+                return (
+                    <div key={item.label} className="flex items-center gap-3 rounded-xl border border-[rgb(var(--color-border))]/80 bg-[rgb(var(--color-bg))]/70 p-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] shadow-sm">
+                            <Icon className="h-4 w-4" />
+                        </span>
+                        <div className="w-full">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--color-text))]">{item.label}</p>
+                            {isTelefono ? (
+                                <input
+                                    value={editValues.telefono || ''}
+                                    onChange={(e) => handleEditChange(userKey, 'telefono', e.target.value)}
+                                    className="mt-1 w-full rounded-lg border border-[rgb(var(--color-border))]/80 bg-[rgb(var(--color-bg))] px-3 py-2 text-sm text-[rgb(var(--color-text))] shadow-inner outline-none focus:ring-2 focus:ring-[rgb(var(--color-text))]/70"
+                                />
+                            ) : (
+                                <select
+                                    value={editValues.branchId || ''}
+                                    onChange={(e) => handleEditChange(userKey, 'branchId', e.target.value)}
+                                    className="mt-1 w-full rounded-lg border border-[rgb(var(--color-border))]/80 bg-[rgb(var(--color-bg))] px-3 py-2 text-sm text-[rgb(var(--color-text))] shadow-inner outline-none focus:ring-2 focus:ring-[rgb(var(--color-text))]/70"
+                                >
+                                    <option value="" disabled>
+                                        {branchesLoading ? 'Cargando sucursales...' : 'Selecciona sucursal'}
+                                    </option>
+                                    {branches.map((branch) => (
+                                        <option key={branch.id} value={branch.id}>
+                                            {branch.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div key={item.label} className="flex items-center gap-3 rounded-xl border border-[rgb(var(--color-border))]/80 bg-[rgb(var(--color-bg))]/70 p-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] shadow-sm">
+                        <Icon className="h-4 w-4" />
+                    </span>
+                    <div>
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--color-text))]">{item.label}</p>
+                        <p className={`text-sm font-semibold text-[rgb(var(--color-text))] ${valueClass}`}>{safeValue(item.value)}</p>
+                    </div>
+                </div>
+            );
+        };
+
+        return (
+            <article key={userKey} className="group relative overflow-hidden rounded-2xl border border-[rgb(var(--color-border))]/80 bg-[rgb(var(--color-card))] p-4 shadow shadow-[rgb(var(--color-galaxy))] transition hover:-translate-y-0.5 hover:shadow-md">
+                <div className="absolute inset-0 bg-gradient-to-br from-[rgb(var(--color-text))]/10 via-transparent to-[rgb(var(--color-galaxy))]/10 opacity-0 transition group-hover:opacity-100" />
+                <div className="relative z-10 space-y-4">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="relative">
+                                {!imgErrors[user.idusuario] ? (
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgb(var(--color-card))] shadow-lg shadow-[rgb(var(--color-galaxy))]/20 border border-[rgb(var(--color-border))] overflow-hidden">
+                                        <img
+                                            src={`${multimediaSrc}usr/${user.idusuario}.jpg`}
+                                            onError={() => handleImageError(user.idusuario)}
+                                            onLoad={() => handleImageLoad(user.idusuario)}
+                                            className="h-full w-full object-cover bg-[rgb(var(--color-card-white))]"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgb(var(--color-bg))] border border-[rgb(var(--color-border))]/80 shadow-lg">
+                                        <BiSolidUserCircle className="h-8 w-8 text-[rgb(var(--color-text))]" />
+                                    </div>
+                                )}
+                                {active && (
+                                    <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-[rgb(var(--color-border))]/80 bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] shadow">
+                                        {isUserAdmin ? (
+                                            <FaStar className="h-3 w-3 text-amber-400" />
+                                        ) : (
+                                            <BsStars className="h-3 w-3 text-amber-500" />
+                                        )}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="space-y-1 min-w-0">
+                                <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold shadow-sm ${groupMeta?.softClass || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                                    <span className={`h-2 w-2 rounded-full ${groupMeta?.dotClass || 'bg-slate-400'}`} />
+                                    {groupMeta?.label || 'Sin estado'}
+                                </span>
+                                <h3 className="text-lg font-semibold text-[rgb(var(--color-text))]">{fullName}</h3>
+                            </div>
+                        </div>
+                        <div className="flex flex-row flex-wrap items-center gap-2">
+                            {canEdit && !isEditing && (
+                                <button
+                                    type="button"
+                                    onClick={() => startEditUser(user)}
+                                    className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-bg))] px-3 py-1 text-xs font-semibold text-[rgb(var(--color-text))] shadow-sm transition hover:-translate-y-0.5"
+                                >
+                                    Editar
+                                </button>
+                            )}
+                            {canEdit && isEditing && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => saveEditUser(userKey)}
+                                        className="inline-flex items-center gap-2 rounded-full border border-emerald-400 bg-emerald-500 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
+                                    >
+                                        Guardar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => cancelEditUser(userKey)}
+                                        className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-bg))] px-3 py-1 text-xs font-semibold text-[rgb(var(--color-text))] shadow-sm"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </>
+                            )}
+                            {canEdit && !isEditing && isAdmin && !isSelf && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveEmployee(userKey, user.idusuario)}
+                                    className="inline-flex items-center gap-2 rounded-full border border-rose-300 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:border-[rgb(var(--color-border))]/60 disabled:bg-[rgb(var(--color-bg))] disabled:text-[rgb(var(--color-text))]/60"
+                                >
+                                    Remover empleado
+                                </button>
+                            )}
+                            {canPromoteAdmin && (
+                                <button
+                                    type="button"
+                                    onClick={() => handlePromoteAdmin(userKey, user.idusuario)}
+                                    className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 shadow-sm transition hover:-translate-y-0.5"
+                                >
+                                    Hacer admin
+                                </button>
+                            )}
+                            {canDemoteAdmin && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleDemoteAdmin(userKey, user.idusuario)}
+                                    disabled={isSelf}
+                                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:border-[rgb(var(--color-border))]/60 disabled:bg-[rgb(var(--color-bg))] disabled:text-[rgb(var(--color-text))]/60"
+                                >
+                                    Quitar admin
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => toggleDetails(userKey)}
+                                className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-bg))] px-3 py-1 text-xs font-semibold text-[rgb(var(--color-text))] shadow-sm transition hover:-translate-y-0.5"
+                            >
+                                Detalles
+                                <FiChevronDown className={`h-4 w-4 transition ${expanded ? 'rotate-180' : ''}`} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-1">
+                        {primaryDetails.map(renderInfoItem)}
+                    </div>
+
+                    {showActivation && isAdmin ? (
+                        <div className="rounded-xl border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-bg))]/70 p-3">
+                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[rgb(var(--color-text))]">
+                                <FiTag className="text-[rgb(var(--color-text))]" />
+                                Activar cuenta
+                            </div>
+                            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                                <select
+                                    value={selectedBranch}
+                                    onChange={(e) => handleBranchSelect(userKey, e.target.value)}
+                                    className="w-full rounded-xl border border-[rgb(var(--color-border))]/80 bg-[rgb(var(--color-bg))] px-3 py-2 text-sm text-[rgb(var(--color-text))] shadow-inner outline-none focus:ring-2 focus:ring-[rgb(var(--color-text))]/70 sm:flex-1"
+                                >
+                                    <option value="" disabled>
+                                        {branchesLoading ? 'Cargando sucursales...' : 'Selecciona sucursal'}
+                                    </option>
+                                    {branches.map((branch) => (
+                                        <option key={branch.id} value={branch.id}>
+                                            {branch.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <button
+                                    type="button"
+                                    onClick={() => handleActivateUser(userKey, user.idusuario)}
+                                    disabled={!canActivate}
+                                    className="inline-flex items-center justify-center rounded-xl border border-emerald-400 bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:border-[rgb(var(--color-border))]/60 disabled:bg-[rgb(var(--color-bg))] disabled:text-[rgb(var(--color-text))]/60"
+                                >
+                                    Activar
+                                </button>
+                            </div>
+                            <p className="mt-2 text-xs text-[rgb(var(--color-text))]">
+                                {branches.length ? 'Asigna sucursal para activar la cuenta.' : 'No hay sucursales disponibles.'}
+                            </p>
+                        </div>
+                    ) : !showActivation ? (
+                        <div className="rounded-xl border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-bg))]/70 p-3">
+                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[rgb(var(--color-text))]">
+                                <FiTag className="text-[rgb(var(--color-text))]" />
+                                Etiquetas de estado
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {groupOptions.map((option) => {
+                                    const OptionIcon = option.icon;
+                                    const selected = Number(option.value) === (active ? 1 : 0);
+                                    return (
+                                        <button
+                                            key={option.label}
+                                            type="button"
+                                            onClick={() => handleGroupChange(userKey, option.value)}
+                                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition ${selected ? option.activeClass : 'border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-bg))] text-[rgb(var(--color-text))] hover:border-[rgb(var(--color-text))]/60'}`}
+                                        >
+                                            <OptionIcon className="h-4 w-4" />
+                                            {option.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {expanded && (
+                        <div className="rounded-xl border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-bg))] p-4">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-[rgb(var(--color-text))]">
+                                <FiDatabase className="text-[rgb(var(--color-text))]" />
+                                Detalle de usuario
+                            </div>
+                            <div className="mt-3 grid grid-cols-1 gap-1">
+                                {dbDetails.map(renderInfoItem)}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </article>
+        );
+    };
 
     return (
-        <div className="bg-gradient-to-b min-h-screen from-[rgb(var(--color-bg))] via-[rgb(var(--color-card))] to-[rgb(var(--color-gray))] backdrop-blur-md pt-28">
+        <div className="bg-gradient-to-b min-h-screen from-[rgb(var(--color-bg))] via-transparent to-[rgb(var(--color-card))] backdrop-blur-md py-28">
             <Title
                 title='Personal'
                 icon={FaUsersViewfinder}
                 back='Volver al panel'
                 path='/productivity'
             />
-            <div className="mx-auto max-w-7xl px-6 lg:px-8">
-                <div className="mx-auto mt-4 max-w-5xl">
-                    <input
-                        type="text"
-                        placeholder="Buscar por correo"
-                        value={searchEmail}
-                        onChange={handleSearchChange}
-                        className="mb-4 p-2 border border-[rgb(var(--color-border))] rounded-md w-full bg-[rgb(var(--color-bg))] text-[rgb(var(--color-text))]"
-                    />
-                    <h2 className="text-2xl font-bold text-[rgb(var(--color-text))] mb-4">Empleados Activos</h2>
-                    <dl className="grid grid-cols-1 gap-x-6 gap-y-5 lg:max-w-none lg:grid-cols-3 lg:gap-y-8">
-                        {employees.map((user) => (
-                            <div key={user.email} className="relative p-4 shadow-md rounded-xl animate-out bg-[rgb(var(--color-card))]">
-                                <span className="absolute flex h-5 w-5 top-0 -left-2">
-                                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${user.empleado === 1 ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                    <GrStatusGoodSmall className={`relative inline-flex rounded-full h-5 w-5 ${user.empleado === 1 ? 'text-green-500' : 'text-red-500'}`}/>
-                                </span>
-                                <dt className="text-xl font-bold leading-7 text-[rgb(var(--color-text))] pl-16">
-                                    <div className="absolute left-6 top-6 flex h-10 w-10 items-center justify-center rounded-full shadow-2xl">
-                                        {!imgErrors[user.idusuario] ? (
-                                            <div className="flex h-9 w-9 items-center justify-center bg-[rgb(var(--color-card))] border border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-card-white))] hover:border-[rgb(var(--color-amber))] animate-out shadow-lg rounded-full overflow-hidden">
-                                                <img
-                                                    src={`${multimediaSrc}usr/${user.idusuario}.jpg`}
-                                                    onError={() => handleImageError(user.idusuario)}
-                                                    onLoad={() => handleImageLoad(user.idusuario)}
-                                                    className="w-full h-full object-cover bg-[rgb(var(--color-card-white))]"
-                                                />
-                                            </div>
-                                        ) : (
-                                            <BiSolidUserCircle className="w-8 h-8 rounded-full shadow-xl border border-indigo-100 my-auto animate-out" />
-                                        )}
-                                    </div>
-                                    {user.nombre}
-                                </dt>
-                                <dd className="mt-2 pl-16 text-base leading-7 text-[rgb(var(--color-text))] truncate">{user.email}</dd>
-                                <dd className="mt-2 pl-16 text-base leading-7 text-[rgb(var(--color-text))]">{user.sucursal}</dd>
+            <div className="mx-auto max-w-7xl 2xl:max-w-[1900px] px-6 lg:px-8">
+                <div className="mx-auto mt-4 max-w-7xl 2xl:max-w-[1900px] space-y-6">
+                    <div className="rounded-2xl border border-[rgb(var(--color-border))]/80 bg-[rgb(var(--color-card))] p-4 shadow-xl shadow-[rgb(var(--color-galaxy))]/20">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="relative flex-1">
+                                <FiSearch className="absolute left-3 top-3 h-5 w-5 text-[rgb(var(--color-text))]" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por correo"
+                                    value={searchEmail}
+                                    onChange={handleSearchChange}
+                                    className="w-full rounded-xl border border-[rgb(var(--color-border))]/80 bg-[rgb(var(--color-bg))] py-2 pl-10 pr-4 text-sm text-[rgb(var(--color-text))] shadow-inner outline-none focus:ring-2 focus:ring-[rgb(var(--color-text))]/70"
+                                />
                             </div>
-                        ))}
-                    </dl>
-                    <h2 className="text-2xl font-bold text-[rgb(var(--color-text))] mt-8 mb-4">Otros Usuarios</h2>
-                    <dl className="grid grid-cols-1 gap-x-6 gap-y-5 lg:max-w-none lg:grid-cols-3 lg:gap-y-8">
-                        {nonEmployees.map((user) => (
-                            <div key={user.email} className="relative p-4 shadow-md rounded-xl animate-out bg-[rgb(var(--color-card))]">
-                                <span className="absolute flex h-5 w-5 top-0 -left-2">
-                                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${user.empleado === 1 ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                    <GrStatusGoodSmall className={`relative inline-flex rounded-full h-5 w-5 ${user.empleado === 1 ? 'text-green-500' : 'text-red-500'}`}/>
+                            <div className="flex flex-wrap gap-2">
+                                <span className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-bg))] px-3 py-1 text-xs font-semibold text-[rgb(var(--color-text))] shadow-sm">
+                                    <FiUsers className="h-4 w-4 text-[rgb(var(--color-text))]" />
+                                    Total: {filteredUsers.length}
                                 </span>
-                                <dt className="text-xl font-bold leading-7 text-[rgb(var(--color-text))] pl-16">
-                                    <div className="absolute left-6 top-6 flex h-10 w-10 items-center justify-center rounded-full shadow-2xl">
-                                        {!imgErrors[user.idusuario] ? (
-                                            <div className="flex h-9 w-9 items-center justify-center bg-[rgb(var(--color-card))] border border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-card-white))] hover:border-[rgb(var(--color-amber))] animate-out shadow-lg rounded-full overflow-hidden">
-                                                <img
-                                                    src={`${multimediaSrc}usr/${user.idusuario}.jpg`}
-                                                    onError={() => handleImageError(user.idusuario)}
-                                                    onLoad={() => handleImageLoad(user.idusuario)}
-                                                    className="w-full h-full object-cover bg-[rgb(var(--color-card-white))]"
-                                                />
-                                            </div>
-                                        ) : (
-                                            <BiSolidUserCircle className="w-8 h-8 rounded-full shadow-xl border border-indigo-100 my-auto animate-out" />
-                                        )}
-                                    </div>
-                                    {user.nombre}
-                                </dt>
-                                <dd className="mt-2 pl-16 text-base leading-7 text-[rgb(var(--color-text))] truncate">{user.email}</dd>
-                                <dd className="mt-2 pl-16 text-base leading-7 text-[rgb(var(--color-text))]">{user.sucursal}</dd>
                             </div>
-                        ))}
-                    </dl>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-card))] p-3 shadow-sm">
+                        <div className="flex items-center gap-2 rounded-full border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-bg))] px-3 py-1 text-xs font-semibold text-[rgb(var(--color-text))]">
+                            <FiUsers className="h-4 w-4" />
+                            Vista: {activeTab === 'employees' ? 'Empleados' : 'Otros'}
+                        </div>
+                        <div className="flex items-center gap-2 rounded-full border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-bg))] p-1">
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('employees')}
+                                className={`rounded-full px-4 py-1 text-xs font-semibold transition ${activeTab === 'employees' ? 'bg-emerald-500 text-white shadow' : 'text-[rgb(var(--color-text))]'}`}
+                            >
+                                Empleados
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('others')}
+                                className={`rounded-full px-4 py-1 text-xs font-semibold transition ${activeTab === 'others' ? 'bg-rose-500 text-white shadow' : 'text-[rgb(var(--color-text))]'}`}
+                            >
+                                Otros
+                            </button>
+                        </div>
+                    </div>
+
+                    <section className="space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-2xl font-bold text-[rgb(var(--color-text))]">
+                                    {activeTab === 'employees' ? 'Empleados Activos' : 'Otros Usuarios'}
+                                </h2>
+                                <p className="text-sm text-[rgb(var(--color-text))]">
+                                    {activeTab === 'employees'
+                                        ? 'Detalle completo y etiquetas de estado por usuario.'
+                                        : 'Activa cuentas asignando sucursal.'}
+                                </p>
+                            </div>
+                            {activeTab === 'employees' ? (
+                                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
+                                    <FiUserCheck className="h-4 w-4" />
+                                    {employees.length} activos
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 shadow-sm">
+                                    <FiUserX className="h-4 w-4" />
+                                    {nonEmployees.length} externos
+                                </span>
+                            )}
+                        </div>
+                        {activeTab === 'employees' ? (
+                            employees.length === 0 ? (
+                                <div className="rounded-2xl border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-card))] p-6 text-sm text-[rgb(var(--color-text))] shadow-sm">
+                                    No hay empleados activos para mostrar.
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-3 ">
+                                    {employees.map((user) => renderUserCard(user, false))}
+                                </div>
+                            )
+                        ) : (
+                            nonEmployees.length === 0 ? (
+                                <div className="rounded-2xl border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-card))] p-6 text-sm text-[rgb(var(--color-text))] shadow-sm">
+                                    No hay usuarios externos para mostrar.
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                                    {nonEmployees.map((user) => renderUserCard(user, true))}
+                                </div>
+                            )
+                        )}
+                    </section>
                 </div>
             </div>
         </div>

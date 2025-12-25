@@ -250,7 +250,12 @@ export default function Invoice() {
                 {isExpanded && (
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-[rgb(var(--color-text))]">
                         <div className="break-words"><span className="font-semibold">Nombre: </span>{toUpper(invoice.nombre)}</div>
-                        <div className="break-words"><span className="font-semibold">Correo: </span>{preserve(invoice.email)}</div>
+                        <div className="flex min-w-0 gap-2">
+                            <span className="font-semibold">Correo:</span>
+                            <span className="min-w-0 break-all overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
+                                {preserve(invoice.email)}
+                            </span>
+                        </div>
                         <div className="break-words"><span className="font-semibold">Teléfono: </span>{invoice.telefono}</div>
                         <div className="break-words"><span className="font-semibold">RFC: </span>{toUpper(invoice.rfc)}</div>
                         <div className="break-words"><span className="font-semibold">CFDI: </span>{toUpper(invoice.cfdi)}</div>
