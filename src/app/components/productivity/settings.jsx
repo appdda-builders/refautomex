@@ -6,7 +6,6 @@ import { BiSolidUserCircle } from 'react-icons/bi';
 import { MdEdit, MdSave } from 'react-icons/md';
 import { useTranslation } from 'react-i18next';
 import GooglePlacesAutocomplete from '@/app/components/principal/account/google-places';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { FaStarHalfAlt } from 'react-icons/fa';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 
@@ -15,8 +14,6 @@ const HeicToJpgUploader = dynamic(() => import('@/app/components/productivity/st
 export default function Settings() {
     const { t } = useTranslation();
     const multimediaSrc = process.env.NEXT_PUBLIC_S3;
-    const access_key_id = process.env.NEXT_PUBLIC_ACCESS_KEY_S3;
-    const secret_access_key = process.env.NEXT_PUBLIC_SECRET_KEY_S3;
     const [email, setEmail] = useState("");
     const [name, setName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -63,33 +60,40 @@ export default function Settings() {
     const handleSaveImage = async () => {
         setMediaUploading(true);
         setIsSaving(true);
+        setProfileError('');
+        setProfileSuccess('');
         if (!profile) {
             setProfileError('Selecciona una imagen antes de guardar.');
             setMediaUploading(false);
             setIsSaving(false);
             return;
         }
-
-        const s3 = new S3Client({
-            region: 'us-east-1',
-            credentials: {
-                accessKeyId: access_key_id,
-                secretAccessKey: secret_access_key,
-            },
-        });
-
-        const uploadParams = {
-            Bucket: 'refautomex',
-            Key: `usr/${idUsuario}.jpg`,
-            Body: profile,
-            ContentType: 'image/jpeg',
-        };
+        if (!idUsuario) {
+            setProfileError('No se encontró el usuario para guardar la imagen.');
+            setMediaUploading(false);
+            setIsSaving(false);
+            return;
+        }
 
         try {
-            await s3.send(new PutObjectCommand(uploadParams));
+            const formData = new FormData();
+            formData.append('file', profile);
+            formData.append('userId', String(idUsuario));
+
+            const response = await fetch('/api/upload-user-image', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Error al subir imagen. Por favor intenta de nuevo.');
+            }
+
             setProfileSuccess('Imagen guardada correctamente.');
+            setImageError(false);
         } catch (err) {
-            setProfileError('Error al subir imagen. Por favor intenta de nuevo.');
+            setProfileError(err.message || 'Error al subir imagen. Por favor intenta de nuevo.');
             console.error('Error al subir imagen:', err);
         } finally {
             setMediaUploading(false);

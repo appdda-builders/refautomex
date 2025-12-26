@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { Draggable } from '@fullcalendar/interaction';
@@ -10,6 +10,8 @@ import { FiCalendar, FiChevronLeft, FiChevronRight, FiPlus, FiTag } from 'react-
 import { LuSparkles } from 'react-icons/lu';
 import { TbTargetArrow } from 'react-icons/tb';
 import { PiMagicWandFill } from 'react-icons/pi';
+import { buildApiUrl } from '@/app/lib/refautomex-api';
+import { AuthContext } from '@/app/lib/auth-tracker';
 
 const palette = [
   {
@@ -56,6 +58,7 @@ const palette = [
 
 const formatDate = (date) => new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
 const formatMonth = (date) => new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' }).format(date);
+const formatYear = (date) => new Intl.DateTimeFormat('es-MX', { year: 'numeric' }).format(date);
 const makeDate = (year, month, day) => new Date(year, month - 1, day).toISOString().split('T')[0];
 const toDateKey = (value) => {
   if (!value) return null;
@@ -93,6 +96,17 @@ const isDayInEvent = (event, dayKey) => {
   return dayKey >= startKey && dayKey < endKey;
 };
 const createId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+const normalizeBranchId = (value) => {
+  if (value === null || value === undefined) return null;
+  const trimmed = String(value).trim();
+  return trimmed || null;
+};
+const isWebBranch = (value) => {
+  const normalized = normalizeBranchId(value);
+  if (!normalized) return false;
+  const upper = normalized.toUpperCase();
+  return upper === '1' || upper === 'WEB';
+};
 
 const buildLabel = (id, title, description, icon, paletteIndex, isCustom = false) => {
   const tone = palette[paletteIndex % palette.length];
@@ -129,7 +143,13 @@ export default function CalendarPlanner() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [newLabel, setNewLabel] = useState('');
   const [activeLabelId, setActiveLabelId] = useState(initialLabels[0]?.id);
+  const [branches, setBranches] = useState([]);
+  const [branchesLoading, setBranchesLoading] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [branchInitialized, setBranchInitialized] = useState(false);
   const isYearView = calendarView === 'multiMonthQuarter';
+  const { userData } = useContext(AuthContext);
+  const userBranchId = normalizeBranchId(userData?.idsucursal);
 
   useEffect(() => {
     if (!dragZoneRef.current) return undefined;
@@ -152,6 +172,58 @@ export default function CalendarPlanner() {
 
     return () => draggable.destroy();
   }, [labels]);
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      setBranchesLoading(true);
+      try {
+        const response = await fetch(buildApiUrl('/getSucursal'), {
+          cache: 'no-store',
+          headers: { Accept: 'application/json, text/plain, */*' },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+
+        const payload = await response.json();
+        const rows = Array.isArray(payload?.[0]) ? payload[0] : Array.isArray(payload) ? payload : [];
+        const normalized = rows
+          .map((branch) => ({
+            id: normalizeBranchId(branch.idsucursal ?? branch.idSucursal ?? branch.id),
+            name: branch.sucursal || branch.nombre || branch.branch,
+          }))
+          .filter((branch) => {
+            if (!branch.id || !branch.name) return false;
+            if (isWebBranch(branch.id)) return false;
+            return !String(branch.name).toLowerCase().includes('web');
+          });
+
+        setBranches(normalized);
+      } catch (error) {
+        console.error('Error fetching branches:', error);
+        setBranches([]);
+      } finally {
+        setBranchesLoading(false);
+      }
+    };
+
+    fetchBranches();
+  }, []);
+
+  useEffect(() => {
+    if (branchInitialized || branches.length === 0) return;
+    const normalizedUserBranch = userBranchId && !isWebBranch(userBranchId) ? userBranchId : null;
+    const hasUserBranch = normalizedUserBranch
+      ? branches.some((branch) => branch.id === normalizedUserBranch)
+      : false;
+    if (hasUserBranch) {
+      setSelectedBranch(normalizedUserBranch);
+    } else if (branches[0]?.id) {
+      setSelectedBranch(branches[0].id);
+    }
+    setBranchInitialized(true);
+  }, [branchInitialized, branches, userBranchId]);
 
   const labelMap = useMemo(() => labels.reduce((acc, label) => {
     acc[label.id] = label;
@@ -448,6 +520,24 @@ export default function CalendarPlanner() {
                 Etiqueta: <span className="font-semibold">{labelMap[activeLabelId]?.title}</span>
               </div>
             )}
+            <div className="flex items-center gap-2 rounded-full bg-[rgb(var(--color-bg))]/80 px-3 py-1 text-sm text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-galaxy))]/30 border border-[rgb(var(--color-border))]/80">
+              <FiTag className="text-[rgb(var(--color-galaxy))]" />
+              <span className="text-xs uppercase tracking-[0.2em]">Sucursal</span>
+              <select
+                value={selectedBranch}
+                onChange={(e) => setSelectedBranch(e.target.value)}
+                className="min-w-[160px] rounded-full border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-bg))] px-3 py-1 text-sm text-[rgb(var(--color-text))] shadow-inner outline-none focus:ring-2 focus:ring-[rgb(var(--color-accent))]/70"
+              >
+                <option value="" disabled>
+                  {branchesLoading ? 'Cargando...' : 'Selecciona sucursal'}
+                </option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -542,7 +632,7 @@ export default function CalendarPlanner() {
                     <FiChevronLeft />
                   </button>
                   <div className="px-3 py-2 rounded-xl bg-[rgb(var(--color-bg))] border border-[rgb(var(--color-border))]/60 shadow text-[rgb(var(--color-text))] font-semibold capitalize">
-                    {formatMonth(currentDate)}
+                    {isYearView ? formatYear(currentDate) : formatMonth(currentDate)}
                   </div>
                   <button type="button" onClick={() => goTo('next')} className="rounded-lg border border-[rgb(var(--color-border))]/80 bg-[rgb(var(--color-bg))] p-2 text-[rgb(var(--color-text))] shadow hover:-translate-y-0.5 transition">
                     <FiChevronRight />
@@ -578,6 +668,7 @@ export default function CalendarPlanner() {
                       type: 'multiMonth',
                       duration: { months: 12 },
                       multiMonthMaxColumns: 3,
+                      multiMonthMinWidth: 220,
                     },
                   }}
                   events={events.map((ev) => {
@@ -607,6 +698,7 @@ export default function CalendarPlanner() {
                   expandRows
                   nowIndicator
                   displayEventTime={false}
+                  multiMonthMinWidth={220}
                 />
               </div>
             </div>
