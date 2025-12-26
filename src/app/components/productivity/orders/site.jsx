@@ -3,11 +3,12 @@ import { FaArrowDown, FaArrowUp, FaSearch } from "react-icons/fa";
 import { FaMoneyBillTransfer, FaBook, FaBox } from "react-icons/fa6";
 import { GrStatusGoodSmall } from "react-icons/gr";
 import { GiAutoRepair } from 'react-icons/gi';
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, useMemo, useCallback, useContext } from 'react';
 import { SlMagnifierRemove } from "react-icons/sl";
 import FindFolio from './find-folio';
 import Title from '../title';
 import { upperCase } from 'lodash';
+import { AuthContext } from '@/app/lib/auth-tracker';
 
 const createTooltip = (icon, label, id, visibleTooltip, setVisibleTooltip) => {
     const show = () => setVisibleTooltip(id);
@@ -22,6 +23,19 @@ const createTooltip = (icon, label, id, visibleTooltip, setVisibleTooltip) => {
     ) : null;
 
     return { show, hide, tooltip };
+};
+
+const normalizeBranchId = (value) => {
+    if (value === null || value === undefined) return null;
+    const trimmed = String(value).trim();
+    return trimmed || null;
+};
+
+const isWebBranch = (value) => {
+    const normalized = normalizeBranchId(value);
+    if (!normalized) return false;
+    const upper = normalized.toUpperCase();
+    return upper === '1' || upper === 'WEB';
 };
 
 export default function Site() {
@@ -47,7 +61,16 @@ export default function Site() {
     const [isFinalizing, setIsFinalizing] = useState(false);
     const [finalizeError, setFinalizeError] = useState(null);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const [branchOptions, setBranchOptions] = useState([]);
+    const [branchMap, setBranchMap] = useState({});
+    const [selectedBranch, setSelectedBranch] = useState('');
+    const [branchInitialized, setBranchInitialized] = useState(false);
+    const [employeeBranchMap, setEmployeeBranchMap] = useState({});
     const PAGE_SIZE = 25;
+    const { userData } = useContext(AuthContext);
+    const isAdmin = String(userData?.categoria || '').toUpperCase() === 'A';
+    const userBranchId = normalizeBranchId(userData?.idsucursal);
+    const userId = normalizeBranchId(userData?.idusuario);
 
     const formatDate = (dateString) => {
         const options = { year: 'numeric', month: 'long', day: 'numeric', locale: 'es-ES' };
@@ -284,6 +307,85 @@ export default function Site() {
     }, [viewMode]);
 
     useEffect(() => {
+        const fetchBranches = async () => {
+            try {
+                const response = await fetch(buildApiUrl('/getSucursal'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const rows = Array.isArray(payload?.[0]) ? payload[0] : Array.isArray(payload) ? payload : [];
+                const options = rows
+                    .map((branch) => ({
+                        value: normalizeBranchId(branch.idsucursal ?? branch.idSucursal ?? branch.id),
+                        label: branch.sucursal || branch.nombre || branch.branch || `Sucursal ${branch.idsucursal ?? branch.id}`,
+                    }))
+                    .filter((option) => option.value && !isWebBranch(option.value) && !String(option.label).toLowerCase().includes('web'));
+
+                const names = options.reduce((acc, option) => {
+                    if (option.value) acc[option.value] = option.label;
+                    return acc;
+                }, {});
+
+                setBranchOptions(options);
+                setBranchMap(names);
+            } catch (error) {
+                console.error('Error fetching sucursales:', error);
+            }
+        };
+
+        fetchBranches();
+    }, []);
+
+    useEffect(() => {
+        const fetchEmployeeBranches = async () => {
+            try {
+                const response = await fetch(buildApiUrl('/getAllEmployees'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const map = (Array.isArray(payload) ? payload : []).reduce((acc, employee) => {
+                    const branchId = normalizeBranchId(employee.idsucursal ?? employee.idSucursal);
+                    const userId = normalizeBranchId(employee.idusuario ?? employee.idUsuario);
+                    if (!branchId || !userId || isWebBranch(branchId)) return acc;
+                    acc[userId] = branchId;
+                    return acc;
+                }, {});
+                setEmployeeBranchMap(map);
+            } catch (error) {
+                console.error('Error fetching empleados:', error);
+            }
+        };
+
+        fetchEmployeeBranches();
+    }, []);
+
+    useEffect(() => {
+        if (branchInitialized || branchOptions.length === 0) return;
+        const normalizedUserBranch = userBranchId && !isWebBranch(userBranchId) ? userBranchId : null;
+        const hasUserBranch = normalizedUserBranch
+            ? branchOptions.some((option) => option.value === normalizedUserBranch)
+            : false;
+        if (hasUserBranch) {
+            setSelectedBranch(normalizedUserBranch);
+        } else if (branchOptions[0]?.value) {
+            setSelectedBranch(branchOptions[0].value);
+        }
+        setBranchInitialized(true);
+    }, [branchInitialized, branchOptions, userBranchId]);
+
+    useEffect(() => {
         setCurrentPage(1);
     }, [viewMode]);
 
@@ -302,11 +404,65 @@ export default function Site() {
         }
     }, [viewMode, requests, isSearchingFolio]);
 
-    const totalPages = Math.max(1, Math.ceil(requests.length / PAGE_SIZE));
+    const resolveRequestBranchId = useCallback((request) => {
+        if (!request) return null;
+        const directBranch = normalizeBranchId(
+            request.idsucursal ??
+            request.idSucursal ??
+            request.id_sucursal ??
+            request.sucursalId ??
+            request.branchId ??
+            request.branch_id
+        );
+        if (directBranch) return directBranch;
+
+        if (request.sucursal && branchOptions.length > 0) {
+            const normalizedName = String(request.sucursal).trim().toLowerCase();
+            const matched = branchOptions.find(
+                (option) => option.label?.toLowerCase() === normalizedName
+            );
+            if (matched?.value) return matched.value;
+        }
+
+        const requestUserId = normalizeBranchId(
+            request.idusuario ??
+            request.idUsuario ??
+            request.idempleado ??
+            request.idEmpleado
+        );
+        if (requestUserId && employeeBranchMap[requestUserId]) {
+            return employeeBranchMap[requestUserId];
+        }
+
+        return null;
+    }, [branchOptions, employeeBranchMap]);
+
+    const resolvedUserBranchId = userBranchId || (userId ? employeeBranchMap[userId] : null);
+    const activeBranchId = isAdmin ? selectedBranch : resolvedUserBranchId;
+    const visibleRequests = useMemo(() => {
+        const baseRequests = Array.isArray(requests) ? requests : [];
+        if (!activeBranchId) {
+            return isAdmin ? baseRequests : [];
+        }
+        return baseRequests.filter((request) => {
+            const branchId = resolveRequestBranchId(request);
+            return branchId ? branchId === activeBranchId : false;
+        });
+    }, [requests, activeBranchId, resolveRequestBranchId, isAdmin]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeBranchId]);
+
+    const totalPages = Math.max(1, Math.ceil(visibleRequests.length / PAGE_SIZE));
     const startIndex = (currentPage - 1) * PAGE_SIZE;
     const paginatedRequests = isSearchingFolio
-        ? requests
-        : requests.slice(startIndex, startIndex + PAGE_SIZE);
+        ? visibleRequests
+        : visibleRequests.slice(startIndex, startIndex + PAGE_SIZE);
+
+    const selectedBranchLabel = activeBranchId
+        ? (branchMap[activeBranchId] || 'la sucursal seleccionada')
+        : (isAdmin ? 'todas las sucursales' : 'sin sucursal asignada');
 
     const handlePrevPage = () => {
         setCurrentPage((prev) => Math.max(1, prev - 1));
@@ -324,15 +480,44 @@ export default function Site() {
                 back='Volver al panel'
                 path='/productivity'
             />
-            <div className="mx-auto max-w-7xl px-6 lg:px-8 mt-5 flex justify-center text-[rgb(var(--color-text))] text-xl items center uppercase font-semibold italic"></div>
-                <div className="mx-auto max-w-7xl px-6 lg:px-8 mt-5">
+            <div className="mx-auto max-w-7xl px-6 lg:px-8 mt-5">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-card))] p-4 shadow-sm">
+                    <div className="text-xs font-semibold uppercase tracking-[0.25em] text-[rgb(var(--color-text))]">
+                        Sucursal
+                    </div>
+                    {isAdmin ? (
+                        <select
+                            value={selectedBranch}
+                            onChange={(event) => setSelectedBranch(event.target.value)}
+                            disabled={branchOptions.length === 0}
+                            className="min-w-[220px] rounded-full border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-bg))] px-4 py-2 text-sm text-[rgb(var(--color-text))] shadow-inner outline-none focus:ring-2 focus:ring-[rgb(var(--color-text))]/70"
+                        >
+                            {branchOptions.length === 0 && (
+                                <option value="" disabled>
+                                    Sin sucursales disponibles
+                                </option>
+                            )}
+                            {branchOptions.map((branch) => (
+                                <option key={branch.value} value={branch.value}>
+                                    {branch.label}
+                                </option>
+                            ))}
+                        </select>
+                    ) : (
+                        <span className="rounded-full border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-bg))] px-4 py-2 text-sm font-semibold text-[rgb(var(--color-text))] shadow-inner">
+                            {selectedBranchLabel}
+                        </span>
+                    )}
+                </div>
+            </div>
+            <div className="mx-auto max-w-7xl px-6 lg:px-8 mt-5">
                     <div className="mx-auto grid max-w-4xl grid-cols-1 gap-x-4 gap-y-3 lg:mx-0 lg:max-w-none">
-                        {!isSearchingFolio && requests.length === 0 && (
+                        {!isSearchingFolio && visibleRequests.length === 0 && (
                             <div className="text-center text-sm text-[rgb(var(--color-text))] py-4">
-                                No se encontraron registros.
+                                No se encontraron registros para {selectedBranchLabel}.
                             </div>
                         )}
-                        {!isSearchingFolio && requests.length > PAGE_SIZE && (
+                        {!isSearchingFolio && visibleRequests.length > PAGE_SIZE && (
                             <div className="flex items-center justify-center gap-4 pt-4">
                                 <button
                                     type="button"

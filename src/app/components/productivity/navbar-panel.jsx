@@ -227,9 +227,9 @@ export default function NavbarPanel() {
                     <nav className="flex-1 space-y-2">
                         <MenuItems items={filteredNavItems} closeMenu={() => setMobileMenuOpen(false)} lang={lang} />
 
-                        <div
+                        <button
                         key="salir"
-                        className="px-3 bg-[rgb(var(--color-card))] text-[rgb(var(--color-error))] cursor-pointer"
+                        className="px-3 bg-[rgb(var(--color-card))] text-[rgb(var(--color-error))] cursor-pointer w-full"
                         onClick={() => {
                             try {
                             setStorageValue('CognitoUserSession', null);
@@ -240,11 +240,11 @@ export default function NavbarPanel() {
                             }
                         }}
                         >
-                        <button className="flex items-center py-2">
+                        <div className="flex items-center py-2">
                             <AiOutlineLogout className="mr-3" />
                             Salir
-                        </button>
                         </div>
+                        </button>
                     </nav>
                     </div>
                 </div>

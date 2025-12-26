@@ -6,7 +6,10 @@ const HeicToJpgUploader = ({ setProfile, setProfileError, mediaUploading }) => {
     const fileInputRef = useRef();
 
     const triggerUpload = () => {
-        fileInputRef.current.click();
+        if (mediaUploading) return;
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
+        }
     };
 
     const handleProfileUpload = async (e) => {
@@ -53,7 +56,14 @@ const HeicToJpgUploader = ({ setProfile, setProfileError, mediaUploading }) => {
 
     return (
         <div>
-            <input type="file" className="hidden" ref={fileInputRef} onChange={handleProfileUpload} />
+            <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleProfileUpload}
+                disabled={mediaUploading}
+            />
             <div className="flex flex-row justify-center items-center bg-slate-300 p-2 m-2 rounded-full animate-out shadow-md" onClick={triggerUpload} disabled={mediaUploading}>
                 <FaImage className="text-stone-600" />
             </div>
