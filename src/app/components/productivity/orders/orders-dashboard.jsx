@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { FaClock, FaCheckToSlot, FaTruckFast, FaTruckRampBox, FaWarehouse } from 'react-icons/fa6';
+import { FaClock, FaCheckToSlot, FaTruckRampBox, FaWarehouse } from 'react-icons/fa6';
 
 const money = new Intl.NumberFormat('es-MX', {
   style: 'currency',
@@ -10,11 +10,11 @@ const money = new Intl.NumberFormat('es-MX', {
 
 const statusStyles = {
   paid: {
-    badge: 'bg-amber-100 text-emerald-800',
+    badge: 'bg-cyan-100 text-emerald-800',
     label: 'Pagado',
   },
   unpaid: {
-    badge: 'bg-amber-300 text-amber-800',
+    badge: 'bg-amber-100 text-amber-800',
     label: 'Pendiente de pago',
   },
   canceled: {
@@ -26,7 +26,7 @@ const statusStyles = {
 const fulfillmentStages = [
   { key: 'en_proceso', label: 'En proceso', icon: FaClock },
   { key: 'pedido_confirmado', label: 'Pedido confirmado', icon: FaCheckToSlot },
-  { key: 'en_camino', label: 'En camino', icon: FaTruckFast },
+  { key: 'en_camino', label: 'Finalizado', icon: FaWarehouse },
 ];
 
 const getNextStage = (current) => {
@@ -112,7 +112,9 @@ export default function OrdersDashboard({
 
   const handleStatusToggle = async (order) => {
     if (order.isCompleted) return;
-    const isFinalStage = order.fulfillmentStatus === 'en_camino';
+    const isFinalStage =
+      order.fulfillmentStatus === 'pedido_confirmado' ||
+      order.fulfillmentStatus === 'en_camino';
     const nextStage = getNextStage(order.fulfillmentStatus);
     const targetStatus = isFinalStage ? undefined : nextStage.key;
     const hadReturn = order.fulfillmentReturn === 'devolucion';
@@ -299,7 +301,9 @@ export default function OrdersDashboard({
               <div className="grid grid-cols-1 gap-6">
                 {filteredOrders.map((order) => {
                   const style = statusStyles[order.status] ?? statusStyles.unpaid;
-                  const isFinalStage = order.fulfillmentStatus === 'en_camino';
+                  const isFinalStage =
+                    order.fulfillmentStatus === 'pedido_confirmado' ||
+                    order.fulfillmentStatus === 'en_camino';
                   const nextStage = getNextStage(order.fulfillmentStatus);
                   const logisticState = (() => {
                     if (order.fulfillmentReturn === 'devolucion') {
@@ -311,13 +315,13 @@ export default function OrdersDashboard({
                     }
                     if (order.isCompleted) {
                       return {
-                        label: 'Completado',
+                        label: 'Finalizado',
                         badgeClass: 'bg-emerald-100 text-emerald-800',
                         icon: FaWarehouse,
                       };
                     }
                     const stageInfo =
-                      fulfillmentStages.find((stage) => stage.key === order.fulfillmentStatus) ??
+                      fulfillmentStages.find((stage) => stage.key === order.fulfillmentStatus) ||
                       fulfillmentStages[0];
                     return {
                       label: stageInfo.label,
@@ -325,6 +329,11 @@ export default function OrdersDashboard({
                       icon: stageInfo.icon,
                     };
                   })();
+                  const displayStatus = order.isCompleted
+                    ? 'en_camino'
+                    : order.fulfillmentStatus === 'en_camino'
+                    ? 'pedido_confirmado'
+                    : order.fulfillmentStatus;
                   return (
                     <article
                       key={order.id}
@@ -364,83 +373,144 @@ export default function OrdersDashboard({
                           <p className="wrap-break-word">{order.email ?? 'Sin registro'}</p>
                         </div>
                         <div>
-                          <p className="font-semibold text-[rgb(var(--color-text))]">Dirección</p>
-                          <p className="wrap-break-word">{order.contactAddress ?? 'Sin registro'}</p>
+                          <p className="font-semibold text-[rgb(var(--color-text))]">Domicilio</p>
+                          <p className="wrap-break-word">
+                            {order.contactAddress ?? 'Sin registro'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[rgb(var(--color-text))]">Fecha</p>
+                          <p>
+                            {new Date(order.created * 1000).toLocaleDateString('es-MX', {
+                              dateStyle: 'medium',
+                            })}
+                          </p>
                         </div>
                         <div>
                           <p className="font-semibold text-[rgb(var(--color-text))]">Total</p>
-                          <p>{money.format((order.amount || 0) / 100)}</p>
+                          <p className="font-bold text-lg linear-text-title">
+                            {money.format(order.amount / 100)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[rgb(var(--color-text))]">Moneda</p>
+                          <p>{order.currency}</p>
                         </div>
                       </div>
-                      <div className="py-4 border-t border-[rgb(var(--color-text))]/10 text-sm text-[rgb(var(--color-text))]/80">
-                        <p className="font-semibold text-[rgb(var(--color-text))] mb-2">Detalle</p>
-                        <ul className="space-y-1">
+                      <div className="py-4 border-t border-b border-[rgb(var(--color-text))]/10">
+                        <p className="text-xs font-semibold uppercase text-[rgb(var(--color-text))]/60 mb-2">
+                          Artículos
+                        </p>
+                        <ul className="space-y-2 text-sm text-[rgb(var(--color-text))]/80">
                           {order.lineItems.map((item, idx) => (
-                            <li
-                              key={`${order.id}-line-${idx}`}
-                              className="flex justify-between text-xs sm:text-sm text-[rgb(var(--color-text))]/80"
-                            >
-                              <span className="truncate pr-2">{item.description}</span>
+                            <li key={`${order.id}-${idx}`} className="flex justify-between gap-3">
+                              <span className="font-medium truncate">{item.description}</span>
                               <span className="whitespace-nowrap">
-                                {item.quantity} x {money.format((item.total || 0) / 100)}
+                                {item.quantity} x {money.format(item.total / 100)}
                               </span>
                             </li>
                           ))}
                         </ul>
                       </div>
-                      <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-[rgb(var(--color-text))]/10">
-                        <button
-                          onClick={() => handleStatusToggle(order)}
-                          disabled={updatingId === order.id}
-                          className="rounded-full px-4 py-2 text-sm font-semibold bg-[rgb(var(--color-text))] text-[rgb(var(--color-card))] disabled:opacity-40"
-                        >
-                          {order.isCompleted
-                            ? 'Concluido'
-                            : isFinalStage
-                            ? 'Completar'
-                            : `Avanzar a ${nextStage.label}`}
-                        </button>
-                        <button
-                          onClick={() => handleReturnToggle(order)}
-                          disabled={returnUpdatingId === order.id}
-                          className={`rounded-full px-4 py-2 text-sm font-semibold border ${
-                            order.fulfillmentReturn === 'devolucion'
-                              ? 'border-rose-400 text-rose-700 bg-rose-50'
-                              : 'border-[rgb(var(--color-text))]/20 text-[rgb(var(--color-text))]'
-                          } disabled:opacity-40`}
-                        >
-                          {order.fulfillmentReturn === 'devolucion'
-                            ? 'Cancelar devolución'
-                            : 'Marcar devolución'}
-                        </button>
-                        <button
-                          onClick={() => handleResetOrder(order)}
-                          disabled={resetUpdatingId === order.id}
-                          className="rounded-full px-4 py-2 text-sm font-semibold border border-[rgb(var(--color-text))]/20 text-[rgb(var(--color-text))] disabled:opacity-40"
-                        >
-                          Reactivar
-                        </button>
-                      </div>
-                      <div className="mt-4">
-                        <textarea
-                          placeholder="Notas internas para logística"
-                          defaultValue={order.fulfillmentNote || ''}
-                          onChange={(event) =>
-                            setNoteDrafts((prev) => ({ ...prev, [order.id]: event.target.value }))
-                          }
-                          className="w-full rounded-2xl border border-[rgb(var(--color-text))]/20 bg-transparent px-4 py-2 text-sm text-[rgb(var(--color-text))] focus:border-cyan-400 focus:outline-none"
-                        />
-                        <div className="mt-2 flex justify-end">
-                          <button
-                            onClick={() =>
-                              handleAddNote(order, noteDrafts[order.id] ?? order.fulfillmentNote ?? '')
-                            }
-                            disabled={noteUpdatingId === order.id}
-                            className="rounded-full px-4 py-2 text-sm font-semibold bg-cyan-600 text-white disabled:opacity-40"
-                          >
-                            Guardar nota
-                          </button>
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-[rgb(var(--color-text))]/70 flex-1">
+                          {fulfillmentStages.map((stage) => {
+                            const StageIcon = stage.icon;
+                            return (
+                              <div
+                                key={`${order.id}-stage-${stage.key}`}
+                                className={`flex flex-col items-center rounded-2xl p-1 text-center ${
+                                  displayStatus === stage.key
+                                    ? 'shadow shadow-cyan-400/50 bg-cyan-50 text-cyan-700'
+                                    : 'shadow shadow-[rgb(var(--color-text))]/10 text-[rgb(var(--color-text))]/70'
+                                }`}
+                              >
+                                <StageIcon className="text-base mb-1" />
+                                {stage.label}
+                              </div>
+                            );
+                          })}
                         </div>
+                      </div>
+                      <div className="flex flex-col gap-4 pt-4">
+                        {activeTab === 'pending' ? (
+                          <div className="flex">
+                            <button
+                              onClick={() => handleStatusToggle(order)}
+                              disabled={updatingId === order.id || order.isCompleted}
+                              className={`w-full rounded-full px-4 py-2 text-sm font-semibold shadow transition cursor-pointer ${
+                                isFinalStage
+                                  ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                                  : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                              } disabled:opacity-50`}
+                            >
+                              {updatingId === order.id
+                                ? 'Actualizando...'
+                                : order.isCompleted
+                                ? 'Finalizado'
+                                : isFinalStage
+                                ? 'Finalizar'
+                                : `Ir a "${nextStage.label}"`}
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-4">
+                            <div className="rounded-2xl border border-[rgb(var(--color-text))]/10 bg-[rgb(var(--color-card))] px-4 py-3 text-sm text-[rgb(var(--color-text))]/80 w-full">
+                              <p className="text-xs uppercase font-semibold text-[rgb(var(--color-text))]/60 mb-1">
+                                Nota
+                              </p>
+                              <textarea
+                                value={noteDrafts[order.id] ?? order.fulfillmentNote ?? ''}
+                                rows={3}
+                                className="w-full rounded-xl border border-[rgb(var(--color-text))]/20 bg-white/80 px-3 py-2 text-sm text-[rgb(var(--color-text))] focus:border-cyan-400 focus:outline-none min-h-[120px]"
+                                placeholder="Escribe comentarios sobre la entrega..."
+                                onChange={(event) =>
+                                  setNoteDrafts((prev) => ({
+                                    ...prev,
+                                    [order.id]: event.target.value,
+                                  }))
+                                }
+                                onBlur={(event) => {
+                                  const candidate = event.target.value;
+                                  if (candidate === (order.fulfillmentNote ?? '')) return;
+                                  handleAddNote(order, candidate);
+                                }}
+                                disabled={noteUpdatingId === order.id}
+                              />
+                              {noteUpdatingId === order.id && (
+                                <p className="mt-1 text-xs text-cyan-600">Guardando nota…</p>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="flex">
+                                <button
+                                  onClick={() => handleReturnToggle(order)}
+                                  disabled={returnUpdatingId === order.id}
+                                  className={`w-full rounded-full px-4 py-2 text-sm font-semibold cursor-pointer shadow ${
+                                    order.fulfillmentReturn === 'devolucion'
+                                      ? 'bg-rose-100 text-rose-800 hover:bg-rose-200'
+                                      : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                                  } disabled:opacity-50`}
+                                >
+                                  {returnUpdatingId === order.id
+                                    ? 'Actualizando...'
+                                    : order.fulfillmentReturn === 'devolucion'
+                                    ? 'Habilitar'
+                                    : 'Devolución'}
+                                </button>
+                              </div>
+                              <div className="flex">
+                                <button
+                                  onClick={() => handleResetOrder(order)}
+                                  disabled={resetUpdatingId === order.id}
+                                  className="w-full rounded-full px-4 py-2 text-sm font-semibold shadow bg-emerald-100 text-emerald-800 hover:bg-emerald-200 disabled:opacity-50 cursor-pointer"
+                                >
+                                  {resetUpdatingId === order.id ? 'Reactivando...' : 'Reactivar'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </article>
                   );
