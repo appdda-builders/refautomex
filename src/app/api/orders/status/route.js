@@ -41,7 +41,7 @@ export async function POST(request) {
   }
 
   try {
-    const stripe = getStripe();
+    const stripe = await getStripe();
     const session = await stripe.checkout.sessions.update(sessionId, { metadata });
     return NextResponse.json({
       fulfillmentStatus: session.metadata?.fulfillmentStatus || DEFAULT_STATUS,
