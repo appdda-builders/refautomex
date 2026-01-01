@@ -100,11 +100,13 @@ export default function Tickets() {
     const handleGenerateFolioAndPrint = async () => {
         const username = cognitoUserSession.idToken.payload["cognito:username"];
         const userData = getStorageValue(`user_${username}`);
+        const resolvedBranchId = userData?.idsucursal ?? userData?.idSucursal ?? null;
 
         const sale_data = {
             fecha_venta: new Date().toISOString().split('T')[0],
             total_venta: total.toFixed(2),
             idusuario: userData?.idusuario || 1,
+            idsucursal: resolvedBranchId,
             status: 'A',
             idmetodo: paymentType,
             telefono: phone,
