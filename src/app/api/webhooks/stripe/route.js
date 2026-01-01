@@ -66,6 +66,7 @@ const handleCheckoutCompleted = async (session) => {
     fecha_venta: fechaVenta,
     total_venta: formatCurrency(amountTotal),
     idusuario: Number(metadata.orderUserId) || 1,
+    idsucursal: 1,
     tipo: metadata.orderType || 'W',
     idmetodo: Number(metadata.paymentMethodId) || 3,
     items: items.map((item) => ({

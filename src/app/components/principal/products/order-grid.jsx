@@ -186,6 +186,7 @@ export default function OrderGrid() {
                 fecha_venta: todayStr,
                 total_venta: totalAmount.toFixed(2),
                 idusuario: userData?.idusuario || 1,
+                idsucursal: 1,
                 status: 'A',
                 idmetodo: paymentMethod,
                 tipo: 'W',

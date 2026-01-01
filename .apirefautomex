@@ -402,7 +402,7 @@ app.get('/api/getUserHistory', async (req, res) => {
     }
 });
 
-// GET: sales history by day and details
+// GET: sales history by day with monthly/yearly summaries
 app.get('/api/getHistory', async (req, res) => {
     const { id } = req.query;
     if (!id) {
@@ -410,17 +410,42 @@ app.get('/api/getHistory', async (req, res) => {
     }
 
     try {
-        const sales = await executeQuery('CALL salesByDate(?)', [id]);
+        // salesHistorySummary: [day sales, month daily totals by branch, year monthly totals by branch]
+        const summary = await executeQuery('CALL GetSalesHistorySummary(?)', [id]);
+        const resultSets = Array.isArray(summary) ? summary.filter(Array.isArray) : [];
+        const [sales = [], monthDaily = [], yearMonthly = [], salesIndex = []] = resultSets;
 
-        for (let sale of sales[0]) {
-            const details = await executeQuery('CALL saleDetailsByIdVenta(?)', [sale.idVenta]);
+        for (let sale of sales) {
+            const saleId = sale.idVenta ?? sale.idventa ?? sale.id_venta ?? null;
+            if (!saleId) {
+                sale.details = [];
+                continue;
+            }
+            const details = await executeQuery('CALL GetSaleDetailsByIdVenta(?)', [saleId]);
             sale.details = details[0];
         }
 
-        res.json(sales[0]);
+        res.json({ sales, monthDaily, yearMonthly, salesIndex });
     } catch (error) {
         console.error('Error fetching history:', error);
         res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+});
+
+// GET: sale details by idVenta
+app.get('/api/getSaleDetails', async (req, res) => {
+    const { idVenta } = req.query;
+    if (!idVenta) {
+        return res.status(400).json({ error: 'Bad Request', details: 'Missing idVenta parameter' });
+    }
+
+    try {
+        const details = await executeQuery('CALL GetSaleDetailsByIdVenta(?)', [idVenta]);
+        const rows = Array.isArray(details) ? (details[0] || []) : [];
+        return res.json(rows);
+    } catch (error) {
+        console.error('Error fetching sale details:', error);
+        return res.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
 });
 
@@ -535,9 +560,9 @@ app.post('/api/newProductDetail', (req, res) => {
 
 // POST: new sale
 app.post('/api/newSale', async (req, res) => {
-    const { fecha_venta, total_venta, idusuario, tipo, idmetodo, items, telefono, email, fecha_entrega, fecha_pedido, nombre_cliente, isOrder, notas } = req.body;
+    const { fecha_venta, total_venta, idusuario, idsucursal, tipo, idmetodo, items, telefono, email, fecha_entrega, fecha_pedido, nombre_cliente, isOrder, notas } = req.body;
 
-    if (!fecha_venta || !total_venta || !idusuario || !tipo || !idmetodo || !items || items.length === 0) {
+    if (!fecha_venta || !total_venta || !idusuario || !idsucursal || !tipo || !idmetodo || !items || items.length === 0) {
         return res.status(400).json({
             error: 'Bad Request',
             details: 'Missing parameters or no items provided.'
@@ -545,9 +570,10 @@ app.post('/api/newSale', async (req, res) => {
     }
 
     try {
+        const parsedBranchId = idsucursal ? Number(idsucursal) : null;
         // Insertar la venta
-        const query = 'CALL insertSale(?, ?, ?, "A", ?, ?, ?)';
-        const params = [fecha_venta, total_venta, idusuario, idmetodo, tipo, notas];
+        const query = 'CALL insertSale(?, ?, ?, "A", ?, ?, ?, ?)';
+        const params = [fecha_venta, total_venta, idusuario, idmetodo, tipo, notas, parsedBranchId];
         const results = await executeQuery(query, params);
 
         if (!results[0] || results[0].length === 0) {
