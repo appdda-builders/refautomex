@@ -23,6 +23,7 @@ export default function Account() {
     }, [authStatusChecked, isAuthenticated, lang, router]);
 
     if (!authStatusChecked) return <Spinner />;
+    if (isAuthenticated) return <Spinner />;
 
     let component;
     switch (load) {

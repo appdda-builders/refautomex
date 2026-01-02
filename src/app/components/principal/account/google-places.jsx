@@ -132,6 +132,14 @@ const GooglePlacesAutocomplete = ({ placeId, setPlaceId, setPostalCode, lock }) 
     return ALLOWED_COUNTRIES.includes(code);
   };
 
+  const isLikelyPlaceId = (value) => {
+    if (typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    if (/[,\s]/.test(trimmed)) return false;
+    return /^[A-Za-z0-9_-]{18,}$/.test(trimmed);
+  };
+
   // --- Core functions ---
   const commitByPlaceId = useCallback((pid) => {
     if (!pid || !placesServiceRef.current) return;
@@ -225,9 +233,26 @@ const GooglePlacesAutocomplete = ({ placeId, setPlaceId, setPostalCode, lock }) 
   }, [isMapReady, ensureAutocompleteUI]);
 
   useEffect(() => {
-    if (!placeId || !isMapReady) return;
-    commitByPlaceId(placeId);
-  }, [placeId, isMapReady, commitByPlaceId]);
+    if (isEditingRef.current) return;
+
+    if (!placeId) {
+      setInputValue('');
+      if (isMapReady) clearMap();
+      return;
+    }
+
+    const rawPlaceId = String(placeId).trim();
+    if (!rawPlaceId) return;
+
+    if (!isLikelyPlaceId(rawPlaceId)) {
+      setInputValue(rawPlaceId);
+      if (isMapReady) clearMap();
+      return;
+    }
+
+    if (!isMapReady) return;
+    commitByPlaceId(rawPlaceId);
+  }, [placeId, isMapReady, commitByPlaceId, clearMap]);
 
   // --- Handlers ---
   const handleChange = (e) => {

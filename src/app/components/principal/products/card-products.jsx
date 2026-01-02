@@ -454,7 +454,7 @@ export default function CardProducts({ showSearchBar = true }) {
                         <ProductImage
                           src={img}
                           alt={product.descripcion}
-                          className="h-full w-full object-cover object-center"
+                          className="h-full w-full object-contain object-center bg-white"
                         />
                       </ImageWrapper>
 
