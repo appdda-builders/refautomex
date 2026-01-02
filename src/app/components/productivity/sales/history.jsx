@@ -21,7 +21,7 @@ import {
     Tooltip as RechartsTooltip,
     ResponsiveContainer,
 } from 'recharts';
-import ComponentToPrint from './component-print';
+import ComponentToPrint, { prefetchBranchData } from './component-print';
 import { AuthContext } from '@/app/lib/auth-tracker';
 
 const IVA_FACTOR = 1.16;
@@ -153,6 +153,12 @@ const normalizeSaleId = (value) => {
     if (value === null || value === undefined) return null;
     const trimmed = String(value).trim();
     return trimmed || null;
+};
+
+const normalizeBranchesPayload = (payload) => {
+    if (Array.isArray(payload?.[0])) return payload[0];
+    if (Array.isArray(payload)) return payload;
+    return [];
 };
 
 const isWebBranch = (value) => {
@@ -311,7 +317,7 @@ export default function History() {
                 }
 
                 const payload = await response.json();
-                const normalized = Array.isArray(payload) ? payload : [];
+                const normalized = normalizeBranchesPayload(payload);
                 const filtered = normalized.filter((branch) => !isWebBranch(branch.idsucursal));
                 const options = filtered
                     .map((branch) => ({
@@ -421,6 +427,9 @@ export default function History() {
             sale.branch_id
         );
         if (directBranch) return directBranch;
+
+        const fallbackBranchId = normalizeBranchId(sale.sucursal);
+        if (fallbackBranchId && !isWebBranch(fallbackBranchId)) return fallbackBranchId;
 
         if (sale.sucursal && branchOptions.length > 0) {
             const normalizedName = String(sale.sucursal).trim().toLowerCase();
@@ -917,14 +926,23 @@ export default function History() {
             employee: sale.empleado || '',
             folio: sale.folio || '',
             notes: sale.nota || '',
+            branchId: resolveSaleBranchId(sale),
+            branchName: resolveBranchLabel(sale) || sale.sucursal || '',
         };
     };
 
-    const handleTicketPrint = (sale) => {
+    const handleTicketPrint = async (sale) => {
         const ticket = buildTicketDataFromSale(sale);
-        if (ticket) {
-            setTicketData(ticket);
+        if (!ticket) return;
+        let branchSnapshot = null;
+        if (ticket.branchId) {
+            try {
+                branchSnapshot = await prefetchBranchData(ticket.branchId);
+            } catch (error) {
+                console.error('Error al cargar la sucursal para el ticket:', error);
+            }
         }
+        setTicketData({ ...ticket, branchSnapshot });
     };
 
     const toggleDetails = useCallback(async (sale) => {
@@ -1121,7 +1139,7 @@ export default function History() {
                                         No se encontraron registros para la fecha listada en {selectedBranchLabel}.
                                     </div>
                                 ) : (
-                                    <table className="w-full lg:w-[1800px] text-sm text-left text-[rgb(var(--color-text))] mx-auto">
+                                    <table className="w-full lg:w-[1300px] text-sm text-left text-[rgb(var(--color-text))] mx-auto">
                                             <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-card))] text-center">
                                                 <tr>
                                                     <th scope="col" className="p-1.5">STATUS</th>
@@ -1678,6 +1696,12 @@ export default function History() {
                         employee={ticketData.employee}
                         folio={ticketData.folio}
                         notes={ticketData.notes}
+                        branchName={ticketData.branchName}
+                        phones={ticketData.branchSnapshot ? [ticketData.branchSnapshot.phone1, ticketData.branchSnapshot.phone2].filter(Boolean) : undefined}
+                        whatsapps={ticketData.branchSnapshot ? [ticketData.branchSnapshot.whatsapp1, ticketData.branchSnapshot.whatsapp2].filter(Boolean) : undefined}
+                        address={ticketData.branchSnapshot?.address || ''}
+                        branchId={ticketData.branchId}
+                        useDefaults={false}
                     />
                 </div>
             )}

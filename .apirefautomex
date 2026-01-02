@@ -839,6 +839,46 @@ app.patch('/api/patchMigrate', (req, res) => {
     handleQuery(query, params, res);
 });
 
+// PATCH: update branch contact info for ticket
+app.patch('/api/patchSucursal', (req, res) => {
+    const {
+        idsucursal,
+        telefono_uno,
+        telefono_dos,
+        whats_uno,
+        whats_dos,
+        direccion
+    } = req.body || {};
+
+    if (!idsucursal) {
+        return res.status(400).json({
+            error: 'Bad Request',
+            details: 'Missing idsucursal.',
+        });
+    }
+
+    const safeValue = (value) => (value === null || value === undefined ? '' : String(value).trim());
+    const query = `
+        UPDATE sucursal
+        SET telefono_uno = ?,
+            telefono_dos = ?,
+            whats_uno = ?,
+            whats_dos = ?,
+            direccion = ?
+        WHERE idsucursal = ?
+    `;
+    const params = [
+        safeValue(telefono_uno),
+        safeValue(telefono_dos),
+        safeValue(whats_uno),
+        safeValue(whats_dos),
+        safeValue(direccion),
+        idsucursal
+    ];
+
+    handleQuery(query, params, res);
+});
+
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
