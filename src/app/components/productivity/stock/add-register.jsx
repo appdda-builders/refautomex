@@ -1,8 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import Select from 'react-select';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import { MdAddCircle, MdAssignmentAdd } from 'react-icons/md';
+import { IoTicket } from 'react-icons/io5';
 import FindProducts from '@/app/components/productivity/sales/find-products';
+import ComponentToPrint from '@/app/components/productivity/sales/component-print';
+import { AuthContext } from '@/app/lib/auth-tracker';
 
 const parseRoutes = (raw) => {
     if (!raw) return [];
@@ -18,6 +21,12 @@ const isWebBranchValue = (value) => {
     if (value === null || value === undefined) return false;
     const normalized = String(value).toUpperCase();
     return normalized === '1' || normalized === 'WEB';
+};
+
+const isWebBranchOption = (option) => {
+    if (!option) return false;
+    if (isWebBranchValue(option.value)) return true;
+    return String(option.label || '').toLowerCase().includes('web');
 };
 
 const hasLeadingZeroSuffix = (location = '') => {
@@ -41,7 +50,15 @@ const normalizeNumber = (value, fallback = 0) => {
     return Number.isFinite(num) ? num : fallback;
 };
 
+const formatPhoneInput = (value) => {
+    const digits = String(value ?? '').replace(/\D/g, '').slice(0, 10);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+    return `${digits.slice(0, 2)} ${digits.slice(2, 6)} ${digits.slice(6)}`;
+};
+
 export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
+    const { userData } = useContext(AuthContext);
     const [productForm, setProductForm] = useState({
         refaccion: '',
         descripcion: '',
@@ -76,6 +93,17 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
     const [errorMessage, setErrorMessage] = useState('');
     const [errorMessages, setErrorMessages] = useState({});
     const [detailGroupId, setDetailGroupId] = useState(null);
+    const [showTicketPreview, setShowTicketPreview] = useState(false);
+    const [ticketBranchId, setTicketBranchId] = useState('');
+    const [ticketPhonePrimary, setTicketPhonePrimary] = useState('');
+    const [ticketPhoneSecondary, setTicketPhoneSecondary] = useState('');
+    const [ticketWhatsappPrimary, setTicketWhatsappPrimary] = useState('');
+    const [ticketWhatsappSecondary, setTicketWhatsappSecondary] = useState('');
+    const [ticketAddress, setTicketAddress] = useState('');
+    const [ticketSaving, setTicketSaving] = useState(false);
+    const [ticketSaveMessage, setTicketSaveMessage] = useState('');
+    const [ticketSaveError, setTicketSaveError] = useState('');
+    const [ticketPreviewKey, setTicketPreviewKey] = useState(0);
 
     const findProductsRef = useRef(null);
 
@@ -715,8 +743,13 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
                 const options = payload.map((sucursal) => ({
                     value: sucursal.idsucursal,
                     label: sucursal.sucursal,
+                    address: sucursal.direccion || '',
+                    phone1: sucursal.telefono_uno || '',
+                    phone2: sucursal.telefono_dos || '',
+                    whatsapp1: sucursal.whats_uno || '',
+                    whatsapp2: sucursal.whats_dos || '',
                 }));
-                setSucursalOptions(options);
+                setSucursalOptions(options.filter((option) => !isWebBranchOption(option)));
             } catch (error) {
                 console.error('Error al obtener sucursales:', error);
             }
@@ -729,6 +762,39 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
         fetchSucursalOptions();
         fetchPendingProducts();
     }, []);
+
+    useEffect(() => {
+        if (!sucursalOptions.length || ticketBranchId) return;
+        const userBranchId = userData?.idsucursal ?? userData?.idSucursal ?? '';
+        if (!userBranchId) return;
+        const match = sucursalOptions.find(
+            (option) => String(option.value) === String(userBranchId)
+        );
+        if (match) {
+            setTicketBranchId(String(match.value));
+        }
+    }, [sucursalOptions, ticketBranchId, userData]);
+
+    useEffect(() => {
+        if (!ticketBranchId) {
+            setTicketPhonePrimary('');
+            setTicketPhoneSecondary('');
+            setTicketWhatsappPrimary('');
+            setTicketWhatsappSecondary('');
+            setTicketAddress('');
+            return;
+        }
+
+        const selected = sucursalOptions.find(
+            (option) => String(option.value) === String(ticketBranchId)
+        );
+        if (!selected) return;
+        setTicketPhonePrimary(formatPhoneInput(selected.phone1 || ''));
+        setTicketPhoneSecondary(formatPhoneInput(selected.phone2 || ''));
+        setTicketWhatsappPrimary(formatPhoneInput(selected.whatsapp1 || ''));
+        setTicketWhatsappSecondary(formatPhoneInput(selected.whatsapp2 || ''));
+        setTicketAddress(selected.address || '');
+    }, [ticketBranchId, sucursalOptions]);
 
     const existingProductOptions = pendingProducts.map((product) => ({
         value: product.num_parte,
@@ -1223,6 +1289,240 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
     );
     };
 
+    const renderTicketConfigurator = () => {
+        const previewItems = [
+            { cantidad: 2, refaccion: '0111', descripcion: 'Balata Ejemplo', aIva: 120, monto: 240 },
+            { cantidad: 1, refaccion: '0112', descripcion: 'Filtro Ejemplo', aIva: 80, monto: 80 },
+        ];
+        const previewDate = new Date().toLocaleDateString('es-MX', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
+        const previewNotes = 'NOTA DE PEDIDO VA AQUÍ: PAGADO POR ENTREGAR...';
+        const selectedBranch = sucursalOptions.find(
+            (option) => String(option.value) === String(ticketBranchId)
+        );
+
+        const handleTicketSave = async () => {
+            if (!ticketBranchId) {
+                setTicketSaveError('Selecciona una sucursal para guardar.');
+                return;
+            }
+
+            setTicketSaving(true);
+            setTicketSaveMessage('');
+            setTicketSaveError('');
+
+            const payload = {
+                idsucursal: ticketBranchId,
+                telefono_uno: ticketPhonePrimary,
+                telefono_dos: ticketPhoneSecondary,
+                whats_uno: ticketWhatsappPrimary,
+                whats_dos: ticketWhatsappSecondary,
+                direccion: ticketAddress,
+            };
+
+            try {
+                const response = await fetch(buildApiUrl('/patchSucursal'), {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json, text/plain, */*',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || errorData.error || 'No se pudo actualizar la sucursal.');
+                }
+
+                setSucursalOptions((prev) =>
+                    prev.map((option) =>
+                        String(option.value) === String(ticketBranchId)
+                            ? {
+                                  ...option,
+                                  phone1: ticketPhonePrimary,
+                                  phone2: ticketPhoneSecondary,
+                                  whatsapp1: ticketWhatsappPrimary,
+                                  whatsapp2: ticketWhatsappSecondary,
+                                  address: ticketAddress,
+                              }
+                            : option
+                    )
+                );
+
+                setTicketPreviewKey((prev) => prev + 1);
+                setTicketSaveMessage('Datos actualizados correctamente.');
+            } catch (error) {
+                setTicketSaveError(error.message || 'No se pudo actualizar la sucursal.');
+            } finally {
+                setTicketSaving(false);
+            }
+        };
+
+        return (
+            <div className="flex flex-col space-y-6 max-w-7xl mx-auto p-4">
+                <div className="rounded-3xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-card))] p-6 shadow-lg">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p className="text-2xl font-semibold text-[rgb(var(--color-text))]">
+                                Tickets y contactos
+                            </p>
+                            <p className="text-sm text-[rgb(var(--color-text))]/70 mt-1">
+                                Personaliza los datos del ticket por sucursal antes de imprimirlo.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowTicketPreview(false)}
+                            className="inline-flex items-center justify-center rounded-full border border-[rgb(var(--color-border))] bg-[rgb(var(--color-bg))] px-4 py-2 text-sm font-semibold text-[rgb(var(--color-text))] shadow hover:bg-[rgb(var(--color-amber))]/20 transition"
+                        >
+                            Volver a alta
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+                    <div className="order-1 rounded-3xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-bg))]/70 p-6 shadow-md lg:flex-[1.2]">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-[rgb(var(--color-text))]/70">
+                            Datos del ticket
+                        </p>
+                        <div className="mt-4 space-y-3 text-sm text-[rgb(var(--color-text))]">
+                            <div>
+                                <label className="text-xs font-semibold uppercase tracking-wide text-[rgb(var(--color-text))]/70">
+                                    Sucursal
+                                </label>
+                                <select
+                                    value={ticketBranchId}
+                                    onChange={(e) => setTicketBranchId(e.target.value)}
+                                    className="mt-1 w-full rounded-md border border-[rgb(var(--color-border))] bg-[rgb(var(--color-bg))] px-3 py-2 text-sm text-[rgb(var(--color-text))] shadow-sm"
+                                >
+                                    <option value="">Selecciona sucursal</option>
+                                    {sucursalOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                                </select>
+                            </div>
+                            {selectedBranch && (
+                                <p className="text-xs text-[rgb(var(--color-text))]/70">
+                                    Editando datos para: <span className="font-semibold">{selectedBranch.label}</span>
+                                </p>
+                            )}
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label className="text-xs font-semibold uppercase tracking-wide text-[rgb(var(--color-text))]/70">
+                                        Teléfono 1
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={ticketPhonePrimary}
+                                        onChange={(e) => setTicketPhonePrimary(formatPhoneInput(e.target.value))}
+                                        placeholder="55 0000 0000"
+                                        className="mt-1 w-full rounded-md border border-[rgb(var(--color-border))] bg-[rgb(var(--color-bg))] px-3 py-2 text-sm text-[rgb(var(--color-text))] shadow-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold uppercase tracking-wide text-[rgb(var(--color-text))]/70">
+                                        Teléfono 2
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={ticketPhoneSecondary}
+                                        onChange={(e) => setTicketPhoneSecondary(formatPhoneInput(e.target.value))}
+                                        placeholder="55 0000 0000"
+                                        className="mt-1 w-full rounded-md border border-[rgb(var(--color-border))] bg-[rgb(var(--color-bg))] px-3 py-2 text-sm text-[rgb(var(--color-text))] shadow-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold uppercase tracking-wide text-[rgb(var(--color-text))]/70">
+                                        WhatsApp 1
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={ticketWhatsappPrimary}
+                                        onChange={(e) => setTicketWhatsappPrimary(formatPhoneInput(e.target.value))}
+                                        placeholder="55 0000 0000"
+                                        className="mt-1 w-full rounded-md border border-[rgb(var(--color-border))] bg-[rgb(var(--color-bg))] px-3 py-2 text-sm text-[rgb(var(--color-text))] shadow-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold uppercase tracking-wide text-[rgb(var(--color-text))]/70">
+                                        WhatsApp 2
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={ticketWhatsappSecondary}
+                                        onChange={(e) => setTicketWhatsappSecondary(formatPhoneInput(e.target.value))}
+                                        placeholder="55 0000 0000"
+                                        className="mt-1 w-full rounded-md border border-[rgb(var(--color-border))] bg-[rgb(var(--color-bg))] px-3 py-2 text-sm text-[rgb(var(--color-text))] shadow-sm"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold uppercase tracking-wide text-[rgb(var(--color-text))]/70">
+                                    Dirección
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={ticketAddress}
+                                    onChange={(e) => setTicketAddress(e.target.value)}
+                                    placeholder="Calle, colonia, municipio, CP"
+                                    className="mt-1 w-full rounded-md border border-[rgb(var(--color-border))] bg-[rgb(var(--color-bg))] px-3 py-2 text-sm text-[rgb(var(--color-text))] shadow-sm"
+                                />
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleTicketSave}
+                                    disabled={ticketSaving || !ticketBranchId}
+                                    className="inline-flex items-center justify-center rounded-full bg-[rgb(var(--color-galaxy))] px-4 py-2 text-sm font-semibold text-white shadow hover:bg-[rgb(var(--color-galaxy))]/80 transition disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {ticketSaving ? 'Guardando...' : 'Guardar cambios'}
+                                </button>
+                                {ticketSaveMessage && (
+                                    <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full">
+                                        {ticketSaveMessage}
+                                    </span>
+                                )}
+                                {ticketSaveError && (
+                                    <span className="text-xs font-semibold text-red-700 bg-red-50 px-3 py-1 rounded-full">
+                                        {ticketSaveError}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="order-2 flex justify-center lg:flex-1">
+                        <div className="rounded-2xl bg-white p-3 shadow-lg">
+                            <ComponentToPrint
+                                items={previewItems}
+                                subtotal={320}
+                                discount={0}
+                                total={320}
+                                currentDate={previewDate}
+                                employee="Isaac Odriozola"
+                                folio="T-01234567"
+                                notes={previewNotes}
+                                useDefaults={false}
+                                branchId={ticketBranchId}
+                                refreshKey={ticketPreviewKey}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    if (showTicketPreview) {
+        return renderTicketConfigurator();
+    }
+
     return (
         <div className="flex flex-col space-y-6 max-w-7xl mx-auto p-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1266,7 +1566,17 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
 
                 <div className="relative rounded-3xl overflow-hidden shadow-lg bg-gradient-to-br from-[rgb(var(--color-galaxy))] via-[rgb(var(--color-bg))] to-[rgb(var(--color-card))] text-[rgb(var(--color-text))] p-6">
                     <div className="relative space-y-4">
-                        <p className="text-lg font-semibold">Estado de productos</p>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <p className="text-lg font-semibold">Estado de productos</p>
+                            <button
+                                type="button"
+                                onClick={() => setShowTicketPreview(true)}
+                                className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--color-border))] bg-[rgb(var(--color-bg))] px-3 py-1 text-xs font-semibold text-[rgb(var(--color-text))] shadow hover:bg-[rgb(var(--color-amber))]/20 transition"
+                            >
+                                <IoTicket className="text-[rgb(var(--color-amber))]" />
+                                Tickets y contactos
+                            </button>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="border rounded-2xl p-4 bg-amber-50 text-amber-700 shadow-inner">
                         <p className="text-xs uppercase tracking-wide">Productos existentes</p>

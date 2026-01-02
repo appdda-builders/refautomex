@@ -8,7 +8,7 @@ import FindProducts from './find-products';
 import { LiaListAlt } from "react-icons/lia";
 import TableSales from './table-sales';
 import { useReactToPrint } from 'react-to-print';
-import ComponentToPrint from './component-print';
+import ComponentToPrint, { prefetchBranchData } from './component-print';
 import ClientOrderModal from './client-order-modal';
 import PaymentTypeModal from './payment-type-modal';
 import RowTypeModal from './row-type-modal';
@@ -65,10 +65,13 @@ export default function Tickets() {
     const [dateOrder, setDateOrder] = useState('');
     const [clientName, setClientName] = useState('');
     const [employee, setEmployee] = useState('');
+    const [branchId, setBranchId] = useState('');
     const [folio, setFolio] = useState('');
     const [subtotal, setSubtotal] = useState(0);
     const [discount, setDiscount] = useState(0);
     const [total, setTotal] = useState(0);
+    const [branchSnapshot, setBranchSnapshot] = useState(null);
+    const [pendingPrint, setPendingPrint] = useState(false);
     const cognitoUserSession = getStorageValue('CognitoUserSession');
     const componentRef = useRef();
     const listRef = useRef();
@@ -77,6 +80,7 @@ export default function Tickets() {
         const username = cognitoUserSession.idToken.payload["cognito:username"];
         const userData = getStorageValue(`user_${username}`);
         setEmployee(userData?.nombre || '');
+        setBranchId(userData?.idsucursal ?? userData?.idSucursal ?? '');
     }, [cognitoUserSession]);
 
     useEffect(() => {
@@ -85,7 +89,7 @@ export default function Tickets() {
         }
         if(folio) {
             setShowPaymentModal(false);
-            handlePrint();
+            queueTicketPrint();
         }
     }, [paymentType, folio]);
 
@@ -96,6 +100,12 @@ export default function Tickets() {
     const handlelistPrint = useReactToPrint({
         contentRef: listRef,
     });
+
+    useEffect(() => {
+        if (!pendingPrint) return;
+        handlePrint();
+        setPendingPrint(false);
+    }, [pendingPrint, handlePrint]);
 
     const handleGenerateFolioAndPrint = async () => {
         const username = cognitoUserSession.idToken.payload["cognito:username"];
@@ -169,7 +179,7 @@ export default function Tickets() {
     const handleOnlyPrint = () => {
         if (folio) {
             setShowPaymentModal(false);
-            handlePrint();
+            queueTicketPrint();
         } else {
             setShowPaymentModal(true);
         }
@@ -218,6 +228,21 @@ export default function Tickets() {
     const handleAddNote = (note) => {
         setNotes(note);
     }
+
+    const queueTicketPrint = async () => {
+        if (branchId) {
+            try {
+                const snapshot = await prefetchBranchData(branchId);
+                setBranchSnapshot(snapshot || null);
+            } catch (error) {
+                console.error('Error al cargar la sucursal para el ticket:', error);
+                setBranchSnapshot(null);
+            }
+        } else {
+            setBranchSnapshot(null);
+        }
+        setPendingPrint(true);
+    };
 
     const handleRemoveProduct = (refaccion) => {
         setItems(prevItems => {
@@ -333,7 +358,7 @@ export default function Tickets() {
             btnconf: `relative gray-circle-button tooltip-button`,
             label: 'Reimprimir ticket',
             id: 'print',
-            event: handlePrint
+            event: queueTicketPrint
         },
         {
             icon: MdAutorenew,
@@ -399,6 +424,12 @@ export default function Tickets() {
                         employee={employee}
                         folio={folio}
                         notes={notes}
+                        branchName={branchSnapshot?.name || ''}
+                        phones={branchSnapshot ? [branchSnapshot.phone1, branchSnapshot.phone2].filter(Boolean) : undefined}
+                        whatsapps={branchSnapshot ? [branchSnapshot.whatsapp1, branchSnapshot.whatsapp2].filter(Boolean) : undefined}
+                        address={branchSnapshot?.address || ''}
+                        branchId={branchId}
+                        useDefaults={false}
                     />
                     <ListToPrint
                         ref={listRef}

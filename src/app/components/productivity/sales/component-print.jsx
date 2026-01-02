@@ -1,10 +1,155 @@
-import React from 'react';
+'use client';
+
+import React, { useEffect, useState } from 'react';
 import { MdPhone } from "react-icons/md";
 import { BsWhatsapp } from "react-icons/bs";
+import { buildApiUrl } from '@/app/lib/refautomex-api';
 
-const ComponentToPrint = React.forwardRef(({ items, subtotal, discount, total, currentDate, employee, folio, notes }, ref) => {
+const formatPhone = (value) => {
+    if (!value) return '';
+    const digits = String(value).replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+    const base = `${digits.slice(0, 2)} ${digits.slice(2, 6)} ${digits.slice(6, 10)}`;
+    return digits.length > 10 ? `${base} ${digits.slice(10)}` : base;
+};
+
+const normalizeBranchesPayload = (payload) => {
+    if (Array.isArray(payload?.[0])) return payload[0];
+    if (Array.isArray(payload)) return payload;
+    return [];
+};
+
+const extractBranchId = (branch) =>
+    branch?.idsucursal ?? branch?.idSucursal ?? branch?.id ?? null;
+
+const mapBranchData = (branch) => ({
+    id: extractBranchId(branch),
+    name: branch?.sucursal || '',
+    address: branch?.direccion || '',
+    phone1: branch?.telefono_uno || '',
+    phone2: branch?.telefono_dos || '',
+    whatsapp1: branch?.whats_uno || '',
+    whatsapp2: branch?.whats_dos || '',
+});
+
+const branchCache = new Map();
+const branchInFlight = new Map();
+
+const fetchBranchData = async (branchId, signal) => {
+    if (!branchId) return null;
+    const response = await fetch(buildApiUrl('/getSucursal'), {
+        cache: 'no-store',
+        headers: { Accept: 'application/json, text/plain, */*' },
+        signal,
+    });
+    if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+    const payload = await response.json();
+    const branches = normalizeBranchesPayload(payload);
+    const matched = branches.find(
+        (branch) => String(extractBranchId(branch)) === String(branchId)
+    );
+    return matched ? mapBranchData(matched) : null;
+};
+
+export const prefetchBranchData = async (branchId) => {
+    if (!branchId) return null;
+    const key = String(branchId);
+    if (branchCache.has(key)) return branchCache.get(key);
+    if (branchInFlight.has(key)) return branchInFlight.get(key);
+    const promise = fetchBranchData(branchId)
+        .then((data) => {
+            branchCache.set(key, data);
+            branchInFlight.delete(key);
+            return data;
+        })
+        .catch((error) => {
+            branchInFlight.delete(key);
+            throw error;
+        });
+    branchInFlight.set(key, promise);
+    return promise;
+};
+
+const ComponentToPrint = React.forwardRef(({
+    items,
+    subtotal,
+    discount,
+    total,
+    currentDate,
+    employee,
+    folio,
+    notes,
+    branchName,
+    phones,
+    whatsapps,
+    address,
+    websiteUrl,
+    socialMessage,
+    branchId,
+    refreshKey = 0,
+    useDefaults = true,
+}, ref) => {
     const multimediaSrc = process.env.NEXT_PUBLIC_S3;
     const logoUrl = `${multimediaSrc}refautomex_n.svg`;
+    const [branchData, setBranchData] = useState(() => {
+        if (!branchId) return null;
+        return branchCache.get(String(branchId)) || null;
+    });
+    const safeItems = Array.isArray(items) ? items : [];
+    const fallbackPhones = useDefaults ? DEFAULT_PHONES : [];
+    const fallbackWhatsapps = useDefaults ? DEFAULT_WHATSAPPS : [];
+    const resolvedPhones = Array.isArray(phones) && phones.some(Boolean)
+        ? phones
+        : [branchData?.phone1, branchData?.phone2].filter(Boolean);
+    const resolvedWhatsapps = Array.isArray(whatsapps) && whatsapps.some(Boolean)
+        ? whatsapps
+        : [branchData?.whatsapp1, branchData?.whatsapp2].filter(Boolean);
+    const safePhones = (resolvedPhones.length ? resolvedPhones : fallbackPhones)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(formatPhone)
+        .filter(Boolean);
+    const safeWhatsapps = (resolvedWhatsapps.length ? resolvedWhatsapps : fallbackWhatsapps)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(formatPhone)
+        .filter(Boolean);
+    const safeAddress = address || branchData?.address || (useDefaults ? DEFAULT_ADDRESS : '');
+    const safeWebsite = websiteUrl || (useDefaults ? DEFAULT_WEBSITE : '');
+    const safeSocial = socialMessage || (useDefaults ? DEFAULT_SOCIAL : '');
+    const safeBranchName = branchName || branchData?.name || '';
+
+    useEffect(() => {
+        if (!branchId) {
+            setBranchData(null);
+            return;
+        }
+
+        const key = String(branchId);
+        const cached = branchCache.get(key);
+        const forceRefresh = refreshKey > 0;
+        if (cached && !forceRefresh) {
+            setBranchData(cached);
+            return;
+        }
+
+        const controller = new AbortController();
+        fetchBranchData(branchId, controller.signal)
+            .then((data) => {
+                branchCache.set(key, data);
+                setBranchData(data);
+            })
+            .catch((error) => {
+                if (error.name === 'AbortError') return;
+                setBranchData(null);
+            });
+
+        return () => controller.abort();
+    }, [branchId, refreshKey]);
 
     return (
         <div ref={ref} className="bg-white p-4 pb-32 max-w-[235px] mx-auto text-sm text-gray-700 print:max-w-[250px] print:text-black">
@@ -35,24 +180,29 @@ const ComponentToPrint = React.forwardRef(({ items, subtotal, discount, total, c
 
             <div className="mb-2 text-center text-sm">
                 <p className='font-bold'>Folio: {folio}</p>
-                <p>¡Síguenos en redes sociales!</p>
+                {safeBranchName && (
+                    <p className="text-xs uppercase font-semibold tracking-wide">{safeBranchName}</p>
+                )}
+                {safeSocial && <p>{safeSocial}</p>}
             </div>
-            <div className="mb-1 flex justify-between">
-                <p className="px-0.5 flex flex-row text-[10px]">
-                    <MdPhone className="mx-1 mt-1 text-[10px]" /> 55 5390 3179
-                </p>
-                <p className="px-0.5 flex flex-row text-[10px]">
-                    <MdPhone className="mx-1 mt-1 text-[10px]" /> 55 5390 4594
-                </p>
-            </div>
-            <div className="mb-4 flex justify-between">
-                <p className="px-0.5 flex flex-row text-[10px]">
-                    <BsWhatsapp className="mx-1 mt-1 text-[10px]" /> 56 3955 7232
-                </p>
-                <p className="px-0.5 flex flex-row text-[10px]">
-                    <BsWhatsapp className="mx-1 mt-1 text-[10px]" /> 55 3858 8632
-                </p>
-            </div>
+            {safePhones.length > 0 && (
+                <div className="mb-1 grid grid-cols-2 gap-x-2">
+                    {safePhones.map((phone, index) => (
+                        <p key={`phone-${index}`} className="px-0.5 flex flex-row text-[10px]">
+                            <MdPhone className="mx-1 mt-1 text-[10px]" /> {phone}
+                        </p>
+                    ))}
+                </div>
+            )}
+            {safeWhatsapps.length > 0 && (
+                <div className="mb-4 grid grid-cols-2 gap-x-2">
+                    {safeWhatsapps.map((phone, index) => (
+                        <p key={`whatsapp-${index}`} className="px-0.5 flex flex-row text-[10px]">
+                            <BsWhatsapp className="mx-1 mt-1 text-[10px]" /> {phone}
+                        </p>
+                    ))}
+                </div>
+            )}
 
             <div className="mb-2">
                 <p className="uppercase font-semibold">{currentDate}</p>
@@ -60,7 +210,9 @@ const ComponentToPrint = React.forwardRef(({ items, subtotal, discount, total, c
             </div>
 
             <p className="font-semibold">PRODUCTOS:</p>
-            <p className={`${notes ? 'font-extrabold border-2 p-1 shadow text-xs uppercase' : ''}`}>{notes}</p>
+            {notes && (
+                <p className="font-extrabold border-2 p-1 shadow text-xs uppercase">{notes}</p>
+            )}
             <div className="my-2 border-t border-b border-slate-300">
                 <table className="table-fixed w-full text-xs text-left px-0.5">
                     <thead>
@@ -71,8 +223,9 @@ const ComponentToPrint = React.forwardRef(({ items, subtotal, discount, total, c
                         </tr>
                     </thead>
                     <tbody>
-                        {items.map((item, index) => {
+                        {safeItems.map((item, index) => {
                             const hasAiva = item.aIva !== undefined && item.aIva !== null && item.aIva !== '';
+                            const description = String(item.descripcion || '');
                             return (
                                 <React.Fragment key={index}>
                                     {/* Primera fila: Cantidad, Descripción y Parte */}
@@ -84,7 +237,7 @@ const ComponentToPrint = React.forwardRef(({ items, subtotal, discount, total, c
                                             {item.refaccion}
                                         </td>
                                         <td colSpan={3} className="p-0.5 text-[9px] truncate uppercase">
-                                            {item.descripcion.toUpperCase()}
+                                            {description.toUpperCase()}
                                         </td>
                                     </tr>
                                     {/* Segunda fila: AIVA (opcional) y Monto */}
@@ -96,12 +249,12 @@ const ComponentToPrint = React.forwardRef(({ items, subtotal, discount, total, c
                                                     AIVA: $ {item.aIva}
                                                 </td>
                                                 <td className="p-0.5 text-[9px] text-left font-bold">
-                                                    MON: $ {item.monto.toFixed(2)}
+                                                    MON: $ {Number(item.monto || 0).toFixed(2)}
                                                 </td>
                                             </>
                                         ) : (
                                             <td className="p-0.5 text-[9px] text-left font-bold" colSpan={2}>
-                                                MON: $ {item.monto.toFixed(2)}
+                                                MON: $ {Number(item.monto || 0).toFixed(2)}
                                             </td>
                                         )}
                                     </tr>
@@ -122,15 +275,31 @@ const ComponentToPrint = React.forwardRef(({ items, subtotal, discount, total, c
                 <span className="text-left font-bold">Total: <span className='text-xl'>{total.toFixed(2)} MXN</span></span>
             </div>
 
-            <div className="my-2">
-                <p className='text-xs text-justify'>Refacciones Automotrices de México.
-                Jilotepec 389 Colonia la Romana Tlalnepantla de baz, México. C.P. 54030</p>
-            </div>
+            {safeAddress && (
+                <div className='my-2 text-xs text-justify'>
+                    Refacciones Automotrices de México propiedad de FRARISA con domicilio para {safeBranchName} en:
+                    <span className="text-xs text-justify mx-1">
+                        {safeAddress}
+                    </span>
+                    <br /><br />
+                    ¡ SÍGENOS EN REDES SOCIALES !
+                    <br /><br />
+                    Si requieres factura, dejanos tus datos desde nuestro sitio web.
+                    <br />
+                    <span className="text-xs text-justify font-bold">
+                    https://refautomex.com
+                    </span>
+                </div>
+            )}
 
-            <p className="text-xs text-justify">Si requieres factura, visita:</p>
-            <a href="https://refautomex.com" className="text-stone-800 font-bold text-xs text-justify mb-2">
-                https://refautomex.com
-            </a>
+            {safeWebsite && (
+                <>
+                    <p className="text-xs text-justify">Si requieres factura, visita:</p>
+                    <a href={safeWebsite} className="text-stone-800 font-bold text-xs text-justify mb-2">
+                        {safeWebsite}
+                    </a>
+                </>
+            )}
             <p className="text-xs text-justify mt-2">
                 Cuentas con 15 días naturales. Si necesitas ayuda, contáctanos y con gusto te ayudaremos. NO SE FACTURARÁ EXTEMPORANEAMENTE.
             </p>
