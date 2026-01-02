@@ -70,8 +70,9 @@ export default function Navbar() {
     { key: 3, name: t('navbar.promotions'), link: "/section/promotion", icon: CiStar },
     { key: 4, name: t('navbar.products'), link: "/section/products", icon: CiShop },
   ];
+  const accountHref = isAuthenticated ? "/section/refautomex" : "/section/account";
   const callsToAction = [
-    { key: 5, name: t('navbar.account'), href: '/section/account', icon: FaUserCircle },
+    { key: 5, name: t('navbar.account'), href: accountHref, icon: FaUserCircle },
     { key: 6, name: t('navbar.shopping'), href: '/section/shopping', icon: MdShoppingCart },
   ];
 
@@ -138,12 +139,6 @@ export default function Navbar() {
           </div>
           <Link href={`/?lang=${selectedLanguage}`}>
             <RefautomexLogo classAttr="max-h-20 md:max-h-24 2xl:max-h-28 w-auto p-2 md:p-4 -my-1 ml-1" />
-
-            <span className='flex flex-row justify-center items-center gradient-text-title -mt-4 md:-mt-6 mb-1 font-bold'>
-              <TbChristmasTreeFilled className='m-1 text-[rgb(var(--color-success))] size-5'/>
-              ¡FELICES FIESTAS!
-            </span>
-
           </Link>
           <div className="lg:hidden absolute right-1">
             <MenuSlide

@@ -1,9 +1,12 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { getStorageValue, setStorageValue } from "@/app/lib/storage-values";
 import { BiSolidUserCircle } from 'react-icons/bi';
 import { MdEdit, MdSave } from 'react-icons/md';
+import { IoHome } from 'react-icons/io5';
 import { useTranslation } from 'react-i18next';
 import GooglePlacesAutocomplete from '@/app/components/principal/account/google-places';
 import { FaStarHalfAlt } from 'react-icons/fa';
@@ -14,6 +17,12 @@ const HeicToJpgUploader = dynamic(() => import('@/app/components/productivity/st
 export default function Settings() {
     const { t } = useTranslation();
     const multimediaSrc = process.env.NEXT_PUBLIC_S3;
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const lang = searchParams.get('lang') || 'es';
+    const dashboardHref = pathname?.startsWith('/productivity')
+        ? `/productivity?lang=${lang}`
+        : `/section/refautomex?lang=${lang}`;
     const [email, setEmail] = useState("");
     const [name, setName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -228,15 +237,47 @@ export default function Settings() {
             )}
             <div className="bg-gradient-to-b min-h-screen from-[rgb(var(--color-bg))] via-[rgb(var(--color-card))] to-[rgb(var(--color-galaxy))] backdrop-blur-md pt-28">
                 <form className="space-y-8" onSubmit={patchUserInfo}>
-                    <div className="space-y-4 max-w-3xl mx-auto px-12 divide-y divide-[rgb(var(--color-border))]">
-                        <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-                            <div className="sm:col-span-full sm:col-start mt-4 flex flex-col justify-center items-center">
-                                <label htmlFor="profile" className="block text-xl font-bold leading-6 text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] p-4 rounded-full">
-                                    {t('account.photo')}
-                                </label>
-                                <div className="mt-2 mx-auto flex flex-col justify-center items-center relative ">
-                                    <div className="flex flex-col justify-end h-[340px] sm:h-[300px]">
-                                        <div className="flex h-52 w-52 items-center justify-center bg-[rgb(var(--color-card))] border border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-card-white))] hover:border-[rgb(var(--color-amber))] animate-out shadow-lg rounded-full overflow-hidden">
+                    <div className="mx-auto max-w-6xl px-6 pb-16">
+                        <div className="rounded-3xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-bg))]/60 p-6 shadow-lg">
+                            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                    <p className="text-3xl font-bold gradient-text-title">
+                                        {t('account.settingsTitle')}
+                                    </p>
+                                    <p className="mt-1 text-sm text-[rgb(var(--color-text))]/80">
+                                        {t('account.settingsSubtitle')}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={toggleEdit}
+                                    className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow transition ${
+                                        isEditable
+                                            ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                            : 'bg-[rgb(var(--color-galaxy))] text-[rgb(var(--color-text))]'
+                                    }`}
+                                >
+                                    <MdEdit size={18}/>
+                                    {isEditable ? t('account.editDisable') : t('account.editEnable')}
+                                </button>
+                            </div>
+                            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div role="alert" className="text-sm min-h-[1.5rem]">
+                                    {errorMessage && <p className="text-red-800 bg-red-50 rounded-md shadow text-center animate-up px-3 py-2">{errorMessage}</p>}
+                                    {successMessage && <p className="text-green-800 bg-green-50 rounded-md shadow text-center animate-up px-3 py-2">{successMessage}</p>}
+                                </div>
+                                <Link
+                                    href={dashboardHref}
+                                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[rgb(var(--color-border))] bg-[rgb(var(--color-bg))] px-4 py-2 text-xs font-semibold text-[rgb(var(--color-text))] shadow hover:bg-[rgb(var(--color-amber))]/20 transition"
+                                >
+                                    <IoHome className="h-4 w-4 text-[rgb(var(--color-text))]" aria-hidden="true" />
+                                    {t('account.backToDashboard')}
+                                </Link>
+                            </div>
+                            <section className="rounded-3xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-card))]/70 p-6 shadow-md my-5">
+                                <div className="flex flex-col gap-6 md:flex-row md:items-center">
+                                    <div className="flex justify-center md:justify-start">
+                                        <div className="flex h-40 w-40 items-center justify-center bg-[rgb(var(--color-card))] border border-[rgb(var(--color-border))] shadow-lg rounded-full overflow-hidden">
                                             {profile ? (
                                                 <img
                                                     src={URL.createObjectURL(profile)}
@@ -252,45 +293,76 @@ export default function Settings() {
                                                         onError={handleImageError}
                                                     />
                                                 ) : (
-                                                    <BiSolidUserCircle className="w-32 h-32 my-auto animate-up text-[rgb(var(--color-text))]" />
+                                                    <BiSolidUserCircle className="w-24 h-24 my-auto animate-up text-[rgb(var(--color-text))]" />
                                                 )
                                             )}
                                         </div>
-                                        <div className="absolute top-0 -right-12 sm:right-0 sm:-left-48 w-full">
-                                            {profileSuccess ? (
-                                                <p className=" text-green-500 w-32 min-h-28 bg-green-50 text-center border-2 border-green-100 rounded shadow-md my-3 overflow-hidden">{profileSuccess}</p>
-                                            ) : (
-                                                <div className="flex flex-col">
-                                                    <div className='flex items-center'>
-                                                        <div className="flex flex-row justify-center items-center bg-amber-100 p-2 m-2 rounded-full animate-out shadow-md" onClick={handleSaveImage} disabled={mediaUploading}>
-                                                            <MdSave size={20} className='text-green-600'/>
-                                                        </div>
-                                                        <HeicToJpgUploader setProfile={setProfile} setProfileError={setProfileError} mediaUploading={mediaUploading} />
-                                                    </div>
-                                                    <div>
-                                                        {profileError && <p className=" text-red-500 w-32 min-h-28 bg-red-50 text-center border-2 border-red-100 rounded shadow-md my-3 overflow-hidden">{profileError}</p>}
-                                                    </div>
-                                                </div>
-                                            )}
+                                    </div>
+                                    <div className="flex-1 text-center md:text-left">
+                                        <p className="text-lg font-bold text-[rgb(var(--color-text))]">
+                                            {t('account.photo')}
+                                        </p>
+                                        <p className="mt-1 text-sm text-[rgb(var(--color-text))]/80">
+                                            {t('account.photoHint')}
+                                        </p>
+                                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                                            <HeicToJpgUploader
+                                                setProfile={setProfile}
+                                                setProfileError={setProfileError}
+                                                mediaUploading={mediaUploading}
+                                                onProfileSelect={() => setProfileSuccess('')}
+                                                label={t('account.photoSelect')}
+                                                className="inline-flex items-center justify-center gap-2 rounded-full bg-[rgb(var(--color-card-white))] px-4 py-2 text-sm font-semibold text-[rgb(var(--color-text))] shadow hover:bg-[rgb(var(--color-amber))]/20 transition"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleSaveImage}
+                                                disabled={!profile || mediaUploading}
+                                                className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow transition ${
+                                                    !profile || mediaUploading
+                                                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                                        : 'bg-amber-400 text-white hover:bg-amber-500'
+                                                }`}
+                                            >
+                                                <MdSave size={18} />
+                                                {mediaUploading ? t('account.photoSaving') : t('account.photoSave')}
+                                            </button>
                                         </div>
+                                        {profile && (
+                                            <p className="mt-2 text-xs text-[rgb(var(--color-text))]/80">
+                                                {t('account.photoSelected')}{' '}
+                                                <span className="font-semibold">{profile.name}</span>
+                                            </p>
+                                        )}
+                                        {profileError && (
+                                            <p className="mt-3 text-sm text-red-700 bg-red-50 border border-red-100 rounded-md px-3 py-2">
+                                                {profileError}
+                                            </p>
+                                        )}
+                                        {profileSuccess && (
+                                            <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-100 rounded-md px-3 py-2">
+                                                {profileSuccess}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
-                            </div>
-                            <div className='sm:col-span-full'>
-                                <div className="flex flex-row justify-between items-center mx-auto max-w-3xl px-6 lg:px-8 bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] py-2 rounded-md shadow shadow-[rgb(var(--color-galaxy))]">
-                                    <p className='font-bold text-xl '>{t('account.info')}</p>
-                                    <div className='w-10 h-10 flex justify-center items-center'>
-                                        <button onClick={toggleEdit} className="h-10 w-10 inline-flex justify-center items-center rounded-full bg-amber-400 shadow-md text-white">
-                                            <MdEdit size={20}/>
-                                        </button>
-                                    </div>
+                            </section>
+
+                            <section className="rounded-3xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-card))]/70 p-6 shadow-md">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <p className="text-lg font-semibold text-[rgb(var(--color-text))]">
+                                        {t('account.info')}
+                                    </p>
+                                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                                        isEditable
+                                            ? 'bg-emerald-100 text-emerald-700'
+                                            : 'bg-slate-200 text-slate-600'
+                                    }`}>
+                                        {isEditable ? t('account.settingsUnlocked') : t('account.settingsLocked')}
+                                    </span>
                                 </div>
-                                <div role="alert" className="mt-4 text-xl p-2 mx-4 text-center">
-                                    {errorMessage && <p className="text-red-800 bg-red-50 rounded-md shadow text-center animate-up">{errorMessage}</p>}
-                                    {successMessage && <p className="text-green-800 bg-green-50 rounded-md shadow text-center animate-up">{successMessage}</p>}
-                                </div>
-                            </div>
-                            <div className="sm:col-span-3 sm:col-start">
+                                <div className="mt-6 grid gap-6 sm:grid-cols-2">
+                            <div className="sm:col-span-1">
                                 <label htmlFor="name" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.name')}
                                 </label>
@@ -308,7 +380,7 @@ export default function Settings() {
                                     />
                                 </div>
                             </div>
-                            <div className="sm:col-span-3">
+                            <div className="sm:col-span-1">
                                 <label htmlFor="lastname" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.lastname')}
                                 </label>
@@ -326,7 +398,7 @@ export default function Settings() {
                                     />
                                 </div>
                             </div>
-                            <div className="sm:col-span-3">
+                            <div className="sm:col-span-1">
                                 <label htmlFor="phone" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.phone')}
                                 </label>
@@ -344,7 +416,7 @@ export default function Settings() {
                                     />
                                 </div>
                             </div>
-                            <div className="sm:col-span-3">
+                            <div className="sm:col-span-1">
                                 <label htmlFor="rfc" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     RFC
                                 </label>
@@ -362,7 +434,7 @@ export default function Settings() {
                                     />
                                 </div>
                             </div>
-                            <div className="sm:col-span-3">
+                            <div className="sm:col-span-1">
                                 <label htmlFor="birthDate" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.birthdate')}
                                 </label>
@@ -376,7 +448,7 @@ export default function Settings() {
                                     />
                                 </div>
                             </div>
-                            <div className="sm:col-span-3">
+                            <div className="sm:col-span-1">
                                 <label htmlFor="gender" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.gener')}
                                 </label>
@@ -390,14 +462,14 @@ export default function Settings() {
                                         className={`block w-full rounded-md border-0 py-1.5 mt-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 ${isEditable ? 'bg-white' : 'bg-gray-100'}`}
                                         disabled={!isEditable}
                                     >
-                                        <option id="gender_0" value="" disabled selected>{t('account.gener')}</option>
+                                        <option id="gender_0" value="" disabled>{t('account.gener')}</option>
                                         <option id="gender_1" value="M">Masculino</option>
                                         <option id="gender_2" value="F">Femenino</option>
                                         <option id="gender_3" value="O">Otro</option>
                                     </select>
                                 </div>
                             </div>
-                            <div className="sm:col-span-full">
+                            <div className="sm:col-span-2">
                                 <label htmlFor="email" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
                                     {t('account.mail')}
                                 </label>
@@ -413,33 +485,32 @@ export default function Settings() {
                                     />
                                 </div>
                             </div>
+                                </div>
+                            </section>
+
                             {isEditable && (
-                            <div className="sm:col-span-full">
-                                <label htmlFor="placeId" className="block font-medium leading-6 text-[rgb(var(--color-text))]">
+                            <section className="rounded-3xl border border-[rgb(var(--color-border))] bg-[rgb(var(--color-card))]/70 p-6 mt-5 shadow-md">
+                                <p className="text-lg font-semibold text-[rgb(var(--color-text))]">
                                     {t('account.address')}
-                                </label>
-                                <div className="mt-2 relative">
+                                </p>
+                                <div className="mt-4 relative">
                                     <GooglePlacesAutocomplete
                                         placeId={placeId}
                                         setPlaceId={setPlaceId}
                                     />
                                 </div>
-                            </div>
+                            </section>
                             )}
                         </div>
-                        <div className='flex items-center justify-center p-2'>
-                            {isSaving ? (
-                                <div className="fixed inset-0 flex items-center justify-center bg-black opacity-50 z-50">
-                                    <div className="flex flex-col items-center">
-                                        <FaStarHalfAlt className="animate-spin text-white text-6xl" />
-                                        <p className="text-white mt-4">Guardando...</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <button type="submit" className='cursor-pointer bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 p-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105'>
-                                    {isLoading ? t('account.btnUpdating') : t('account.btnUpdate')}
-                                </button>
-                            )}
+
+                        <div className='mt-8 flex items-center justify-center'>
+                            <button
+                                type="submit"
+                                disabled={isLoading || isSaving}
+                                className='cursor-pointer bg-gradient-to-bl hover:bg-gradient-to-tr from-amber-500 via-yellow-400 to-slate-300 shadow text-slate-900 px-6 py-3 rounded-full mt-3 transition-all duration-500 ease-in-out hover:scale-105 disabled:cursor-not-allowed disabled:opacity-70'
+                            >
+                                {isLoading ? t('account.btnUpdating') : t('account.btnUpdate')}
+                            </button>
                         </div>
                     </div>
                 </form>

@@ -3,7 +3,6 @@
 import { useContext, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthContext } from '@/app/lib/auth-tracker';
-import { IoHome } from "react-icons/io5";
 
 import Home from '@/app/components/productivity/home';
 import Content from '@/app/components/principal/account/content';
@@ -44,15 +43,6 @@ export default function Refautomex() {
     return (
         <>
         {component}
-        {load !== 'home' && (
-            <div
-            onClick={() => router.push(`/section/refautomex?lang=${lang}`)}
-            className="absolute top-32 left-5 sm:left-10 rounded-full justify-center items-center flex bg-[rgb(var(--color-card-white))] text-[rgb(var(--color-text))] shadow-md animate-out w-12 h-12 cursor-pointer"
-            title="Inicio"
-            >
-            <IoHome className='w-8 h-8' />
-            </div>
-        )}
         </>
     );
 }
