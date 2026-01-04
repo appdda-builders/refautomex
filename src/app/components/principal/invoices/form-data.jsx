@@ -35,6 +35,13 @@ export default function FormData({ t, formState, setFormState, account }) {
     return parts.length > 1 ? parts[1].trim() : s.trim();
   };
 
+  const normalizeTicket = (value) => {
+    const trimmed = String(value ?? '').trim();
+    if (!trimmed) return '';
+    if (/^(t|w)-/i.test(trimmed)) return trimmed.toUpperCase();
+    return trimmed;
+  };
+
     const validate = () => {
         const errs = {};
         const name = (formState.name || '').trim();
@@ -102,7 +109,7 @@ export default function FormData({ t, formState, setFormState, account }) {
             placeId:  (formState.placeId || '').trim(),
             CFDI:    formState.idCFDI ?? null,
             regime: formState.idregimen ?? null,
-            ticket:   (formState.ticket || '').trim(),
+            ticket:   normalizeTicket(formState.ticket),
         };
 
         try {
@@ -153,7 +160,8 @@ export default function FormData({ t, formState, setFormState, account }) {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormState(prevState => ({ ...prevState, [name]: value }));
+        const nextValue = name === 'ticket' ? normalizeTicket(value) : value;
+        setFormState(prevState => ({ ...prevState, [name]: nextValue }));
         // Clear per-field error on change
         if (errorMessages[name]) {
         setErrorMessages(prev => ({ ...prev, [name]: '' }));

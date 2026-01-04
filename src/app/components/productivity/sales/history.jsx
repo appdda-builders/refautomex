@@ -3,7 +3,6 @@ import { useState, useEffect, useRef, Fragment, useMemo, useCallback, useContext
 import Title from '../title';
 import { MdSell } from "react-icons/md";
 import { FaSearch } from "react-icons/fa";
-import { FaMoneyBillTransfer } from "react-icons/fa6";
 import { BiMoneyWithdraw } from 'react-icons/bi';
 import { BiSolidUserCircle } from 'react-icons/bi';
 import { GrStatusGoodSmall } from "react-icons/gr";
@@ -24,7 +23,7 @@ import {
 import ComponentToPrint, { prefetchBranchData } from './component-print';
 import { AuthContext } from '@/app/lib/auth-tracker';
 
-const IVA_FACTOR = 1.16;
+const UTILITY_RATE = 0.3;
 const currencyFormatter = new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
@@ -70,9 +69,33 @@ const isSeminewDetail = (detail) => {
     return ref.startsWith('SEMI-') || ref.startsWith('SEMI');
 };
 
-const isManualNewDetail = (detail) => {
-    const ref = getDetailRef(detail);
-    return ref.startsWith('NEW-');
+const calculateDetailTotals = (details) => {
+    const rows = Array.isArray(details) ? details : [];
+    return rows.reduce(
+        (acc, detail) => {
+            const quantity = Number(detail?.cantidad ?? 0);
+            if (!Number.isFinite(quantity) || quantity <= 0) return acc;
+
+            const rawMonto = toNumber(detail?.monto_venta ?? detail?.monto ?? detail?.importe ?? 0);
+            const fallbackUnitPrice = rawMonto > 0 ? rawMonto / quantity : 0;
+            const unitPrice = toNumber(detail?.precio_venta ?? detail?.precio ?? fallbackUnitPrice);
+            const lineTotal = rawMonto > 0 ? rawMonto : unitPrice * quantity;
+
+            if (!Number.isFinite(lineTotal) || lineTotal <= 0) return acc;
+
+            const semiNew = isSeminewDetail(detail);
+            if (semiNew) {
+                acc.providers += lineTotal;
+                return acc;
+            }
+
+            const utility = lineTotal * UTILITY_RATE;
+            acc.utility += utility;
+            acc.providers += lineTotal - utility;
+            return acc;
+        },
+        { utility: 0, providers: 0 }
+    );
 };
 
 const parseSaleDate = (dateInput) => {
@@ -155,6 +178,13 @@ const normalizeSaleId = (value) => {
     return trimmed || null;
 };
 
+const normalizeFolioInput = (value) => {
+    const trimmed = String(value ?? '').trim();
+    if (!trimmed) return '';
+    if (/^(t|w)-/i.test(trimmed)) return trimmed.toUpperCase();
+    return trimmed;
+};
+
 const normalizeBranchesPayload = (payload) => {
     if (Array.isArray(payload?.[0])) return payload[0];
     if (Array.isArray(payload)) return payload;
@@ -178,6 +208,8 @@ export default function History() {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [searchMode, setSearchMode] = useState('date');
     const [searchTerm, setSearchTerm] = useState('');
+    const [pendingSearchMode, setPendingSearchMode] = useState('date');
+    const [pendingSearchTerm, setPendingSearchTerm] = useState('');
     const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
     const [selectedStatus, setSelectedStatus] = useState('');
     const [folioToChange, setFolioToChange] = useState('');
@@ -192,6 +224,8 @@ export default function History() {
     const [viewMode, setViewMode] = useState('table');
     const [salesSummary, setSalesSummary] = useState(null);
     const [salesIndex, setSalesIndex] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const PAGE_SIZE = 50;
     const { userData } = useContext(AuthContext);
     const userBranchId = normalizeBranchId(userData?.idsucursal);
     const componentRef = useRef(null);
@@ -204,7 +238,6 @@ export default function History() {
 
     const findTooltip = createTooltip(FaSearch, 'Buscar ticket', 'find', visibleTooltip, setVisibleTooltip);
     const withdrawTooltip = createTooltip(BiMoneyWithdraw, 'Solicitar retiro', 'withdraw', visibleTooltip, setVisibleTooltip);
-    const historyTooltip = createTooltip(FaMoneyBillTransfer, 'Entradas y salidas', 'history', visibleTooltip, setVisibleTooltip);
 
     const formatDate = (dateInput, timeZone) => {
         if (!dateInput) return "Fecha no disponible";
@@ -387,23 +420,63 @@ export default function History() {
         setImageErrors((prev) => ({ ...prev, [userId]: true }));
     };
 
+    const fetchHistorySearch = useCallback(async ({ mode, term }) => {
+        const normalizedMode = String(mode || '').toLowerCase();
+        const normalizedTerm = normalizedMode === 'folio'
+            ? normalizeFolioInput(term)
+            : String(term ?? '').trim();
+        if (!normalizedTerm) {
+            setSalesIndex([]);
+            return;
+        }
+        setError(null);
+        try {
+            const params = new URLSearchParams({
+                mode: normalizedMode,
+                term: normalizedTerm,
+            });
+            const response = await fetch(`${buildApiUrl('/getHistorySearch')}?${params.toString()}`, {
+                cache: 'no-store',
+                headers: { Accept: 'application/json, text/plain, */*' },
+            });
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+            const payload = await response.json();
+            setSalesIndex(Array.isArray(payload) ? payload : []);
+        } catch (error) {
+            console.error('Error fetching history search:', error);
+            setSalesIndex([]);
+            setError(error.message);
+        }
+    }, []);
+
     const handleSearch = () => {
-        if (searchMode === 'date') {
+        const nextMode = pendingSearchMode;
+        setSearchMode(nextMode);
+        setCurrentPage(1);
+        if (nextMode === 'date') {
             setCurrentDate(selectedDate);
             setSearchTerm('');
+        } else if (nextMode === 'folio') {
+            const normalized = normalizeFolioInput(pendingSearchTerm);
+            setSearchTerm(normalized);
+            fetchHistorySearch({ mode: 'folio', term: normalized });
+        } else if (nextMode === 'employee') {
+            const trimmed = pendingSearchTerm.trim();
+            setSearchTerm(trimmed);
+            fetchHistorySearch({ mode: 'employee', term: trimmed });
         } else {
-            setSearchTerm(searchTerm.trim());
+            setSearchTerm(pendingSearchTerm.trim());
         }
         setIsModalOpen(false);
     };
 
     const handleSearchModeChange = (event) => {
         const nextMode = event.target.value;
-        setSearchMode(nextMode);
-        if (nextMode === 'folio') {
-            const now = new Date();
-            setCurrentDate(now);
-            setSelectedDate(now.toISOString().split('T')[0]);
+        setPendingSearchMode(nextMode);
+        if (nextMode === 'date') {
+            setPendingSearchTerm('');
         }
     };
 
@@ -507,13 +580,25 @@ export default function History() {
     }, [selectedBranch]);
 
     useEffect(() => {
+        setExpandedFolio(null);
+    }, [currentPage]);
+
+    useEffect(() => {
         if (viewMode !== 'table') return;
         const now = new Date();
         setCurrentDate(now);
         setSelectedDate(now.toISOString().split('T')[0]);
         setSearchMode('date');
         setSearchTerm('');
+        setPendingSearchMode('date');
+        setPendingSearchTerm('');
     }, [viewMode]);
+
+    useEffect(() => {
+        if (!isModalOpen) return;
+        setPendingSearchMode(searchMode);
+        setPendingSearchTerm(searchTerm);
+    }, [isModalOpen, searchMode, searchTerm]);
 
     const activeSales = useMemo(
         () => (Array.isArray(visibleSales) ? visibleSales.filter((item) => item.status === 'A') : []),
@@ -526,6 +611,9 @@ export default function History() {
         const baseSales = Array.isArray(salesIndex) && salesIndex.length
             ? salesIndex
             : (Array.isArray(sales) ? sales : []);
+        if (searchMode === 'folio') {
+            return baseSales;
+        }
         return baseSales.filter((sale) => {
             const branchId = resolveSaleBranchId(sale);
             const fallbackBranch = normalizeBranchId(sale?.sucursal);
@@ -534,7 +622,7 @@ export default function History() {
             }
             return true;
         });
-    }, [sales, salesIndex, resolveSaleBranchId]);
+    }, [sales, salesIndex, resolveSaleBranchId, searchMode]);
 
     const filteredSales = useMemo(() => {
         const sourceSales = searchMode === 'date' ? visibleSales : allBranchSales;
@@ -555,9 +643,24 @@ export default function History() {
         return sourceSales;
     }, [visibleSales, allBranchSales, searchMode, searchTerm]);
 
+    const totalPages = useMemo(() => {
+        const count = Array.isArray(filteredSales) ? filteredSales.length : 0;
+        return Math.max(1, Math.ceil(count / PAGE_SIZE));
+    }, [filteredSales, PAGE_SIZE]);
+
+    useEffect(() => {
+        setCurrentPage((prev) => Math.min(prev, totalPages));
+    }, [totalPages]);
+
+    const paginatedSales = useMemo(() => {
+        if (!Array.isArray(filteredSales)) return [];
+        const startIndex = (currentPage - 1) * PAGE_SIZE;
+        return filteredSales.slice(startIndex, startIndex + PAGE_SIZE);
+    }, [filteredSales, currentPage, PAGE_SIZE]);
+
     const activeFilteredSales = useMemo(
-        () => (Array.isArray(filteredSales) ? filteredSales.filter((item) => item.status === 'A') : []),
-        [filteredSales]
+        () => (Array.isArray(paginatedSales) ? paginatedSales.filter((item) => item.status === 'A') : []),
+        [paginatedSales]
     );
 
     const activeSalesAll = useMemo(
@@ -625,52 +728,9 @@ export default function History() {
     const { totalUtility, totalProviders } = useMemo(() => {
         const totals = activeFilteredSales.reduce(
             (acc, sale) => {
-                const details = Array.isArray(sale?.details) ? sale.details : [];
-                details.forEach((detail) => {
-                    const quantity = Number(detail?.cantidad ?? 0);
-                    if (!Number.isFinite(quantity) || quantity <= 0) return;
-
-                    const rawMonto = toNumber(detail?.monto ?? detail?.importe ?? 0);
-                    const fallbackUnitPrice = rawMonto > 0 ? rawMonto / quantity : 0;
-                    const unitPrice = toNumber(detail?.precio_venta ?? detail?.precio ?? fallbackUnitPrice);
-                    const unitAIva = toNumber(detail?.aIva ?? detail?.aiva ?? detail?.a_iva ?? 0);
-                    const unitBase = unitAIva > 0 ? unitAIva : unitPrice > 0 ? unitPrice / IVA_FACTOR : 0;
-
-                    const semiNew = isSeminewDetail(detail);
-                    const manualNew = !semiNew && isManualNewDetail(detail);
-
-                    const utilityFactor = semiNew
-                        ? 0
-                        : manualNew
-                            ? 1.3
-                            : toNumber(detail?.utilidad ?? detail?.ut ?? detail?.utility ?? 0);
-
-                    const unitCost = toNumber(
-                        detail?.costo ??
-                        detail?.cost ??
-                        detail?.costo_unitario ??
-                        detail?.costoUnitario ??
-                        0
-                    );
-
-                    let resolvedCost = 0;
-                    if (semiNew) {
-                        resolvedCost = unitBase;
-                    } else if (manualNew && unitBase > 0 && utilityFactor > 0) {
-                        resolvedCost = unitBase / utilityFactor;
-                    } else if (unitCost > 0) {
-                        resolvedCost = unitCost;
-                    } else if (utilityFactor > 0 && unitBase > 0) {
-                        resolvedCost = unitBase / utilityFactor;
-                    }
-
-                    if (resolvedCost > 0) {
-                        acc.providers += resolvedCost * quantity;
-                    }
-                    if (!semiNew && resolvedCost > 0 && unitBase > 0) {
-                        acc.utility += (unitBase - resolvedCost) * quantity;
-                    }
-                });
+                const metrics = calculateDetailTotals(sale?.details);
+                acc.providers += metrics.providers;
+                acc.utility += metrics.utility;
                 return acc;
             },
             { utility: 0, providers: 0 }
@@ -1123,15 +1183,6 @@ export default function History() {
                                         {withdrawTooltip.tooltip}
                                     </div>
                                 )}
-                                {showDateControls && hasSalesForDate && (
-                                    <div
-                                        className='green-circle-button relative'
-                                        onMouseEnter={historyTooltip.show}
-                                        onMouseLeave={historyTooltip.hide}>
-                                        <FaMoneyBillTransfer />
-                                        {historyTooltip.tooltip}
-                                    </div>
-                                )}
                                 </div>
                                 <div className='w-full h-full overflow-scroll'>
                                 {!filteredSales || filteredSales.length === 0 ? (
@@ -1139,6 +1190,38 @@ export default function History() {
                                         No se encontraron registros para la fecha listada en {selectedBranchLabel}.
                                     </div>
                                 ) : (
+                                    <>
+                                    {filteredSales.length > PAGE_SIZE && (
+                                        <div className="flex items-center justify-center gap-4 py-2 text-xs text-[rgb(var(--color-text))]">
+                                            <button
+                                                type="button"
+                                                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                                disabled={currentPage === 1}
+                                                className={`px-3 py-1 rounded-full border ${
+                                                    currentPage === 1
+                                                        ? 'opacity-50 cursor-not-allowed'
+                                                        : 'hover:bg-[rgb(var(--color-card-white))]'
+                                                }`}
+                                            >
+                                                Anterior
+                                            </button>
+                                            <span>
+                                                Página {currentPage} de {totalPages}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                                disabled={currentPage === totalPages}
+                                                className={`px-3 py-1 rounded-full border ${
+                                                    currentPage === totalPages
+                                                        ? 'opacity-50 cursor-not-allowed'
+                                                        : 'hover:bg-[rgb(var(--color-card-white))]'
+                                                }`}
+                                            >
+                                                Siguiente
+                                            </button>
+                                        </div>
+                                    )}
                                     <table className="w-full lg:w-[1300px] text-sm text-left text-[rgb(var(--color-text))] mx-auto">
                                             <thead className="text-xs text-[rgb(var(--color-text))] uppercase bg-[rgb(var(--color-card))] text-center">
                                                 <tr>
@@ -1150,7 +1233,7 @@ export default function History() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                            {Array.isArray(filteredSales) && filteredSales.map((item, index) => {
+                                            {Array.isArray(paginatedSales) && paginatedSales.map((item, index) => {
                                                 const branchLabel = resolveBranchLabel(item);
                                                 return (
                                                         <Fragment key={item.folio || index}>
@@ -1300,6 +1383,7 @@ export default function History() {
                                                 )}
                                             </tbody>
                                         </table>
+                                    </>
                                     )}
                                 </div>
                             </div>
@@ -1538,7 +1622,7 @@ export default function History() {
                                 )
                             )}
                             <p className="mt-4 text-[0.7rem] text-[rgb(var(--color-text))]/60">
-                                Utilidad y pagos se estiman con el costo o utilidad registrados en cada producto.
+                                Utilidad estimada 30% del total (NEW y lista+). SEMI sin utilidad.
                             </p>
                         </div>
                         )}
@@ -1548,13 +1632,13 @@ export default function History() {
             {/*Modal para Buscar */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.6)]">
-                    <div className="bg-[rgb(var(--color-card-white))] p-6 rounded-lg shadow-lg w-80">
+                    <div className="bg-[rgb(var(--color-card))] p-6 rounded-lg shadow-lg w-80">
                         <h2 className="text-xl font-semibold mb-4 text-[rgb(var(--color-text))]">Buscar en histórico</h2>
                         <div className="mb-4">
                             <label htmlFor="searchMode" className="block text-[rgb(var(--color-text))] mb-2">Buscar por:</label>
                             <select
                                 id="searchMode"
-                                value={searchMode}
+                                value={pendingSearchMode}
                                 onChange={handleSearchModeChange}
                                 className="w-full px-3 py-2 border border-[rgb(var(--color-border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))]"
                             >
@@ -1563,7 +1647,7 @@ export default function History() {
                                 <option value="employee">Empleado</option>
                             </select>
                         </div>
-                        {searchMode === 'date' ? (
+                        {pendingSearchMode === 'date' ? (
                             <div className="mb-4">
                                 <label htmlFor="startDate" className="block text-[rgb(var(--color-text))] mb-2">Fecha:</label>
                                 <input
@@ -1580,16 +1664,21 @@ export default function History() {
                         ) : (
                             <div className="mb-4">
                                 <label htmlFor="searchTerm" className="block text-[rgb(var(--color-text))] mb-2">
-                                    {searchMode === 'folio' ? 'Folio:' : 'Empleado:'}
+                                    {pendingSearchMode === 'folio' ? 'Folio:' : 'Empleado:'}
                                 </label>
                                 <input
                                     type="text"
                                     id="searchTerm"
                                     name="searchTerm"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    value={pendingSearchTerm}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setPendingSearchTerm(
+                                            pendingSearchMode === 'folio' ? normalizeFolioInput(value) : value
+                                        );
+                                    }}
                                     className="w-full px-3 py-2 border border-[rgb(var(--color-border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))]"
-                                    placeholder={searchMode === 'folio' ? 'Ingrese el número de folio' : 'Ingrese el nombre del empleado'}
+                                    placeholder={pendingSearchMode === 'folio' ? 'Ingrese el número de folio' : 'Ingrese el nombre del empleado'}
                                 />
                             </div>
                         )}

@@ -432,6 +432,27 @@ app.get('/api/getHistory', async (req, res) => {
     }
 });
 
+// GET: search sales history across years (folio/employee)
+app.get('/api/getHistorySearch', async (req, res) => {
+    const { term, mode } = req.query;
+    if (!term || !mode) {
+        return res.status(400).json({ error: 'Bad Request', details: 'Missing term or mode parameter' });
+    }
+    const normalizedMode = String(mode).toLowerCase();
+    if (!['folio', 'employee'].includes(normalizedMode)) {
+        return res.status(400).json({ error: 'Bad Request', details: 'Invalid mode parameter' });
+    }
+
+    try {
+        const results = await executeQuery('CALL GetSalesHistorySearch(?, ?)', [normalizedMode, term]);
+        const rows = Array.isArray(results) ? (results[0] || []) : [];
+        return res.json(rows);
+    } catch (error) {
+        console.error('Error fetching history search:', error);
+        return res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+});
+
 // GET: sale details by idVenta
 app.get('/api/getSaleDetails', async (req, res) => {
     const { idVenta } = req.query;
