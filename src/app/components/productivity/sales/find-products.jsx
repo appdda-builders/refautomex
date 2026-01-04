@@ -209,6 +209,7 @@ const FindProducts = forwardRef(({
     const [searchType, setSearchType] = useState('descripcion');
     const [visibleTooltip, setVisibleTooltip] = useState(null);
     const [filteredProducts, setFilteredProducts] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
     const [stockAlerts, setStockAlerts] = useState({});
     const deleteTooltip = createTooltip(FaDeleteLeft, 'Eliminar', 'delete', visibleTooltip, setVisibleTooltip);
     const isPickerMode = typeof onProductPick === 'function';
@@ -418,6 +419,22 @@ const FindProducts = forwardRef(({
         setFilteredProducts(result.dataProducts);
     }, [searchTerm, products, searchType]);
 
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, searchType, products, isMissing]);
+
+    const PAGE_SIZE = 25;
+    const MAX_PRODUCTS = 100;
+    const visibleProducts = filteredProducts
+        .filter(product => !isMissing || product.existencia === 0)
+        .slice(0, MAX_PRODUCTS);
+    const totalPages = Math.max(1, Math.ceil(visibleProducts.length / PAGE_SIZE));
+    const safePage = Math.min(currentPage, totalPages);
+    const paginatedProducts = visibleProducts.slice(
+        (safePage - 1) * PAGE_SIZE,
+        safePage * PAGE_SIZE
+    );
+
     const handleAddClick = (product) => {
         if (folio) return;
 
@@ -582,17 +599,14 @@ const FindProducts = forwardRef(({
             ) : (
                 showCards && (
                     <div className="relative min-h-[30rem] w-full grow [container-type:inline-size] max-lg:mx-auto max-lg:max-w-sm">
-                        <div className="absolute left-1/2 top-6 z-10 flex items-center space-x-1 bg-[rgb(var(--color-slate))] p-1 rounded-full transform -translate-x-1/2">
+                        <div className="absolute left-1/2 top-6 z-10 flex items-center space-x-1 bg-[rgb(var(--color-slate))] px-2 py-1 rounded-full transform -translate-x-1/2 shadow shadow-[rgb(var(--color-galaxy))]">
                             <FaStar className="w-3 h-3 text-amber-400 animate-bounce"/>
                             <p className="text-xs font-medium text-gray-300">Refacciones</p>
                         </div>
-                        <div className="absolute inset-x-2 sm:inset-x-1 xl:inset-x-10 bottom-0 top-3 rounded-t-[12cqw] overflow-x-hidden overflow-y-auto border-x-[1cqw] border-t-[1cqw] shadow shadow-[rgb(var(--color-galaxy))] border-[rgb(var(--color-slate))] bg-[rgb(var(--color-gray))] pt-5 ">
+                        <div className="absolute inset-x-2 sm:inset-x-1 xl:inset-x-10 bottom-0 top-2.5 rounded-t-[12cqw] overflow-x-hidden overflow-y-auto border-x-[1cqw] border-t-[1cqw] shadow shadow-[rgb(var(--color-galaxy))] border-[rgb(var(--color-slate))] bg-[rgb(var(--color-gray))] pt-5 ">
                             <div className="p-1 mt-5">
-                                <div className="pb-3 pt-1 sm:pl-2 px-1 flex flex-col items-center justify-center">
-                                    {filteredProducts
-                                        .filter(product => !isMissing || product.existencia === 0)
-                                        .slice(0, 25)
-                                        .map((product) => {
+                                <div className="pb-3 pt-1 px-2 grid w-full grid-cols-2 gap-2 ">
+                                    {paginatedProducts.map((product) => {
                                         const imageUrl = resolveProductImage(product.ruta, multimediaSrc);
                                         const isAdded = isProductAdded(product);
                                         return (
@@ -601,21 +615,21 @@ const FindProducts = forwardRef(({
                                                 onClick={() =>
                                                     isAdded ? handleRemoveClick(product) : handleAddClick(product)
                                                 }
-                                                className={`flex items-center gap-2 w-full relative rounded-xl cursor-pointer md:-mx-3 mb-3 shadow shadow-[rgb(var(--color-galaxy))] p-3 transition-all duration-200 ${
+                                                className={`relative flex h-full flex-col gap-2 rounded-xl cursor-pointer shadow shadow-[rgb(var(--color-galaxy))] p-2 transition-all duration-200 ${
                                                     isAdded
                                                     ? 'bg-[rgb(var(--color-gray))] ring-2 ring-[rgb(var(--color-gray-base))]'
                                                     : 'bg-[rgb(var(--color-bg))]'
                                                 }`}
                                                 >
-                                                <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 overflow-hidden rounded-xl bg-white shadow shadow-[rgb(var(--color-galaxy))]">
+                                                <div className="relative w-full aspect-square flex-shrink-0 overflow-hidden rounded-lg bg-white shadow shadow-[rgb(var(--color-galaxy))]">
                                                     <img
                                                     src={imageUrl}
                                                     alt={product.num_parte}
-                                                    className="w-full h-full object-contain object-center"
+                                                    className="w-full h-full object-contain object-center p-1"
                                                     />
                                                 </div>
-                                                <div className="flex flex-col flex-1 gap-2">
-                                                    <div className="flex flex-col flex-1">
+                                                <div className="flex flex-1 flex-col gap-2">
+                                                    <div className="flex flex-1 flex-col">
                                                         <div className="flex flex-wrap gap-1 mb-1">
                                                             {(product.branchBadges || [{ label: buildBadgeLabel(product), type: product.__origin || 'active' }]).map((badge, idx) => {
                                                                 const variant = PRODUCT_STATUS_VARIANTS[badge.type] || PRODUCT_STATUS_VARIANTS.active;
@@ -629,35 +643,38 @@ const FindProducts = forwardRef(({
                                                                 );
                                                             })}
                                                         </div>
-                                                        <div className="text-sm sm:text-base text-[rgb(var(--color-text))] min-h-[4.5rem] max-h-[4.5rem] overflow-y-auto">
+                                                        <div
+                                                            className="text-[14px] leading-[1.25rem] text-[rgb(var(--color-text))] min-h-[4rem] max-h-[4rem] overflow-hidden font-bold"
+                                                            style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}
+                                                        >
                                                             {highlightText(product.descripcion, searchTerm)}
                                                         </div>
-                                                        <div className="flex flex-row justify-between text-left my-2">
-                                                            <p className="sm:text-sm font-bold text-[rgb(var(--color-refautomex))] bg-[rgb(var(--color-gray))]/20 rounded-full px-2 shadow shadow-[rgb(var(--color-galaxy))]">
-                                                                {highlightText(product.num_parte, searchTerm)}
-                                                            </p>
-                                                            {product.localizacion && product.localizacion !== '0' && (
-                                                                <p className="sm:text-sm font-bold text-[rgb(var(--color-refautomex))] bg-[rgb(var(--color-gray))]/20 rounded-full px-2 shadow shadow-[rgb(var(--color-galaxy))] truncate">
-                                                                    {highlightText(product.localizacion, searchTerm)}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex flex-row justify-between h-full">
-                                                            <p className="text-lg font-bold text-[rgb(var(--color-success))] mt-1">
+                                                        <div className="flex flex-row justify-between items-end mt-auto">
+                                                            <p className="text-sm font-bold text-[rgb(var(--color-success))]">
                                                                 ${' '}
                                                                 {(Number(product.precio)).toFixed(2)} MXN
                                                             </p>
                                                             <span
                                                                 className={`${
                                                                 product.existencia === 0 ? 'bg-[rgb(var(--color-error-base))]' : 'bg-[rgb(var(--color-galaxy))]'
-                                                                } text-[rgb(var(--color-text))] text-sm rounded-full h-8 w-8 flex items-center justify-center shadow shadow-[rgb(var(--color-galaxy))]`}
+                                                                } text-[rgb(var(--color-text))] text-xs rounded-full h-7 w-7 flex items-center justify-center shadow shadow-[rgb(var(--color-galaxy))]`}
                                                             >
                                                                 {product.existencia}
                                                             </span>
                                                         </div>
+                                                        <div className="flex flex-col text-left mt-2 gap-1">
+                                                            <p className="text-[14px] font-bold text-[rgb(var(--color-refautomex))]/70 px-2 truncate">
+                                                                {highlightText(product.num_parte, searchTerm)}
+                                                            </p>
+                                                            {product.localizacion && product.localizacion !== '0' && (
+                                                            <p className="text-[12px] font-bold text-[rgb(var(--color-text))]/50 px-2 truncate bg-[rgb(var(--color-gray))]/20 rounded-full shadow shadow-[rgb(var(--color-galaxy))]">
+                                                                {highlightText(product.localizacion, searchTerm)}
+                                                            </p>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     {stockAlerts[product.num_parte] && product.existencia === 0 && (
-                                                    <div className="absolute left-4 right-4 bottom-2 rounded-full bg-amber-400/90 text-[rgb(var(--color-card))] text-xs font-semibold flex items-center justify-center gap-1 py-1 shadow-lg shadow-amber-500/40">
+                                                    <div className="absolute left-2 right-2 bottom-2 rounded-full bg-amber-400/90 text-[rgb(var(--color-card))] text-[10px] font-semibold flex items-center justify-center gap-1 py-1 shadow-lg shadow-amber-500/40">
                                                         <TiInfo className="text-base" />
                                                         <span>Sin existencia</span>
                                                         <button
@@ -675,6 +692,29 @@ const FindProducts = forwardRef(({
                                         );
                                     })}
                                 </div>
+                                {totalPages > 1 && (
+                                    <div className="sticky bottom-0 z-10 flex items-center justify-between px-3 py-2 bg-[rgb(var(--color-gray))] border-t border-[rgb(var(--color-slate))]">
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                            disabled={safePage === 1}
+                                            className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-galaxy))] disabled:opacity-40"
+                                        >
+                                            Anterior
+                                        </button>
+                                        <span className="text-xs font-semibold text-[rgb(var(--color-text))]">
+                                            Pagina {safePage} de {totalPages}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                            disabled={safePage === totalPages}
+                                            className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] shadow shadow-[rgb(var(--color-galaxy))] disabled:opacity-40"
+                                        >
+                                            Siguiente
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
