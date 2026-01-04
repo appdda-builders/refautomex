@@ -42,6 +42,29 @@ const isLikelyPlaceId = (val) => {
     return true;
 };
 
+const normalizeFolioKey = (value) =>
+    String(value ?? '').trim().toUpperCase();
+
+const formatShortDate = (value) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value);
+    return new Intl.DateTimeFormat('es-MX', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+    }).format(parsed);
+};
+
+const getDaysSince = (value) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    const diffMs = Date.now() - parsed.getTime();
+    if (diffMs < 0) return 0;
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+};
+
 export default function Invoice() {
     const [invoices, setInvoices] = useState([]);
     const [filter, setFilter] = useState('');
@@ -51,6 +74,9 @@ export default function Invoice() {
     const [finalizingId, setFinalizingId] = useState(null);
     const [detailsByFolio, setDetailsByFolio] = useState({});
     const [detailsLoading, setDetailsLoading] = useState({});
+    const [purchaseDateByFolio, setPurchaseDateByFolio] = useState({});
+    const [currentPage, setCurrentPage] = useState(1);
+    const PAGE_SIZE = 25;
     const [placeCache, setPlaceCache] = useState({});
     const placeCacheRef = useRef({});
     const placesServiceRef = useRef(null);
@@ -90,6 +116,12 @@ export default function Invoice() {
         fetchInvoices();
     }, []);
 
+    const [activeTab, setActiveTab] = useState('pendientes');
+
+    useEffect(() => {
+        setExpanded(null);
+    }, [activeTab]);
+
     const resolvePlace = useCallback((placeId) => {
         if (!placeId || placeCacheRef.current[placeId]) return;
         if (!isLikelyPlaceId(placeId)) return;
@@ -124,10 +156,12 @@ export default function Invoice() {
 
     const fetchDetails = useCallback(
         async (folio) => {
-            if (!folio || detailsByFolio[folio]) return;
-            setDetailsLoading((prev) => ({ ...prev, [folio]: true }));
+            const normalizedFolio = normalizeFolioKey(folio);
+            if (!normalizedFolio) return;
+            if (detailsByFolio[normalizedFolio] && purchaseDateByFolio[normalizedFolio]) return;
+            setDetailsLoading((prev) => ({ ...prev, [normalizedFolio]: true }));
             try {
-                const params = new URLSearchParams({ id: folio });
+                const params = new URLSearchParams({ id: normalizedFolio });
                 const endpoint = `${buildApiUrl('/getFolioHistory')}?${params.toString()}`;
                 const response = await fetch(endpoint, {
                     cache: 'no-store',
@@ -139,20 +173,62 @@ export default function Invoice() {
                 const payload = await response.json();
                 const headers = Array.isArray(payload?.[0]) ? payload[0] : [];
                 const details = Array.isArray(payload?.[1]) ? payload[1] : [];
-                const header = headers.find((h) => String(h.folio) === String(folio)) || headers[0];
+                const header = headers.find(
+                    (h) => normalizeFolioKey(h?.folio) === normalizedFolio
+                ) || headers[0];
                 const idventa = header?.idventa ?? header?.idVenta;
+                const purchaseDate =
+                    header?.fecha_venta ??
+                    header?.fechaVenta ??
+                    header?.fecha ??
+                    header?.f_pedido ??
+                    null;
+                let resolvedPurchaseDate = purchaseDate;
+                if (!resolvedPurchaseDate) {
+                    try {
+                        const searchParams = new URLSearchParams({
+                            mode: 'folio',
+                            term: normalizedFolio,
+                        });
+                        const searchResponse = await fetch(
+                            `${buildApiUrl('/getHistorySearch')}?${searchParams.toString()}`,
+                            {
+                                cache: 'no-store',
+                                headers: { Accept: 'application/json, text/plain, */*' },
+                            }
+                        );
+                        if (searchResponse.ok) {
+                            const searchPayload = await searchResponse.json();
+                            const match = Array.isArray(searchPayload)
+                                ? searchPayload.find(
+                                    (row) => normalizeFolioKey(row?.folio) === normalizedFolio
+                                )
+                                : null;
+                            resolvedPurchaseDate =
+                                match?.fecha_venta ??
+                                match?.fechaVenta ??
+                                match?.fecha ??
+                                resolvedPurchaseDate;
+                        }
+                    } catch (searchError) {
+                        console.warn('Error resolving purchase date from history search:', searchError);
+                    }
+                }
                 const filteredDetails = idventa
                     ? details.filter((d) => String(d.idventa ?? d.idVenta) === String(idventa))
                     : details;
-                setDetailsByFolio((prev) => ({ ...prev, [folio]: filteredDetails || [] }));
+                setDetailsByFolio((prev) => ({ ...prev, [normalizedFolio]: filteredDetails || [] }));
+                if (resolvedPurchaseDate) {
+                    setPurchaseDateByFolio((prev) => ({ ...prev, [normalizedFolio]: resolvedPurchaseDate }));
+                }
             } catch (err) {
                 console.error('Error fetching folio details:', err);
-                setDetailsByFolio((prev) => ({ ...prev, [folio]: [] }));
+                setDetailsByFolio((prev) => ({ ...prev, [normalizedFolio]: [] }));
             } finally {
-                setDetailsLoading((prev) => ({ ...prev, [folio]: false }));
+                setDetailsLoading((prev) => ({ ...prev, [normalizedFolio]: false }));
             }
         },
-        [detailsByFolio]
+        [detailsByFolio, purchaseDateByFolio]
     );
 
     const handleFinalize = useCallback(
@@ -212,15 +288,32 @@ export default function Invoice() {
 
     const pending = filtered.filter((inv) => inv.status === 'pendiente');
     const finished = filtered.filter((inv) => inv.status === 'finalizada');
-    const finishedLimited = finished.slice(0, 100);
+    const activeList = activeTab === 'pendientes' ? pending : finished;
+    const totalPages = Math.max(1, Math.ceil(activeList.length / PAGE_SIZE));
+    const paginatedInvoices = activeList.slice(
+        (currentPage - 1) * PAGE_SIZE,
+        currentPage * PAGE_SIZE
+    );
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, filter]);
+
+    useEffect(() => {
+        setCurrentPage((prev) => Math.min(prev, totalPages));
+    }, [totalPages]);
 
     const renderRow = (invoice, idx) => {
         const key = invoice.id ?? invoice.folio ?? `inv-${idx}`;
         const isExpanded = expanded === invoice.id || expanded === invoice.folio;
         const address = invoice.domicilio ? (placeCache[invoice.domicilio] || invoice.domicilio) : '---';
         const isPending = invoice.status === 'pendiente';
-        const detailList = invoice.folio ? detailsByFolio[invoice.folio] : undefined;
-        const isDetailLoading = invoice.folio ? detailsLoading[invoice.folio] : false;
+        const detailKey = normalizeFolioKey(invoice.folio);
+        const detailList = detailKey ? detailsByFolio[detailKey] : undefined;
+        const isDetailLoading = detailKey ? detailsLoading[detailKey] : false;
+        const purchaseDate = detailKey ? purchaseDateByFolio[detailKey] : null;
+        const formattedPurchaseDate = formatShortDate(purchaseDate);
+        const waitingDays = isPending ? getDaysSince(purchaseDate) : null;
         const toUpper = (val) => (typeof val === 'string' ? val.toUpperCase() : val ?? '---');
         const preserve = (val) => val ?? '---';
         return (
@@ -261,8 +354,11 @@ export default function Invoice() {
                         <div className="break-words"><span className="font-semibold">CFDI: </span>{toUpper(invoice.cfdi)}</div>
                         <div className="break-words"><span className="font-semibold">Régimen: </span>{toUpper(invoice.regimen)}</div>
                         <div className="break-words whitespace-pre-wrap"><span className="font-semibold">Domicilio: </span>{toUpper(address)}</div>
-                        {invoice.createdAt && (
-                            <div className="break-words"><span className="font-semibold">Fecha: </span>{invoice.createdAt}</div>
+                        {formattedPurchaseDate && (
+                            <div className="break-words"><span className="font-semibold text-[rgb(var(--color-amber))]">Compra: </span>{formattedPurchaseDate}</div>
+                        )}
+                        {isPending && Number.isFinite(waitingDays) && (
+                            <div className="break-words"><span className="font-semibold text-[rgb(var(--color-amber))]">En espera: </span>{waitingDays} días</div>
                         )}
                         {isPending && (
                             <div className="sm:col-span-2 flex justify-end">
@@ -294,7 +390,7 @@ export default function Invoice() {
                                         </thead>
                                         <tbody>
                                             {detailList.map((d, i) => (
-                                                <tr key={`${invoice.folio}-det-${i}`} className="bg-[rgb(var(--color-card-white))] border-t border-[rgb(var(--color-border))]">
+                                                <tr key={`${invoice.folio}-det-${i}`} className="bg-[rgb(var(--color-bg))] border-t border-[rgb(var(--color-border))]">
                                                     <td className="py-2 px-3 break-words">{toUpper(d.num_parte ?? d.numParte)}</td>
                                                     <td className="py-2 px-3 break-words">
                                                         {toUpper(d.concepto_comodin ?? d.descripcion ?? d.descripcion_producto)}
@@ -323,53 +419,101 @@ export default function Invoice() {
                 path="/productivity"
             />
 
-            <div className="mx-auto max-w-6xl px-4 lg:px-0 mt-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex gap-3">
-                        <div className="flex items-center gap-2 text-sm text-[rgb(var(--color-text))] bg-[rgb(var(--color-card))] rounded-full px-3 py-1 shadow">
-                            <GoClockFill className="text-amber-500" />
-                            <span>Pendientes: {pending.length}</span>
+            <div className="mx-auto max-w-7xl px-4 lg:px-0 mt-6">
+                <div className="flex flex-col gap-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('pendientes')}
+                                className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold border transition cursor-pointer ${
+                                    activeTab === 'pendientes'
+                                        ? 'bg-[rgb(var(--color-galaxy))] text-[rgb(var(--color-text))] border-[rgb(var(--color-galaxy))]'
+                                        : 'bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] border-[rgb(var(--color-border))] hover:border-[rgb(var(--color-galaxy))]'
+                                }`}
+                            >
+                                <GoClockFill className="text-[rgb(var(--color-text))]" />
+                                Pendientes
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('finalizadas')}
+                                className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold border transition cursor-pointer ${
+                                    activeTab === 'finalizadas'
+                                        ? 'bg-emerald-500 text-[rgb(var(--color-text))] border-emerald-500'
+                                        : 'bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] border-[rgb(var(--color-border))] hover:border-emerald-500'
+                                }`}
+                            >
+                                <IoMdCloudDone className="text-[rgb(var(--color-text))]" />
+                                Finalizadas
+                            </button>
                         </div>
-                    </div>
-                    <div className="flex items-center gap-2 bg-[rgb(var(--color-card))] rounded-full px-3 py-1 shadow border border-[rgb(var(--color-border))]">
-                        <FaSearch className="text-[rgb(var(--color-text))]/70" />
-                        <input
-                            type="text"
-                            placeholder="Buscar por folio, correo, nombre..."
-                            value={filter}
-                            onChange={(e) => setFilter(e.target.value)}
-                            className="bg-transparent outline-none text-sm text-[rgb(var(--color-text))] w-60"
-                        />
+                        <div className="flex items-center gap-2 bg-[rgb(var(--color-card))] rounded-full px-3 py-2 shadow border border-[rgb(var(--color-border))] w-full lg:w-auto">
+                            <FaSearch className="text-[rgb(var(--color-text))]/70" />
+                            <input
+                                type="text"
+                                placeholder="Buscar por folio, correo, nombre..."
+                                value={filter}
+                                onChange={(e) => setFilter(e.target.value)}
+                                className="bg-transparent outline-none text-sm text-[rgb(var(--color-text))] w-full lg:w-72"
+                            />
+                        </div>
                     </div>
                 </div>
 
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-[rgb(var(--color-card))] rounded-xl p-4 shadow">
-                        <div className="flex items-center gap-2 text-[rgb(var(--color-text))] font-semibold mb-3">
-                            <GoClockFill className="text-amber-500" /> Pendientes
-                        </div>
-                        {isLoading && <p className="text-sm text-[rgb(var(--color-text))]">Cargando...</p>}
-                        {error && <p className="text-sm text-red-600">{error}</p>}
-                        {!isLoading && !error && pending.length === 0 && (
-                            <p className="text-sm text-[rgb(var(--color-text))]">Sin facturas pendientes.</p>
-                        )}
-                        {!isLoading && !error && pending.map(renderRow)}
-                    </div>
-
-                    <div className="bg-[rgb(var(--color-card))] rounded-xl p-4 shadow">
-                        <div className="flex items-center gap-2 text-[rgb(var(--color-text))] font-semibold mb-3">
-                            <IoMdCloudDone className="text-green-600" /> Finalizadas
-                        </div>
-                        {isLoading && <p className="text-sm text-[rgb(var(--color-text))]">Cargando...</p>}
-                        {error && <p className="text-sm text-red-600">{error}</p>}
-                        {!isLoading && !error && finishedLimited.length === 0 && (
-                            <p className="text-sm text-[rgb(var(--color-text))]">Sin facturas finalizadas.</p>
-                        )}
-                        {!isLoading && !error && finishedLimited.map(renderRow)}
-                        {!isLoading && !error && finished.length > finishedLimited.length && (
-                            <p className="text-xs text-[rgb(var(--color-text))]/70 mt-2">Mostrando solo las primeras 100 finalizadas.</p>
+                <div className="mt-6 bg-[rgb(var(--color-card))] rounded-2xl p-5 shadow">
+                    <div className="flex items-center gap-2 text-[rgb(var(--color-text))] font-semibold mb-4">
+                        {activeTab === 'pendientes' ? (
+                            <>
+                                <GoClockFill className="text-amber-500" /> Pendientes
+                            </>
+                        ) : (
+                            <>
+                                <IoMdCloudDone className="text-green-600" /> Finalizadas
+                            </>
                         )}
                     </div>
+                    {isLoading && <p className="text-sm text-[rgb(var(--color-text))]">Cargando...</p>}
+                    {error && <p className="text-sm text-red-600">{error}</p>}
+                    {!isLoading && !error && activeTab === 'pendientes' && pending.length === 0 && (
+                        <p className="text-sm text-[rgb(var(--color-text))]">Sin facturas pendientes.</p>
+                    )}
+                    {!isLoading && !error && activeTab === 'pendientes' && paginatedInvoices.map(renderRow)}
+                    {!isLoading && !error && activeTab === 'finalizadas' && finished.length === 0 && (
+                        <p className="text-sm text-[rgb(var(--color-text))]">Sin facturas finalizadas.</p>
+                    )}
+                    {!isLoading && !error && activeTab === 'finalizadas' && paginatedInvoices.map(renderRow)}
+                    {!isLoading && !error && activeList.length > PAGE_SIZE && (
+                        <div className="flex items-center justify-center gap-3 pt-4 text-xs text-[rgb(var(--color-text))]/80">
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className={`px-3 py-1 rounded-full border ${
+                                    currentPage === 1
+                                        ? 'opacity-50 cursor-not-allowed'
+                                        : 'hover:bg-[rgb(var(--color-card-white))]'
+                                }`}
+                            >
+                                Anterior
+                            </button>
+                            <span>
+                                Página {currentPage} de {totalPages}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className={`px-3 py-1 rounded-full border ${
+                                    currentPage === totalPages
+                                        ? 'opacity-50 cursor-not-allowed'
+                                        : 'hover:bg-[rgb(var(--color-card-white))]'
+                                }`}
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

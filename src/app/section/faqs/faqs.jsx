@@ -19,9 +19,9 @@ export default function FAQs () {
       ))}
     </div>
   );
-  
+
   const OffsetSection = ({ children }) => (
-    <div className="bg-[rgb(var(--color-card-white))] rounded-3xl px-10 py-5 shadow-md min-h-[350px]">
+    <div className="bg-[rgb(var(--color-card))] rounded-3xl px-10 py-5 shadow-md min-h-[350px]">
       {children}
     </div>
   );
