@@ -11,8 +11,8 @@ import { FaArrowDown, FaArrowUp } from "react-icons/fa";
 import { useTimeZoneContext } from '@/app/lib/time-zone-context';
 import { useReactToPrint } from 'react-to-print';
 import {
-    LineChart,
-    Line,
+    BarChart,
+    Bar,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -1120,7 +1120,7 @@ export default function History() {
                             <button
                                 type="button"
                                 onClick={() => setViewMode('table')}
-                                className={`m-1 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide shadow border ${viewMode === 'table'
+                                className={`m-1 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide shadow border cursor-pointer ${viewMode === 'table'
                                     ? 'bg-amber-500 text-white border-amber-500'
                                     : 'bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] border-[rgb(var(--color-border))]'}`}
                             >
@@ -1129,7 +1129,7 @@ export default function History() {
                             <button
                                 type="button"
                                 onClick={() => setViewMode('charts')}
-                                className={`m-1 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide shadow border ${viewMode === 'charts'
+                                className={`m-1 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide shadow border cursor-pointer ${viewMode === 'charts'
                                     ? 'bg-amber-500 text-white border-amber-500'
                                     : 'bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] border-[rgb(var(--color-border))]'}`}
                             >
@@ -1142,7 +1142,7 @@ export default function History() {
                                 value={selectedBranch}
                                 onChange={(e) => setSelectedBranch(e.target.value)}
                                 disabled={branchOptions.length === 0}
-                                className="bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-xl m-1 px-3 py-2 text-sm shadow outline-none"
+                                className="bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-xl m-1 px-3 py-2 text-sm shadow outline-none cursor-pointer"
                             >
                                 <option value="">Todas</option>
                                 {branchOptions.map((branch) => (
@@ -1413,7 +1413,7 @@ export default function History() {
                                         <button
                                             type="button"
                                             onClick={() => setChartView('day')}
-                                            className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide shadow border ${chartView === 'day'
+                                            className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide shadow border cursor-pointer ${chartView === 'day'
                                                 ? 'bg-amber-500 text-white border-amber-500'
                                                 : 'bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] border-[rgb(var(--color-border))]'}`
                                             }
@@ -1423,7 +1423,7 @@ export default function History() {
                                         <button
                                             type="button"
                                             onClick={() => setChartView('month')}
-                                            className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide shadow border ${chartView === 'month'
+                                            className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide shadow border cursor-pointer ${chartView === 'month'
                                                 ? 'bg-amber-500 text-white border-amber-500'
                                                 : 'bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] border-[rgb(var(--color-border))]'}`
                                             }
@@ -1433,7 +1433,7 @@ export default function History() {
                                         <button
                                             type="button"
                                             onClick={() => setChartView('year')}
-                                            className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide shadow border ${chartView === 'year'
+                                            className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide shadow border cursor-pointer ${chartView === 'year'
                                                 ? 'bg-amber-500 text-white border-amber-500'
                                                 : 'bg-[rgb(var(--color-card))] text-[rgb(var(--color-text))] border-[rgb(var(--color-border))]'}`
                                             }
@@ -1447,7 +1447,7 @@ export default function History() {
                                         <button
                                             type="button"
                                             onClick={() => shiftChartMonth(-1)}
-                                            className="px-2.5 py-1 rounded-full border border-[rgb(var(--color-border))] text-xs uppercase tracking-wide shadow hover:bg-[rgb(var(--color-card-white))]"
+                                            className="px-2.5 py-1 rounded-full border border-[rgb(var(--color-border))] text-xs uppercase tracking-wide shadow hover:bg-[rgb(var(--color-card-white))] cursor-pointer"
                                         >
                                             &larr; Mes
                                         </button>
@@ -1458,7 +1458,7 @@ export default function History() {
                                                 setCurrentDate(now);
                                                 setSelectedDate(now.toISOString().split('T')[0]);
                                             }}
-                                            className="px-2.5 py-1 rounded-full border border-[rgb(var(--color-border))] text-xs uppercase tracking-wide shadow hover:bg-[rgb(var(--color-card-white))]"
+                                            className="px-2.5 py-1 rounded-full border border-[rgb(var(--color-border))] text-xs uppercase tracking-wide shadow hover:bg-[rgb(var(--color-card-white))] cursor-pointer"
                                         >
                                             Actual
                                         </button>
@@ -1469,7 +1469,7 @@ export default function History() {
                                             type="button"
                                             onClick={() => shiftChartMonth(1)}
                                             disabled={!canShiftMonth(1)}
-                                            className={`px-2.5 py-1 rounded-full border text-xs uppercase tracking-wide shadow ${
+                                            className={`px-2.5 py-1 rounded-full border text-xs uppercase tracking-wide shadow cursor-pointer ${
                                                 canShiftMonth(1)
                                                     ? 'border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-card-white))]'
                                                     : 'border-[rgb(var(--color-border))] opacity-40 cursor-not-allowed'
@@ -1484,7 +1484,7 @@ export default function History() {
                                         <button
                                             type="button"
                                             onClick={() => shiftChartYear(-1)}
-                                            className="px-2.5 py-1 rounded-full border border-[rgb(var(--color-border))] text-xs uppercase tracking-wide shadow hover:bg-[rgb(var(--color-card-white))]"
+                                            className="px-2.5 py-1 rounded-full border border-[rgb(var(--color-border))] text-xs uppercase tracking-wide shadow hover:bg-[rgb(var(--color-card-white))] cursor-pointer"
                                         >
                                             &larr; Año
                                         </button>
@@ -1495,7 +1495,7 @@ export default function History() {
                                             type="button"
                                             onClick={() => shiftChartYear(1)}
                                             disabled={!canShiftYear(1)}
-                                            className={`px-2.5 py-1 rounded-full border text-xs uppercase tracking-wide shadow ${
+                                            className={`px-2.5 py-1 rounded-full border text-xs uppercase tracking-wide shadow cursor-pointer ${
                                                 canShiftYear(1)
                                                     ? 'border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-card-white))]'
                                                     : 'border-[rgb(var(--color-border))] opacity-40 cursor-not-allowed'
@@ -1515,7 +1515,7 @@ export default function History() {
                                     <div className="mt-6 overflow-x-auto">
                                         <div className="h-72" style={{ minWidth: `${yearlyChartMinWidth}px` }}>
                                             <ResponsiveContainer width="100%" height="100%">
-                                                <LineChart data={yearChartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                                                <BarChart data={yearChartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--color-border))" />
                                                     <XAxis dataKey="label" tick={{ fill: 'rgb(var(--color-text))', fontSize: 11 }} interval={0} />
                                                     <YAxis
@@ -1537,28 +1537,22 @@ export default function History() {
                                                                 <Legend wrapperStyle={{ color: 'rgb(var(--color-text))', fontSize: 12 }} />
                                                             )}
                                                             {branchSeriesKeys.map((branch, index) => (
-                                                                <Line
+                                                                <Bar
                                                                     key={branch.dataKey}
-                                                                    type="monotone"
                                                                     dataKey={branch.dataKey}
                                                                     name={branch.label}
-                                                                    stroke={linePalette[index % linePalette.length]}
-                                                                    strokeWidth={2.5}
-                                                                    dot={false}
+                                                                    fill={linePalette[index % linePalette.length]}
                                                                 />
                                                             ))}
                                                         </>
                                                     ) : (
-                                                        <Line
-                                                            type="monotone"
+                                                        <Bar
                                                             dataKey="total"
                                                             name="Ventas"
-                                                            stroke="rgb(245 158 11)"
-                                                            strokeWidth={2.5}
-                                                            dot={false}
+                                                            fill="rgb(245 158 11)"
                                                         />
                                                     )}
-                                                </LineChart>
+                                                </BarChart>
                                             </ResponsiveContainer>
                                         </div>
                                     </div>
@@ -1572,7 +1566,7 @@ export default function History() {
                                     <div className="mt-6 overflow-x-auto">
                                         <div className="h-72" style={{ minWidth: `${periodChartMinWidth}px` }}>
                                             <ResponsiveContainer width="100%" height="100%">
-                                                <LineChart data={periodChartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                                                <BarChart data={periodChartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--color-border))" />
                                                     <XAxis dataKey="label" tick={{ fill: 'rgb(var(--color-text))', fontSize: 11 }} interval={0} />
                                                     <YAxis
@@ -1594,28 +1588,22 @@ export default function History() {
                                                                 <Legend wrapperStyle={{ color: 'rgb(var(--color-text))', fontSize: 12 }} />
                                                             )}
                                                             {branchSeriesKeys.map((branch, index) => (
-                                                                <Line
+                                                                <Bar
                                                                     key={branch.dataKey}
-                                                                    type="monotone"
                                                                     dataKey={branch.dataKey}
                                                                     name={branch.label}
-                                                                    stroke={linePalette[index % linePalette.length]}
-                                                                    strokeWidth={2.5}
-                                                                    dot={false}
+                                                                    fill={linePalette[index % linePalette.length]}
                                                                 />
                                                             ))}
                                                         </>
                                                     ) : (
-                                                        <Line
-                                                            type="monotone"
+                                                        <Bar
                                                             dataKey="total"
                                                             name="Ventas"
-                                                            stroke="rgb(245 158 11)"
-                                                            strokeWidth={2.5}
-                                                            dot={false}
+                                                            fill="rgb(245 158 11)"
                                                         />
                                                     )}
-                                                </LineChart>
+                                                </BarChart>
                                             </ResponsiveContainer>
                                         </div>
                                     </div>

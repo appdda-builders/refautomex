@@ -22,6 +22,7 @@ const shapeInvoice = (invoice) => ({
     telefono: invoice.telefono ?? invoice.phone ?? '---',
     rfc: invoice.rfc ?? '---',
     domicilio: invoice.domicilio ?? invoice.direccion ?? '---',
+    sucursal: invoice.sucursal ?? invoice.nombre_sucursal ?? invoice.branch ?? null,
     cfdi: invoice.cfdi ?? invoice.cfdi_clave ?? invoice.idcfdi ?? '---',
     regimen: invoice.regimen ?? invoice.idregimen ?? '---',
     createdAt: invoice.fecha ?? invoice.fecha_creacion ?? null,
@@ -75,6 +76,7 @@ export default function Invoice() {
     const [detailsByFolio, setDetailsByFolio] = useState({});
     const [detailsLoading, setDetailsLoading] = useState({});
     const [purchaseDateByFolio, setPurchaseDateByFolio] = useState({});
+    const [branchByFolio, setBranchByFolio] = useState({});
     const [currentPage, setCurrentPage] = useState(1);
     const PAGE_SIZE = 25;
     const [placeCache, setPlaceCache] = useState({});
@@ -177,12 +179,8 @@ export default function Invoice() {
                     (h) => normalizeFolioKey(h?.folio) === normalizedFolio
                 ) || headers[0];
                 const idventa = header?.idventa ?? header?.idVenta;
-                const purchaseDate =
-                    header?.fecha_venta ??
-                    header?.fechaVenta ??
-                    header?.fecha ??
-                    header?.f_pedido ??
-                    null;
+                const purchaseDate = header?.fecha_venta;
+                const branchName = header?.sucursal;
                 let resolvedPurchaseDate = purchaseDate;
                 if (!resolvedPurchaseDate) {
                     try {
@@ -220,6 +218,9 @@ export default function Invoice() {
                 setDetailsByFolio((prev) => ({ ...prev, [normalizedFolio]: filteredDetails || [] }));
                 if (resolvedPurchaseDate) {
                     setPurchaseDateByFolio((prev) => ({ ...prev, [normalizedFolio]: resolvedPurchaseDate }));
+                }
+                if (branchName) {
+                    setBranchByFolio((prev) => ({ ...prev, [normalizedFolio]: branchName }));
                 }
             } catch (err) {
                 console.error('Error fetching folio details:', err);
@@ -307,8 +308,9 @@ export default function Invoice() {
         const key = invoice.id ?? invoice.folio ?? `inv-${idx}`;
         const isExpanded = expanded === invoice.id || expanded === invoice.folio;
         const address = invoice.domicilio ? (placeCache[invoice.domicilio] || invoice.domicilio) : '---';
-        const isPending = invoice.status === 'pendiente';
         const detailKey = normalizeFolioKey(invoice.folio);
+        const branchLabel = branchByFolio[detailKey] || invoice.sucursal || '---';
+        const isPending = invoice.status === 'pendiente';
         const detailList = detailKey ? detailsByFolio[detailKey] : undefined;
         const isDetailLoading = detailKey ? detailsLoading[detailKey] : false;
         const purchaseDate = detailKey ? purchaseDateByFolio[detailKey] : null;
@@ -354,6 +356,7 @@ export default function Invoice() {
                         <div className="break-words"><span className="font-semibold">CFDI: </span>{toUpper(invoice.cfdi)}</div>
                         <div className="break-words"><span className="font-semibold">Régimen: </span>{toUpper(invoice.regimen)}</div>
                         <div className="break-words whitespace-pre-wrap"><span className="font-semibold">Domicilio: </span>{toUpper(address)}</div>
+                        <div className="break-words"><span className="font-semibold text-[rgb(var(--color-amber))]">Sucursal: </span>{toUpper(branchLabel)}</div>
                         {formattedPurchaseDate && (
                             <div className="break-words"><span className="font-semibold text-[rgb(var(--color-amber))]">Compra: </span>{formattedPurchaseDate}</div>
                         )}
@@ -363,7 +366,7 @@ export default function Invoice() {
                         {isPending && (
                             <div className="sm:col-span-2 flex justify-end">
                                 <button
-                                    className="text-md px-3 py-2 rounded-full border border-[rgb(var(--color-border))] bg-[rgb(var(--color-amber))] disabled:opacity-60 cursor-pointer text-[rgb(var(--color-text))]"
+                                    className="text-md px-3 py-2 rounded-full border border-[rgb(var(--color-border))] bg-[rgb(var(--color-galaxy))] disabled:opacity-60 cursor-pointer text-[rgb(var(--color-text))]"
                                     disabled={!!finalizingId}
                                     onClick={() => handleFinalize(invoice)}
                                 >
