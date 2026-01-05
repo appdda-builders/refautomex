@@ -661,7 +661,7 @@ const FindProducts = forwardRef(({
                                                     <img
                                                     src={imageUrl}
                                                     alt={product.num_parte}
-                                                    className="w-full h-full object-contain object-center p-1"
+                                                    className="w-full h-full object-cover object-center"
                                                     />
                                                 </div>
                                                 <div className="flex flex-1 flex-col gap-2">

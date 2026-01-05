@@ -393,6 +393,23 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
         }));
     };
 
+    const resolveGroupId = () => {
+        if (prodOverview?.idgrupo) return prodOverview.idgrupo;
+        if (currentProduct?.idgrupo) return currentProduct.idgrupo;
+        const candidateLabel = prodOverview?.grupo || currentProduct?.grupo;
+        if (!candidateLabel || !groupOptions.length) return '';
+        const match = groupOptions.find(
+            (option) => String(option.label || '').toLowerCase() === String(candidateLabel).toLowerCase()
+        );
+        return match?.value || '';
+    };
+
+    const resolveCategoryId = () => {
+        if (prodOverview?.idcategoria) return prodOverview.idcategoria;
+        if (currentProduct?.idcategoria) return currentProduct.idcategoria;
+        return categoryOptions[0]?.value || 1;
+    };
+
     const handleDescriptionChange = (event) => {
         const value = event.target.value;
         setProdOverview(prevState => ({ ...prevState, descripcion: value }));
@@ -707,13 +724,15 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
         };
         let isValid = true;
         let newErrorMessages = {};
-        if (!prodOverview.idgrupo) {
+        const resolvedGroupId = resolveGroupId();
+        if (!resolvedGroupId) {
             isValid = false;
             newErrorMessages.idgrupo = 'Selecciona un grupo.';
         } else {
             newErrorMessages.idgrupo = '';
         }
-        if (!prodOverview.idcategoria) {
+        const resolvedCategoryId = resolveCategoryId();
+        if (!resolvedCategoryId) {
             isValid = false;
             newErrorMessages.idcategoria = 'Selecciona una categoria.';
         } else {
@@ -817,6 +836,8 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
             const payloadLocalizacion = isWebBranchSelected ? '0' : (prodOverview.localizacion || '').toUpperCase();
             const payloadExistencia = isWebBranchSelected ? '0' : prodOverview.existencia;
             const normalizedDescription = (prodOverview.descripcion || '').toUpperCase();
+            const resolvedGroupId = resolveGroupId();
+            const resolvedCategoryId = resolveCategoryId();
             const update_data = {
                 refaccion: currentProduct.refaccion,
                 sucursal: currentProduct.sucursal,
@@ -829,8 +850,8 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
                 mod_ini: prodOverview.mod_ini,
                 mod_fin: prodOverview.mod_fin,
                 idmarca: prodOverview.idmarca,
-                idgrupo: prodOverview.idgrupo,
-                idcategoria: prodOverview.idcategoria,
+                idgrupo: resolvedGroupId,
+                idcategoria: resolvedCategoryId,
                 idsucursal: resolvedBranchId,
                 rutas: JSON.stringify(mergedRoutes),
             };

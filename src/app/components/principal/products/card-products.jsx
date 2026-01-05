@@ -13,7 +13,7 @@ import { useCart } from '@/app/lib/shopping-context';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 import '@/app/translations/i18next-translation';
 
-const PAGE_SIZE = 25;
+const GROUP_PAGE_SIZE = 16;
 
 const gridVariants = {
   hidden: { opacity: 0, y: 40 },
@@ -85,7 +85,7 @@ export default function CardProducts({ showSearchBar = true }) {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSection, setSelectedSection] = useState('Todos');
-  const [page, setPage] = useState(1);
+  const [groupPages, setGroupPages] = useState({});
   const [hasAnimated, setHasAnimated] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
@@ -156,13 +156,10 @@ export default function CardProducts({ showSearchBar = true }) {
     return bySection.filter(p => p.descripcion.toLowerCase().includes(term)).sort((a, b) => a.descripcion.localeCompare(b.descripcion));
   }, [products, searchTerm, selectedSection]);
 
-  const totalPages = Math.max(1, Math.ceil(source.length / PAGE_SIZE));
-  const start = (page - 1) * PAGE_SIZE;
-  const pageItems = source.slice(start, start + PAGE_SIZE);
-  const groupedPageItems = useMemo(() => {
+  const groupedItems = useMemo(() => {
     const categoryOrder = categories;
     const map = new Map();
-    pageItems.forEach((product) => {
+    source.forEach((product) => {
       const key = normalizeGrupo(product.grupo) || 'otros';
       if (!map.has(key)) {
         map.set(key, {
@@ -181,9 +178,8 @@ export default function CardProducts({ showSearchBar = true }) {
       if (ib === -1) return -1;
       return ia - ib;
     });
-  }, [pageItems, categories]);
-
-  useEffect(() => { setPage(1); }, [searchTerm, selectedSection]);
+  }, [source, categories]);
+  useEffect(() => { setGroupPages({}); }, [searchTerm, selectedSection]);
 
   const handleOpenOverview = (p) => {
     setProdOverview({ ...p, images: p.rutasParsed });
@@ -339,7 +335,7 @@ export default function CardProducts({ showSearchBar = true }) {
           <select
             value={selectedSection}
             onChange={(e) => setSelectedSection(e.target.value)}
-            className="rounded-full bg-[rgb(var(--color-bg))] border border-[rgb(var(--color-text))]/20 text-[rgb(var(--color-text))] px-5 py-3 focus:ring-2 focus:ring-teal-400 outline-none"
+            className="rounded-full bg-[rgb(var(--color-bg))] border border-[rgb(var(--color-text))]/20 text-[rgb(var(--color-text))] px-5 py-3 focus:ring-2 focus:ring-amber-400 outline-none"
           >
             <option value="Todos">{t('common.all', { defaultValue: 'Todos' })}</option>
             {categories.map((g) => (
@@ -359,28 +355,6 @@ export default function CardProducts({ showSearchBar = true }) {
           )}
         </div>
 
-        {source.length > PAGE_SIZE && (
-          <div className="mt-4 flex items-center justify-center gap-3">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="rounded-full px-4 py-2 text-sm font-semibold shadow shadow-[rgb(var(--color-med))]/70 text-[rgb(var(--color-text))] disabled:opacity-40"
-            >
-              {t('common.prev', { defaultValue: 'Anterior' })}
-            </button>
-            <span className="text-[rgb(var(--color-text))]/70 text-sm">
-              {t('common.pageOf', { defaultValue: 'Página {{page}} de {{total}}', page, total: totalPages })}
-            </span>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="rounded-full px-4 py-2 text-sm font-semibold shadow shadow-[rgb(var(--color-med))]/70 text-[rgb(var(--color-text))] disabled:opacity-40"
-            >
-              {t('common.next', { defaultValue: 'Siguiente' })}
-            </button>
-          </div>
-        )}
-
         <GridComponent
           key="product-grid"
           {...(!animationDisabled
@@ -393,13 +367,17 @@ export default function CardProducts({ showSearchBar = true }) {
             : {})}
           className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 will-change-transform transform-gpu"
         >
-          {pageItems.length === 0 && (
+          {groupedItems.length === 0 && (
             <p className="col-span-full text-[rgb(var(--color-text))]/70 text-lg">
               {t('products.empty', { defaultValue: 'No se encontraron productos.' })}
             </p>
           )}
 
-          {pageItems.length > 0 && groupedPageItems.map((section) => {
+          {groupedItems.length > 0 && groupedItems.map((section) => {
+            const totalGroupPages = Math.max(1, Math.ceil(section.items.length / GROUP_PAGE_SIZE));
+            const currentGroupPage = Math.min(groupPages[section.key] || 1, totalGroupPages);
+            const groupStart = (currentGroupPage - 1) * GROUP_PAGE_SIZE;
+            const groupPageItems = section.items.slice(groupStart, groupStart + GROUP_PAGE_SIZE);
             return (
               <Fragment key={section.key}>
                 <div className="col-span-full flex flex-col sm:flex-row sm:items-center sm:justify-between bg-[rgb(var(--color-bg))]/60 border border-dashed border-[rgb(var(--color-text))]/20 rounded-2xl px-5 py-3 mb-4">
@@ -411,7 +389,7 @@ export default function CardProducts({ showSearchBar = true }) {
                     {section.items.length} {section.items.length === 1 ? 'producto' : 'productos'}
                   </span>
                 </div>
-                {section.items.map((product) => {
+                {groupPageItems.map((product) => {
                   const productInCart = cart.find(item => item.num_parte === product.num_parte);
                   const productId = product.num_parte;
                   const storedValue = quantities[productId];
@@ -432,7 +410,7 @@ export default function CardProducts({ showSearchBar = true }) {
                       className="group relative flex flex-col justify-between rounded-3xl shadow-lg overflow-hidden transition-all duration-500 hover:shadow-[rgb(var(--color-med))]/30 hover:-translate-y-1 hover:scale-[1.02)] bg-[rgb(var(--color-card))]"
                     >
                       <ImageWrapper
-                        className="relative w-full aspect-4/3 overflow-hidden"
+                        className="relative w-full aspect-square overflow-hidden"
                         {...(!animationDisabled
                           ? {
                               whileHover: { scale: 1.05 },
@@ -533,8 +511,40 @@ export default function CardProducts({ showSearchBar = true }) {
                         </div>
                       </div>
                     </CardComponent>
-                  );
+                    );
                 })}
+                {totalGroupPages > 1 && (
+                  <div className="col-span-full flex items-center justify-center gap-3 -mt-2">
+                    <button
+                      onClick={() => setGroupPages(prev => ({
+                        ...prev,
+                        [section.key]: Math.max(1, currentGroupPage - 1),
+                      }))}
+                      disabled={currentGroupPage === 1}
+                      className="rounded-full px-4 py-2 text-xs font-semibold shadow shadow-[rgb(var(--color-med))]/70 text-[rgb(var(--color-text))] disabled:opacity-40"
+                    >
+                      {t('common.prev', { defaultValue: 'Anterior' })}
+                    </button>
+                    <span className="text-[rgb(var(--color-text))]/70 text-xs">
+                      {t('common.pageOf', {
+                        defaultValue: '{{category}}: Página {{page}} de {{total}}',
+                        category: section.label,
+                        page: currentGroupPage,
+                        total: totalGroupPages,
+                      })}
+                    </span>
+                    <button
+                      onClick={() => setGroupPages(prev => ({
+                        ...prev,
+                        [section.key]: Math.min(totalGroupPages, currentGroupPage + 1),
+                      }))}
+                      disabled={currentGroupPage === totalGroupPages}
+                      className="rounded-full px-4 py-2 text-xs font-semibold shadow shadow-[rgb(var(--color-med))]/70 text-[rgb(var(--color-text))] disabled:opacity-40"
+                    >
+                      {t('common.next', { defaultValue: 'Siguiente' })}
+                    </button>
+                  </div>
+                )}
               </Fragment>
             );
           })}
