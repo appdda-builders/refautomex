@@ -1089,12 +1089,22 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
         const activeBranchIds = new Set(
             selectedActiveProduct?.detalles?.map(detail => String(detail.idsucursal)) || []
         );
-        const filteredSucursalOptions = withDefaultOption(
-            sucursalOptions.filter(option => !activeBranchIds.has(String(option.value)))
+        const availablePhysicalOptions = sucursalOptions.filter(
+            option => !activeBranchIds.has(String(option.value))
         );
-        const displayedSucursalOptions = selectedActiveProduct ? filteredSucursalOptions : baseSucursalOptions;
+        const hasWebAssignment = Array.from(activeBranchIds).some((id) => isWebBranchValue(id));
+        const allPhysicalAssigned =
+            sucursalOptions.length > 0 &&
+            sucursalOptions.every(option => activeBranchIds.has(String(option.value)));
+        const canAssignWebOnly = selectedActiveProduct && allPhysicalAssigned && !hasWebAssignment;
+        const webOption = { value: 1, label: 'WEB' };
+        const displayedSucursalOptions = selectedActiveProduct
+            ? withDefaultOption(
+                canAssignWebOnly ? [...availablePhysicalOptions, webOption] : availablePhysicalOptions
+            )
+            : baseSucursalOptions;
         const noAvailableSucursal =
-            selectedActiveProduct && displayedSucursalOptions.length <= 1;
+            selectedActiveProduct && displayedSucursalOptions.length <= 1 && !canAssignWebOnly;
         const webBranchSelected = isWebBranchValue(detailForm.idsucursal);
         const effectiveGroupId = detailGroupId || selectedProductGroupId;
         const disableDetail = webBranchSelected && !effectiveGroupId;
