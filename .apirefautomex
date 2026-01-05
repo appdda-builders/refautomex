@@ -378,6 +378,12 @@ app.get('/api/getInvoices', (req, res) => {
     handleQuery(query, [], res);
 });
 
+// GET: category of products
+app.get('/api/getCategory', (req, res) => {
+    const query = 'SELECT * FROM categoria';
+    handleQuery(query, [], res);
+});
+
 // GET: web history for only one user
 app.get('/api/getUserHistory', async (req, res) => {
     const { id } = req.query;
@@ -516,25 +522,27 @@ app.post('/api/newProduct', (req, res) => {
         mod_ini,
         mod_fin,
         idgrupo,
+        idcategoria,
         idmarca,
         idproveedor,
         status = 'E'
     } = req.body;
 
-    if (!refaccion || !descripcion || !idgrupo || !idmarca || !idproveedor) {
+    if (!refaccion || !descripcion || !idgrupo || !idmarca || !idproveedor || !idcategoria) {
         return res.status(400).json({
             error: 'Bad Request',
             details: 'Missing required fields for new product.'
         });
     }
 
-    const query = 'CALL InsertProduct(?, ?, ?, ?, ?, ?, ?, ?)';
+    const query = 'CALL InsertProduct(?, ?, ?, ?, ?, ?, ?, ?, ?)';
     const params = [
         refaccion,
         descripcion,
         mod_ini,
         mod_fin,
         idgrupo,
+        idcategoria,
         idmarca,
         status,
         idproveedor
@@ -737,16 +745,16 @@ app.patch('/api/patchUserCategory', (req, res) => {
 app.patch('/api/patchProduct', (req, res) => {
     const {
         refaccion, idsucursal, localizacion, descripcion, existencia, costo, precio,
-        utilidad, mod_ini, mod_fin, idmarca, idgrupo, rutas
+        utilidad, mod_ini, mod_fin, idmarca, idgrupo, idcategoria, rutas
     } = req.body;
 
     console.log('Request data:', req.body); // Para depurar los datos enviados
 
     // Query para llamar al procedimiento almacenado
-    const query = `CALL UpdateProductAndDetail(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+    const query = `CALL UpdateProductAndDetail(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
     const params = [
         refaccion, idsucursal, localizacion, descripcion, existencia, costo,
-        precio, utilidad, mod_ini, mod_fin, idmarca, idgrupo, rutas
+        precio, utilidad, mod_ini, mod_fin, idmarca, idgrupo, idcategoria, rutas
     ];
 
     // Ejecutar el procedimiento almacenado

@@ -59,12 +59,14 @@ const formatPhoneInput = (value) => {
 
 export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
     const { userData } = useContext(AuthContext);
+    const DEFAULT_CATEGORY_ID = 1;
     const [productForm, setProductForm] = useState({
         refaccion: '',
         descripcion: '',
         mod_ini: '',
         mod_fin: '',
         idgrupo: '',
+        idcategoria: DEFAULT_CATEGORY_ID,
         idmarca: '',
         idproveedor: '',
     });
@@ -80,6 +82,7 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
         utilidad: '',
     });
     const [groupOptions, setGroupOptions] = useState([]);
+    const [categoryOptions, setCategoryOptions] = useState([]);
     const [brandOptions, setBrandOptions] = useState([]);
     const [providerOptions, setProviderOptions] = useState([]);
     const [sucursalOptions, setSucursalOptions] = useState([]);
@@ -140,7 +143,20 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
         return raw;
     };
 
+    const extractCategoryId = (product) => {
+        const raw =
+            product?.idcategoria ??
+            product?.idCategoria ??
+            product?.id_categoria ??
+            null;
+        if (raw === null || raw === undefined) return null;
+        const str = String(raw).trim();
+        if (!str || str === '0') return null;
+        return raw;
+    };
+
     const selectedProductGroupId = extractGroupId(selectedPendingProduct);
+    const selectedProductCategoryId = extractCategoryId(selectedPendingProduct);
     const selectedProductGroupLabel =
         selectedProductGroupId &&
         groupOptions.find((g) => String(g.value) === String(selectedProductGroupId))?.label;
@@ -164,6 +180,7 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
             mod_fin: selectedPendingProduct.mod_fin || '',
             idmarca: selectedPendingProduct.idmarca || '',
             idgrupo: groupId,
+            idcategoria: selectedProductCategoryId || DEFAULT_CATEGORY_ID,
             idsucursal: detailForm.idsucursal || selectedPendingProduct.idsucursal || '',
             rutas: rutasPayload,
         };
@@ -330,6 +347,11 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
             newErrors.idgrupo = 'Selecciona un grupo.';
         }
 
+        if (!productForm.idcategoria) {
+            valid = false;
+            newErrors.idcategoria = 'Selecciona una categoria.';
+        }
+
         if (!productForm.idmarca) {
             valid = false;
             newErrors.idmarca = 'Selecciona una marca.';
@@ -448,6 +470,7 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
             mod_ini: productForm.mod_ini,
             mod_fin: productForm.mod_fin,
             idgrupo: productForm.idgrupo,
+            idcategoria: productForm.idcategoria || DEFAULT_CATEGORY_ID,
             idmarca: productForm.idmarca,
             idproveedor: productForm.idproveedor,
             status: 'E',
@@ -474,6 +497,7 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
                 mod_ini: '',
                 mod_fin: '',
                 idgrupo: '',
+                idcategoria: DEFAULT_CATEGORY_ID,
                 idmarca: '',
                 idproveedor: '',
             });
@@ -662,6 +686,29 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
             }
         };
 
+        const fetchCategoryOptions = async () => {
+            try {
+                const response = await fetch(buildApiUrl('/getCategory'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const normalizedPayload = Array.isArray(payload) ? payload : [];
+                const options = normalizedPayload.map((category) => ({
+                    value: category.idcategoria ?? category.idCategoria ?? category.id_categoria,
+                    label: category.categoria || category.nombre || category.descripcion || `Categoria ${category.idcategoria}`,
+                })).filter((option) => option.value !== undefined && option.value !== null);
+                setCategoryOptions(options);
+            } catch (error) {
+                console.error('Error al obtener categorias:', error);
+            }
+        };
+
         const fetchBrandOptions = async () => {
             try {
                 const response = await fetch(buildApiUrl('/getBrands'), {
@@ -756,6 +803,7 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
         };
 
         fetchGroupOptions();
+        fetchCategoryOptions();
         fetchBrandOptions();
         fetchProviderOptions();
         fetchQuantityOptions();
@@ -849,6 +897,9 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
         const groupSelectOptions = groupOptions.filter(
             (option) => option.label && option.label.toLowerCase() !== 'not assigned'
         );
+        const categorySelectOptions = categoryOptions.length
+            ? categoryOptions
+            : [{ value: DEFAULT_CATEGORY_ID, label: 'Categoria 1' }];
         const brandSelectOptions = withDefaultOption(brandOptions);
         const providerSelectOptions = providerOptions.slice(2);
         const yearOptions = withDefaultOption(
@@ -907,6 +958,28 @@ export default function AddRegister({ onCancelEdit, onRefreshProducts }) {
                     />
                     {errorMessages.idgrupo && (
                         <span className="text-red-600 text-sm">{errorMessages.idgrupo}</span>
+                    )}
+                </div>
+
+                <div className="sm:col-span-3">
+                    <label className="block text-sm font-medium text-[rgb(var(--color-text))]">
+                        Categoria
+                    </label>
+                    <Select
+                        options={categorySelectOptions}
+                        value={
+                            categorySelectOptions.find(
+                                (option) => String(option.value) === String(productForm.idcategoria)
+                            ) || null
+                        }
+                        onChange={(selectedOption) =>
+                            handleProductInputChange('idcategoria', selectedOption ? selectedOption.value : '')
+                        }
+                        placeholder="Selecciona una categoria"
+                        classNamePrefix="react-select"
+                    />
+                    {errorMessages.idcategoria && (
+                        <span className="text-red-600 text-sm">{errorMessages.idcategoria}</span>
                     )}
                 </div>
 

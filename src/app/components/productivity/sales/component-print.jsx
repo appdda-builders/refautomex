@@ -152,14 +152,21 @@ const ComponentToPrint = React.forwardRef(({
     }, [branchId, refreshKey]);
 
     return (
-        <div ref={ref} className="bg-white p-4 pb-32 max-w-[235px] mx-auto text-sm text-gray-700 print:max-w-[250px] print:text-black">
+        <div ref={ref} className="bg-white p-4 pb-32 max-w-[220px] mx-auto text-sm text-gray-700 print:w-[55mm] print:max-w-[55mm] print:text-black">
             <style>
                 {`
+                @page {
+                    size: 55mm auto;
+                    margin: 0;
+                }
                 @media print {
                     * {
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
                         font-smooth: always;
+                    }
+                    body {
+                        margin: 0;
                     }
                     img {
                         max-width: 100%;
@@ -219,7 +226,7 @@ const ComponentToPrint = React.forwardRef(({
                         <tr>
                             <th className="w-1/6 p-0.5 border-b text-left text-[9px]">CANT</th>
                             <th className="w-2/6 p-0.5 border-b text-[9px]">PART</th>
-                            <th className="w-3/6 p-0.5 border-b text-[9px]">DESC</th>
+                            <th className="w-3/6 p-0.5 border-b text-right text-[9px]">IMPORTE</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -228,35 +235,27 @@ const ComponentToPrint = React.forwardRef(({
                             const description = String(item.descripcion || '');
                             return (
                                 <React.Fragment key={index}>
-                                    {/* Primera fila: Cantidad, Descripción y Parte */}
+                                    {/* Descripcion a todo el ancho */}
                                     <tr>
-                                        <td className='p-0.5 text-[9px] text-left'>
-                                            {item.cantidad}
-                                        </td>
-                                        <td className='p-0.5 text-[9px] uppercase'>
-                                            {item.refaccion}
-                                        </td>
-                                        <td colSpan={3} className="p-0.5 text-[9px] truncate uppercase">
+                                        <td colSpan={3} className="p-0.5 text-[9px] font-semibold uppercase truncate overflow-hidden whitespace-nowrap">
                                             {description.toUpperCase()}
                                         </td>
                                     </tr>
-                                    {/* Segunda fila: AIVA (opcional) y Monto */}
+                                    {/* Fila compacta: cantidad, parte e importe */}
                                     <tr>
-                                        <td></td>
-                                        {hasAiva ? (
-                                            <>
-                                                <td className="p-0.5 text-[9px] text-left font-semibold">
-                                                    AIVA: $ {item.aIva}
-                                                </td>
-                                                <td className="p-0.5 text-[9px] text-left font-bold">
-                                                    MON: $ {Number(item.monto || 0).toFixed(2)}
-                                                </td>
-                                            </>
-                                        ) : (
-                                            <td className="p-0.5 text-[9px] text-left font-bold" colSpan={2}>
-                                                MON: $ {Number(item.monto || 0).toFixed(2)}
-                                            </td>
-                                        )}
+                                        <td className="p-0.5 text-[9px] text-left font-bold">
+                                            {item.cantidad}
+                                        </td>
+                                        <td className="p-0.5 text-[9px] uppercase">
+                                            {item.refaccion}
+                                        </td>
+                                        <td className="p-0.5 text-[9px] text-right">
+                                            {hasAiva && (
+                                                <span className="font-semibold">AIVA: $ {item.aIva}</span>
+                                            )}
+                                            {hasAiva && <span className="mx-1 text-[8px] text-gray-500">•</span>}
+                                            <span className="font-bold">MON: $ {Number(item.monto || 0).toFixed(2)}</span>
+                                        </td>
                                     </tr>
                                 </React.Fragment>
                             );
