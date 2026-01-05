@@ -468,6 +468,8 @@ const FindProducts = forwardRef(({
             mod_fin: product.mod_fin,
             grupo: product.grupo,
             idgrupo: product.idgrupo,
+            categoria: product.categoria,
+            idcategoria: product.idcategoria,
             rutas: product.rutas,
         });
     };
@@ -512,6 +514,8 @@ const FindProducts = forwardRef(({
                 mod_fin: product.mod_fin,
                 grupo: product.grupo,
                 idgrupo: product.idgrupo,
+                categoria: product.categoria,
+                idcategoria: product.idcategoria,
                 rutas: product.rutas,
             });
         });
@@ -605,10 +609,42 @@ const FindProducts = forwardRef(({
                         </div>
                         <div className="absolute inset-x-2 sm:inset-x-1 xl:inset-x-10 bottom-0 top-2.5 rounded-t-[12cqw] overflow-x-hidden overflow-y-auto border-x-[1cqw] border-t-[1cqw] shadow shadow-[rgb(var(--color-galaxy))] border-[rgb(var(--color-slate))] bg-[rgb(var(--color-gray))] pt-5 ">
                             <div className="p-1 mt-5">
-                                <div className="pb-3 pt-1 px-2 grid w-full grid-cols-2 gap-2 ">
+                                <div className="pt-1 px-2 grid w-full grid-cols-2 gap-2 ">
                                     {paginatedProducts.map((product) => {
                                         const imageUrl = resolveProductImage(product.ruta, multimediaSrc);
                                         const isAdded = isProductAdded(product);
+                                        const categoryLabel = product.categoria || product.category || (product.idcategoria ? `Categoria ${product.idcategoria}` : '');
+                                        const branchBadges = product.branchBadges || [{ label: buildBadgeLabel(product), type: product.__origin || 'active' }];
+                                        const metaChips = [];
+                                        if (categoryLabel) {
+                                            metaChips.push({
+                                                key: 'cat',
+                                                text: `${categoryLabel}`,
+                                                className: 'text-[8px] font-semibold text-[rgb(var(--color-text))]/70 px-2 py-0.5 rounded-full bg-[rgb(var(--color-galaxy))]/50 shadow shadow-[rgb(var(--color-galaxy))]'
+                                            });
+                                        }
+                                        if (product.grupo) {
+                                            metaChips.push({
+                                                key: 'grp',
+                                                text: `${String(product.grupo || '').toUpperCase()}`,
+                                                className: 'text-[8px] font-semibold text-[rgb(var(--color-text))]/70 px-2 py-0.5 rounded-full bg-[rgb(var(--color-galaxy))]/50 shadow shadow-[rgb(var(--color-galaxy))]'
+                                            });
+                                        }
+                                        if (branchBadges.length) {
+                                            metaChips.push({
+                                                key: 'suc-label',
+                                                text: ':',
+                                                className: 'text-[8px] text-[rgb(var(--color-text))]/60'
+                                            });
+                                            branchBadges.forEach((badge, idx) => {
+                                                const variant = PRODUCT_STATUS_VARIANTS[badge.type] || PRODUCT_STATUS_VARIANTS.active;
+                                                metaChips.push({
+                                                    key: `suc-${idx}-${badge.label}`,
+                                                    text: badge.label,
+                                                    className: `text-[8px] font-semibold px-2 py-0.5 rounded-full ${variant.className}`
+                                                });
+                                            });
+                                        }
                                         return (
                                             <div
                                                 key={product.num_parte}
@@ -629,45 +665,54 @@ const FindProducts = forwardRef(({
                                                     />
                                                 </div>
                                                 <div className="flex flex-1 flex-col gap-2">
-                                                    <div className="flex flex-1 flex-col">
-                                                        <div className="flex flex-wrap gap-1 mb-1">
-                                                            {(product.branchBadges || [{ label: buildBadgeLabel(product), type: product.__origin || 'active' }]).map((badge, idx) => {
-                                                                const variant = PRODUCT_STATUS_VARIANTS[badge.type] || PRODUCT_STATUS_VARIANTS.active;
-                                                                return (
-                                                                    <span
-                                                                        key={`${product.num_parte}-${badge.label}-${idx}`}
-                                                                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${variant.className}`}
-                                                                    >
-                                                                        {badge.label}
-                                                                    </span>
-                                                                );
-                                                            })}
-                                                        </div>
+                                                    <div className="flex flex-1 flex-col overflow-hidden">
+                                                        {metaChips.length > 0 && (
+                                                            <div className="auto-marquee mb-1">
+                                                                <div className="auto-marquee__track">
+                                                                    {metaChips.map((chip) => (
+                                                                        <span key={`${product.num_parte}-${chip.key}-a`} className={chip.className}>
+                                                                            {chip.text}
+                                                                        </span>
+                                                                    ))}
+                                                                    {metaChips.map((chip) => (
+                                                                        <span
+                                                                            key={`${product.num_parte}-${chip.key}-b`}
+                                                                            className={chip.className}
+                                                                            aria-hidden="true"
+                                                                        >
+                                                                            {chip.text}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                         <div
                                                             className="text-[14px] leading-[1.25rem] text-[rgb(var(--color-text))] min-h-[4rem] max-h-[4rem] overflow-hidden font-bold"
                                                             style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}
                                                         >
                                                             {highlightText(product.descripcion, searchTerm)}
                                                         </div>
-                                                        <div className="flex flex-row justify-between items-end mt-auto">
-                                                            <p className="text-sm font-bold text-[rgb(var(--color-success))]">
-                                                                ${' '}
-                                                                {(Number(product.precio)).toFixed(2)} MXN
-                                                            </p>
-                                                            <span
-                                                                className={`${
-                                                                product.existencia === 0 ? 'bg-[rgb(var(--color-error-base))]' : 'bg-[rgb(var(--color-galaxy))]'
-                                                                } text-[rgb(var(--color-text))] text-xs rounded-full h-7 w-7 flex items-center justify-center shadow shadow-[rgb(var(--color-galaxy))]`}
-                                                            >
-                                                                {product.existencia}
-                                                            </span>
+                                                        <div className="mt-auto flex flex-col gap-1">
+                                                            <div className="flex flex-row justify-between items-end">
+                                                                <p className="text-sm font-bold text-[rgb(var(--color-success))]">
+                                                                    ${' '}
+                                                                    {(Number(product.precio)).toFixed(2)} MXN
+                                                                </p>
+                                                                <span
+                                                                    className={`${
+                                                                    product.existencia === 0 ? 'bg-[rgb(var(--color-error-base))]' : 'bg-[rgb(var(--color-galaxy))]'
+                                                                    } text-[rgb(var(--color-text))] text-xs rounded-full h-7 w-7 flex items-center justify-center shadow shadow-[rgb(var(--color-galaxy))]`}
+                                                                >
+                                                                    {product.existencia}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                         <div className="flex flex-col text-left mt-2 gap-1">
                                                             <p className="text-[14px] font-bold text-[rgb(var(--color-refautomex))]/70 px-2 truncate">
                                                                 {highlightText(product.num_parte, searchTerm)}
                                                             </p>
                                                             {product.localizacion && product.localizacion !== '0' && (
-                                                            <p className="text-[12px] font-bold text-[rgb(var(--color-text))]/50 px-2 truncate bg-[rgb(var(--color-gray))]/20 rounded-full shadow shadow-[rgb(var(--color-galaxy))]">
+                                                            <p className="text-[12px] font-bold text-[rgb(var(--color-text))]/50 px-2 truncate">
                                                                 {highlightText(product.localizacion, searchTerm)}
                                                             </p>
                                                             )}
@@ -721,6 +766,33 @@ const FindProducts = forwardRef(({
                 )
             )}
             </div>
+            <style jsx>{`
+                .auto-marquee {
+                    position: relative;
+                    overflow: hidden;
+                }
+
+                .auto-marquee__track {
+                    display: inline-flex;
+                    gap: 0.25rem;
+                    align-items: center;
+                    width: max-content;
+                    animation: auto-marquee-scroll 20s linear infinite;
+                }
+
+                .auto-marquee:hover .auto-marquee__track {
+                    animation-play-state: paused;
+                }
+
+                @keyframes auto-marquee-scroll {
+                    0% {
+                        transform: translateX(0);
+                    }
+                    100% {
+                        transform: translateX(-50%);
+                    }
+                }
+            `}</style>
         </div>
     );
 });

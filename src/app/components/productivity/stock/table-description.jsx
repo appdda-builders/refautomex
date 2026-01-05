@@ -63,13 +63,27 @@ export default function TableDescription({
     });
 
     const handleLocationChange = (product, event) => {
-        const newLocation = event.target.value.toUpperCase();
+        const newLocation = event.target.value;
         onUpdateProduct(product.refaccion, { localizacion: newLocation });
     };
 
+    const handleLocationBlur = (product, event) => {
+        const normalizedLocation = event.target.value.toUpperCase();
+        if (normalizedLocation !== product.localizacion) {
+            onUpdateProduct(product.refaccion, { localizacion: normalizedLocation });
+        }
+    };
+
     const handleDescriptionChange = (product, event) => {
-        const newDescription = event.target.value.toUpperCase();
+        const newDescription = event.target.value;
         onUpdateProduct(product.refaccion, { descripcion: newDescription });
+    };
+
+    const handleDescriptionBlur = (product, event) => {
+        const normalizedDescription = event.target.value.toUpperCase();
+        if (normalizedDescription !== product.descripcion) {
+            onUpdateProduct(product.refaccion, { descripcion: normalizedDescription });
+        }
     };
 
     const handlePriceChange = (product, event) => {
@@ -230,6 +244,7 @@ export default function TableDescription({
                                                 type="text"
                                                 value={item.descripcion}
                                                 onChange={(event) => handleDescriptionChange(item, event)}
+                                                onBlur={(event) => handleDescriptionBlur(item, event)}
                                                 disabled={isSaving}
                                                 className={`block w-96 md:w-96 p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 uppercase ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
                                             />
@@ -243,8 +258,9 @@ export default function TableDescription({
                                                 type="text"
                                                 value={item.localizacion}
                                                 onChange={(event) => handleLocationChange(item, event)}
+                                                onBlur={(event) => handleLocationBlur(item, event)}
                                                 disabled={isSaving}
-                                                className={`block p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                                className={`block p-1 text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-card))] text-xs focus:ring-blue-500 focus:border-blue-500 placeholder:text-[rgb(var(--color-text))] placeholder:opacity-60 uppercase ${isSaving ? 'opacity-60 cursor-not-allowed' : ''}`}
                                             />
                                         ) : (
                                             <span className="text-xs text-[rgb(var(--color-text))]">{item.localizacion || '-'}</span>

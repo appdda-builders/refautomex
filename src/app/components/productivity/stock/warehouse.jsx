@@ -83,12 +83,6 @@ export default function Warehouse() {
         setItems(prevItems => {
             let didModify = false;
             const normalizedChanges = { ...changes };
-            if (normalizedChanges.descripcion !== undefined && normalizedChanges.descripcion !== null) {
-                normalizedChanges.descripcion = String(normalizedChanges.descripcion).toUpperCase();
-            }
-            if (normalizedChanges.localizacion !== undefined && normalizedChanges.localizacion !== null) {
-                normalizedChanges.localizacion = String(normalizedChanges.localizacion).toUpperCase();
-            }
             const updatedItems = prevItems.map(item => {
                 if (item.refaccion !== refaccion) {
                     return item;
@@ -210,7 +204,7 @@ export default function Warehouse() {
             }
 
             const params = new URLSearchParams({
-                localizacion: item.localizacion,
+                localizacion: String(item.localizacion || '').toUpperCase(),
                 idsucursal: item.idsucursal,
                 num_parte: item.refaccion
             });
@@ -321,8 +315,8 @@ export default function Warehouse() {
                     refaccion: item.refaccion,
                     idsucursal: item.idsucursal,
                     existencia: item.existencia,
-                    localizacion: item.localizacion,
-                    descripcion: item.descripcion,
+                    localizacion: item.localizacion ? String(item.localizacion).toUpperCase() : item.localizacion,
+                    descripcion: String(item.descripcion || '').toUpperCase(),
                     costo: item.costo,
                     precio: item.precio,
                     aiva: item.aIva

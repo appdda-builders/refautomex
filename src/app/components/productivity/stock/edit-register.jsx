@@ -77,6 +77,7 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
     const [isSuccessfull, setIsSuccessfull] = useState(false);
     const [brandOptions, setBrandOptions] = useState([]);
     const [groupOptions, setGroupOptions] = useState([]);
+    const [categoryOptions, setCategoryOptions] = useState([]);
     const [QuantityOptions, setQuantityOptions] = useState([]);
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
@@ -92,13 +93,15 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
         mod_ini: '',
         mod_fin: '',
         idmarca: '',
-        idgrupo: ''
+        idgrupo: '',
+        idcategoria: ''
     });
 
     const defaultProdOverview = {
         rutas: [],
         idgrupo: '',
-        grupo: ''
+        grupo: '',
+        idcategoria: 1
     };
 
     const currentProduct = prodOverview || defaultProdOverview;
@@ -199,6 +202,38 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
             }
         }
     }, [prodOverview, groupOptions, setProdOverview]);
+
+    useEffect(() => {
+        if (!prodOverview) return;
+        const candidateId =
+            prodOverview.idcategoria ??
+            prodOverview.idCategoria ??
+            prodOverview.id_categoria ??
+            null;
+
+        if (candidateId) {
+            setProdOverview(prev => {
+                if (!prev) return prev;
+                if (prev.idcategoria === candidateId) return prev;
+                return { ...prev, idcategoria: candidateId };
+            });
+            setCategoryOptions((prev) => {
+                const exists = prev.some(
+                    (option) => String(option.value) === String(candidateId)
+                );
+                if (exists) return prev;
+                return [
+                    ...prev,
+                    {
+                        value: candidateId,
+                        label: `Categoria ${candidateId}`,
+                    },
+                ];
+            });
+        } else if (!prodOverview.idcategoria) {
+            setProdOverview(prev => prev ? { ...prev, idcategoria: 1 } : prev);
+        }
+    }, [prodOverview, setProdOverview]);
 
     useEffect(() => {
         const session = getStorageValue('CognitoUserSession');
@@ -355,6 +390,41 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
             ...prevState,
             idgrupo: selectedOption ? selectedOption.value : '',
             grupo: selectedOption ? selectedOption.label : ''
+        }));
+    };
+
+    const handleDescriptionChange = (event) => {
+        const value = event.target.value;
+        setProdOverview(prevState => ({ ...prevState, descripcion: value }));
+    };
+
+    const handleDescriptionBlur = (event) => {
+        const normalized = (event.target.value || '').toUpperCase();
+        setProdOverview(prevState => {
+            if (!prevState) return prevState;
+            if (prevState.descripcion === normalized) return prevState;
+            return { ...prevState, descripcion: normalized };
+        });
+    };
+
+    const handleLocationChange = (event) => {
+        const value = event.target.value;
+        setProdOverview(prevState => ({ ...prevState, localizacion: value }));
+    };
+
+    const handleLocationBlur = (event) => {
+        const normalized = (event.target.value || '').toUpperCase();
+        setProdOverview(prevState => {
+            if (!prevState) return prevState;
+            if (prevState.localizacion === normalized) return prevState;
+            return { ...prevState, localizacion: normalized };
+        });
+    };
+
+    const handleCategoryChange = (selectedOption) => {
+        setProdOverview(prevState => ({
+            ...prevState,
+            idcategoria: selectedOption ? selectedOption.value : ''
         }));
     };
 
@@ -643,6 +713,13 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
         } else {
             newErrorMessages.idgrupo = '';
         }
+        if (!prodOverview.idcategoria) {
+            isValid = false;
+            newErrorMessages.idcategoria = 'Selecciona una categoria.';
+        } else {
+            newErrorMessages.idcategoria = '';
+        }
+        const normalizedLocalizacion = (prodOverview.localizacion || '').toUpperCase();
         // Validar campos locales con regex
         for (const [key, value] of Object.entries(prodOverview)) {
             if (key === 'costo') {
@@ -659,14 +736,15 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
             if (!regexPatterns[key]) {
                 continue;
             }
-            if (!regexPatterns[key].test(value)) {
+            const valueToTest = key === 'localizacion' ? normalizedLocalizacion : value;
+            if (!regexPatterns[key].test(valueToTest)) {
                 isValid = false;
                 newErrorMessages[key] = `${key} - inválido.`;
             } else {
                 newErrorMessages[key] = '';
             }
         }
-        if (!isWebBranchSelected && prodOverview.localizacion && hasLeadingZeroSuffix(prodOverview.localizacion)) {
+        if (!isWebBranchSelected && normalizedLocalizacion && hasLeadingZeroSuffix(normalizedLocalizacion)) {
             isValid = false;
             newErrorMessages.localizacion =
                 'Índice no puede iniciar con 0, i.e. usa -1 en lugar de -01.';
@@ -675,7 +753,7 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
         if (!isWebBranchSelected) {
             try {
                 const url = getAbsoluteApiUrl('/verifyLocation');
-                url.searchParams.set('localizacion', prodOverview.localizacion || '');
+                url.searchParams.set('localizacion', normalizedLocalizacion);
                 url.searchParams.set(
                     'idsucursal',
                     activeBranchId ? Number(activeBranchId) : currentProduct.idsucursal
@@ -736,7 +814,7 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
 
             console.log('Merged routes before patch:', mergedRoutes);
             const resolvedBranchId = activeBranchId ? Number(activeBranchId) : currentProduct.idsucursal;
-            const payloadLocalizacion = isWebBranchSelected ? '0' : prodOverview.localizacion;
+            const payloadLocalizacion = isWebBranchSelected ? '0' : (prodOverview.localizacion || '').toUpperCase();
             const payloadExistencia = isWebBranchSelected ? '0' : prodOverview.existencia;
             const normalizedDescription = (prodOverview.descripcion || '').toUpperCase();
             const update_data = {
@@ -752,6 +830,7 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
                 mod_fin: prodOverview.mod_fin,
                 idmarca: prodOverview.idmarca,
                 idgrupo: prodOverview.idgrupo,
+                idcategoria: prodOverview.idcategoria,
                 idsucursal: resolvedBranchId,
                 rutas: JSON.stringify(mergedRoutes),
             };
@@ -843,6 +922,30 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
             }
         };
 
+        const fetchCategory = async () => {
+            try {
+                const response = await fetch(buildApiUrl('/getCategory'), {
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json, text/plain, */*' },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const payload = await response.json();
+                const formattedCategories = payload
+                    .map(category => ({
+                        value: category.idcategoria ?? category.idCategoria ?? category.id_categoria,
+                        label: category.categoria || category.nombre || category.descripcion || `Categoria ${category.idcategoria}`,
+                    }))
+                    .filter(category => category.value !== undefined && category.value !== null);
+                setCategoryOptions(formattedCategories);
+            } catch (error) {
+                console.error('Error fetching Categories:', error);
+            }
+        };
+
         const fetchQuantity = async () => {
             try {
                 const response = await fetch(buildApiUrl('/getQuantity'), {
@@ -867,6 +970,7 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
 
         fetchBrand();
         fetchGroup();
+        fetchCategory();
         fetchQuantity();
     }, []);
     return (
@@ -1097,7 +1201,28 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
                                     )}
                                 </div>
                             </div>
-                                                        <div className="sm:col-span-2">
+
+                            <div className="sm:col-span-2">
+                                <label className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
+                                    Categoria
+                                </label>
+                                <div className="mt-2">
+                                    <Select
+                                        options={categoryOptions}
+                                        value={categoryOptions.find(option => String(option.value) === String(prodOverview?.idcategoria)) || null}
+                                        onChange={handleCategoryChange}
+                                        placeholder="Selecciona"
+                                        classNamePrefix="react-select"
+                                    />
+                                    {errorMessages.idcategoria && (
+                                        <span className="text-[rgb(var(--color-error))] text-sm">
+                                            {errorMessages.idcategoria}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="sm:col-span-2">
                                 <label htmlFor="email" className="block text-sm font-medium leading-6 text-[rgb(var(--color-text))]">
                                     Marca de auto
                                 </label>
@@ -1130,12 +1255,8 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
                                     autoComplete="descripcions"
                                     value={currentProduct.descripcion ?? ''}
                                     className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase"
-                                    onChange={(e) =>
-                                        setProdOverview(prevState => ({
-                                            ...prevState,
-                                            descripcion: e.target.value ? e.target.value.toUpperCase() : '',
-                                        }))
-                                    }
+                                    onChange={handleDescriptionChange}
+                                    onBlur={handleDescriptionBlur}
                                     />
                                     {errorMessages.descripcion && (
                                         <span className="text-[rgb(var(--color-error))] text-sm">
@@ -1157,12 +1278,8 @@ export default function EditRegister({ prodOverview, onCancelEdit, setProdOvervi
                                             autoComplete="location"
                                             value={currentProduct.localizacion ?? ''}
                                             className="block w-full rounded-md border-0 p-1.5 text-[rgb(var(--color-text))] shadow-sm ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 uppercase"
-                                            onChange={(e) =>
-                                                setProdOverview(prevState => ({
-                                                    ...prevState,
-                                                    localizacion: e.target.value ? e.target.value.toUpperCase() : '',
-                                                }))
-                                            }
+                                            onChange={handleLocationChange}
+                                            onBlur={handleLocationBlur}
                                         />
                                         {errorMessages.localizacion && (
                                             <span className="text-[rgb(var(--color-error))] text-sm">
