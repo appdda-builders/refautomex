@@ -2,6 +2,7 @@ import './globals.css';
 import { Suspense } from 'react';
 import Spinner from '@/app/components/principal/spinner';
 import RootLayoutClient from './layout-client';
+import Script from "next/script";
 
 function LoadingShell() {
   return (
@@ -23,6 +24,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body className="antialiased transition-colors duration-500 ease-in-out">
+        <Script src="/imin-editor-bridge.js" strategy="afterInteractive" />
         <Suspense fallback={<LoadingShell />}>
           <RootLayoutClient>{children}</RootLayoutClient>
         </Suspense>
