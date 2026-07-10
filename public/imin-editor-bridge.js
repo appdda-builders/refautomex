@@ -26,9 +26,8 @@
   var ALLOWED_PARENT_ORIGINS = [
     // 1) Pruebas: el editor IMIN corriendo en tu localhost.
     "http://localhost:3000",
-    "http://127.0.0.1:3000",
     // 2) Produccion: reemplaza por el dominio real donde despliegues el editor
-    "https://appstracts.netlify.app/",
+    "https://appstracts.netlify.app",
   ];
 
   var mode = "navigate";
