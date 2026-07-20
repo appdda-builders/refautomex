@@ -3,6 +3,8 @@ import { Suspense } from 'react';
 import Spinner from '@/app/components/principal/spinner';
 import RootLayoutClient from './layout-client';
 import Script from "next/script";
+import HydrateProvider from '@/app/lib/hydrate/hydrate-provider';
+import { getHydratedResources } from '@/app/lib/hydrate/texts';
 
 function LoadingShell() {
   return (
@@ -12,7 +14,9 @@ function LoadingShell() {
   );
 }
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const hydratedResources = await getHydratedResources();
+
   return (
     <html lang="es" data-theme="light">
       <head>
@@ -25,9 +29,11 @@ export default function RootLayout({ children }) {
       </head>
       <body className="antialiased transition-colors duration-500 ease-in-out">
         <Script src="/imin-editor-bridge.js" strategy="afterInteractive" />
-        <Suspense fallback={<LoadingShell />}>
-          <RootLayoutClient>{children}</RootLayoutClient>
-        </Suspense>
+        <HydrateProvider resources={hydratedResources}>
+          <Suspense fallback={<LoadingShell />}>
+            <RootLayoutClient>{children}</RootLayoutClient>
+          </Suspense>
+        </HydrateProvider>
       </body>
     </html>
   );

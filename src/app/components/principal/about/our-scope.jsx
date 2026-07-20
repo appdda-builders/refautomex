@@ -20,7 +20,7 @@ export default function OurScope() {
     <div className="relative bg-gradient-to-b from-[rgb(var(--color-card))] via-[rgb(var(--color-gray))] to-[rgb(var(--color-gray-base))] 
     z-0 h-full min-h-screen w-full text-gray-50 overflow-hidden">
         {bubblesData.map((bubble, index) => (
-        <div 
+        <div
             key={index}
             className={`absolute z-0 scale-75 lg:scale-100 ${bubble.color} rounded-full p-4 w-28 h-28 lg:w-30 lg:h-30 flex items-center justify-center lg:animate-out hover:opacity-80`}
             style={{ top: bubble.top, left: bubble.left }}
