@@ -143,24 +143,103 @@
     return !!bg && bg !== "none" && bg.indexOf("url(") !== -1;
   }
 
-  // Sube desde el elemento clickeado hasta encontrar un medio reemplazable:
-  // una imagen <img>, un <video>, o un fondo con background-image.
+  // Clasifica un elemento como medio reemplazable, o null si no lo es.
+  function mediaKindOf(el) {
+    if (!el || el.nodeType !== 1) {
+      return null;
+    }
+    if (el.tagName === "IMG") {
+      return "image";
+    }
+    if (el.tagName === "VIDEO") {
+      return "video";
+    }
+    if (hasBackgroundImage(el)) {
+      return "background";
+    }
+    return null;
+  }
+
+  // Sube desde el elemento clickeado hasta encontrar un medio reemplazable.
   function findMedia(el) {
     while (el && el !== document.body) {
-      if (el.nodeType === 1) {
-        if (el.tagName === "IMG") {
-          return { el: el, kind: "image" };
-        }
-        if (el.tagName === "VIDEO") {
-          return { el: el, kind: "video" };
-        }
-        if (hasBackgroundImage(el)) {
-          return { el: el, kind: "background" };
-        }
+      var kind = mediaKindOf(el);
+      if (kind) {
+        return { el: el, kind: kind };
       }
       el = el.parentElement;
     }
     return null;
+  }
+
+  function isRenderedEl(el) {
+    var cs = window.getComputedStyle(el);
+    if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) === 0) {
+      return false;
+    }
+    var rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  }
+
+  // Ultimo recurso: busca <img>/<video> cuya caja contenga el punto, aunque no
+  // aparezcan en elementsFromPoint (por ejemplo con pointer-events:none).
+  // Se queda con el mas pequeño, que es el mas especifico bajo el cursor.
+  function smallestMediaContaining(x, y) {
+    var candidates = document.querySelectorAll("img, video");
+    var best = null;
+    var bestArea = Infinity;
+
+    for (var i = 0; i < candidates.length; i++) {
+      var el = candidates[i];
+      if (!isRenderedEl(el)) {
+        continue;
+      }
+      var rect = el.getBoundingClientRect();
+      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+        continue;
+      }
+      var area = rect.width * rect.height;
+      if (area < bestArea) {
+        bestArea = area;
+        best = el;
+      }
+    }
+
+    return best ? { el: best, kind: best.tagName === "VIDEO" ? "video" : "image" } : null;
+  }
+
+  // Resuelve el medio bajo un punto atravesando las capas que lo tapen.
+  //
+  // event.target solo devuelve el elemento mas alto del apilado, asi que una
+  // imagen debajo de un overlay transparente (un degradado, un <a> que cubre la
+  // tarjeta, un wrapper de slider) nunca se alcanzaba subiendo por ancestros.
+  function mediaAtPoint(x, y) {
+    var stack =
+      typeof document.elementsFromPoint === "function" ? document.elementsFromPoint(x, y) : [];
+
+    // 1) El medio que este mas arriba en el apilado, ignorando las capas que no
+    //    son medios. Los descendientes vienen antes que sus ancestros, asi que
+    //    una imagen concreta gana sobre el contenedor con background que la rodea.
+    for (var i = 0; i < stack.length; i++) {
+      if (stack[i] === document.body || stack[i] === document.documentElement) {
+        break;
+      }
+      var kind = mediaKindOf(stack[i]);
+      if (kind) {
+        return { el: stack[i], kind: kind };
+      }
+    }
+
+    // 2) Un medio que envuelva al punto sin estar en el apilado directo.
+    if (stack.length > 0) {
+      var up = findMedia(stack[0]);
+      if (up) {
+        return up;
+      }
+    }
+
+    // 3) Barrido geometrico para lo que el hit-testing no alcanza.
+    return smallestMediaContaining(x, y);
   }
 
   // Sube desde el elemento clickeado hasta encontrar un icono: un <svg> inline
@@ -201,12 +280,14 @@
   }
 
   // Devuelve el elemento editable bajo el cursor segun el modo, o null.
-  function editableUnder(target) {
+  // x/y son las coordenadas del puntero: en modo media hacen falta para poder
+  // atravesar las capas que tapen la imagen.
+  function editableUnder(target, x, y) {
     if (mode === "text") {
       return findTextEl(target);
     }
     if (mode === "media") {
-      var media = findMedia(target);
+      var media = mediaAtPoint(x, y);
       return media ? media.el : null;
     }
     if (mode === "style") {
@@ -436,7 +517,7 @@
       event.preventDefault();
       event.stopImmediatePropagation();
 
-      var media = findMedia(target);
+      var media = mediaAtPoint(event.clientX, event.clientY);
 
       // Sin medio reemplazable => no se puede agregar de mas.
       if (!media) {
@@ -473,24 +554,47 @@
   document.addEventListener("click", onClickCapture, true);
 
   // Hover: muestra donde SI se puede editar y marca "no permitido" donde no.
+  //
+  // Se limita a un calculo por frame: resolver el medio bajo el cursor puede
+  // implicar medir todas las imagenes de la pagina, y hacerlo en cada mousemove
+  // provocaria relayouts constantes.
+  var hoverFrame = null;
+  var hoverEvent = null;
+
+  function updateHover() {
+    hoverFrame = null;
+
+    if (!hoverEvent) {
+      return;
+    }
+
+    var editable = editableUnder(hoverEvent.target, hoverEvent.x, hoverEvent.y);
+    setHover(editable);
+
+    document.body.style.cursor = editable
+      ? mode === "media"
+        ? "copy"
+        : mode === "style"
+          ? "pointer"
+          : "text"
+      : "not-allowed";
+  }
+
   document.addEventListener(
     "mousemove",
     function (event) {
       if (mode === "navigate") {
+        hoverEvent = null;
         setHover(null);
         return;
       }
 
-      var editable = editableUnder(event.target);
-      setHover(editable);
+      // Se guardan los datos, no el evento, que deja de ser valido al salir.
+      hoverEvent = { target: event.target, x: event.clientX, y: event.clientY };
 
-      document.body.style.cursor = editable
-        ? mode === "media"
-          ? "copy"
-          : mode === "style"
-            ? "pointer"
-            : "text"
-        : "not-allowed";
+      if (hoverFrame === null) {
+        hoverFrame = window.requestAnimationFrame(updateHover);
+      }
     },
     true,
   );
@@ -535,6 +639,18 @@
 
     if (kind === "image" && el.tagName === "IMG") {
       el.removeAttribute("srcset");
+      el.removeAttribute("sizes");
+
+      // Dentro de un <picture>, los <source> mandan sobre el src del <img>:
+      // si no se quitan, el reemplazo no se ve. Es el caso de next/image.
+      var parent = el.parentElement;
+      if (parent && parent.tagName === "PICTURE") {
+        var sources = parent.querySelectorAll("source");
+        for (var i = 0; i < sources.length; i++) {
+          sources[i].parentNode.removeChild(sources[i]);
+        }
+      }
+
       el.src = src;
       return;
     }
