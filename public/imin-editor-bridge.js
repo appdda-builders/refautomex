@@ -660,6 +660,12 @@
     }
 
     if (mode === "text" && isInsideEditable(event.target)) {
+      // El clic con rueda abriria el enlace en otra pestaña; el resto de
+      // eventos (teclado, seleccion, doble clic) se dejan pasar para poder
+      // escribir con normalidad.
+      if (event.type === "auxclick") {
+        event.preventDefault();
+      }
       return;
     }
 
@@ -752,8 +758,15 @@
     }
 
     if (mode === "text") {
-      // Permite mover el cursor / escribir dentro del campo ya activo.
+      // Permite mover el cursor / escribir dentro del campo ya activo, pero sin
+      // dejar que el clic active el <a> que lo envuelve: en un navbar el texto
+      // editable vive dentro de un enlace, y sin esto el sitio navegaria.
+      //
+      // Solo preventDefault, no stopImmediatePropagation: el cursor se coloca
+      // en mousedown, asi que la edicion sigue funcionando. Y el Link de Next
+      // consulta defaultPrevented antes de enrutar, con lo que tambien se frena.
       if (isInsideEditable(target)) {
+        event.preventDefault();
         return;
       }
 
