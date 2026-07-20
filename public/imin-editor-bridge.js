@@ -11,8 +11,13 @@
  *     "set-media" para reemplazar la fuente. Los videos solo aceptan mp4.
  *   - modo "style": bloquea la navegacion; al clickear un icono avisa
  *     "icon-selected" (el editor responde "set-icon" con el SVG nuevo) y al
- *     clickear cualquier otro elemento avisa "color-selected" (el editor
- *     responde "set-color" para pintar texto o fondo).
+ *     clickear un contenedor que YA tenga fondo propio avisa "color-selected"
+ *     (el editor responde "set-color" con colorTarget "background"). No se
+ *     pueden agregar fondos donde el diseño no los previo.
+ *
+ * El color del texto NO vive aqui sino en el modo "text": al seleccionar un
+ * texto se manda su color actual y el editor puede responder "set-color" con
+ * colorTarget "text". Asi cada modo tiene una sola responsabilidad.
  *
  * En todos los modos menos "navigate" el sitio queda "congelado": ademas de
  * bloquear los eventos que activan cosas, se anulan las APIs de navegacion
@@ -208,18 +213,26 @@
     return best ? { el: best, kind: best.tagName === "VIDEO" ? "video" : "image" } : null;
   }
 
-  // Resuelve el medio bajo un punto atravesando las capas que lo tapen.
-  //
-  // event.target solo devuelve el elemento mas alto del apilado, asi que una
-  // imagen debajo de un overlay transparente (un degradado, un <a> que cubre la
-  // tarjeta, un wrapper de slider) nunca se alcanzaba subiendo por ancestros.
-  function mediaAtPoint(x, y) {
+  function areaOf(el) {
+    var rect = el.getBoundingClientRect();
+    return rect.width * rect.height;
+  }
+
+  // Verdadero si "inner" cabe dentro de "outer": indica que inner es el
+  // elemento mas especifico de los dos para el punto consultado.
+  function isContainedBy(inner, outer) {
+    var a = inner.getBoundingClientRect();
+    var b = outer.getBoundingClientRect();
+    return a.left >= b.left && a.right <= b.right && a.top >= b.top && a.bottom <= b.bottom;
+  }
+
+  // Medio alcanzable por hit-testing: el que el navegador reporta bajo el punto.
+  function hitTestedMedia(x, y) {
     var stack =
       typeof document.elementsFromPoint === "function" ? document.elementsFromPoint(x, y) : [];
 
-    // 1) El medio que este mas arriba en el apilado, ignorando las capas que no
-    //    son medios. Los descendientes vienen antes que sus ancestros, asi que
-    //    una imagen concreta gana sobre el contenedor con background que la rodea.
+    // Los descendientes vienen antes que sus ancestros, asi que una imagen
+    // concreta gana sobre el contenedor con background que la rodea.
     for (var i = 0; i < stack.length; i++) {
       if (stack[i] === document.body || stack[i] === document.documentElement) {
         break;
@@ -230,16 +243,39 @@
       }
     }
 
-    // 2) Un medio que envuelva al punto sin estar en el apilado directo.
-    if (stack.length > 0) {
-      var up = findMedia(stack[0]);
-      if (up) {
-        return up;
-      }
+    // Un medio que envuelva al punto sin estar en el apilado directo.
+    return stack.length > 0 ? findMedia(stack[0]) : null;
+  }
+
+  // Resuelve el medio bajo un punto atravesando las capas que lo tapen.
+  //
+  // Hay dos formas de que un medio quede fuera del alcance del hit-testing:
+  // que algo transparente lo cubra, o que el propio medio (o un ancestro) tenga
+  // pointer-events:none. El segundo caso es el de las tarjetas de producto
+  // sobre el video: el navegador reporta el video de fondo y las imagenes de
+  // encima resultan invisibles al puntero.
+  //
+  // Por eso no basta con quedarse con lo que reporta el navegador: si existe un
+  // medio geometricamente contenido dentro de el, ese es el objetivo real.
+  function mediaAtPoint(x, y) {
+    var hit = hitTestedMedia(x, y);
+    var geo = smallestMediaContaining(x, y);
+
+    if (!hit) {
+      return geo;
+    }
+    if (!geo || geo.el === hit.el) {
+      return hit;
     }
 
-    // 3) Barrido geometrico para lo que el hit-testing no alcanza.
-    return smallestMediaContaining(x, y);
+    // Solo se prefiere el geometrico cuando es claramente mas especifico: cabe
+    // completo dentro del otro y es mas chico. Asi una imagen de 176px sobre un
+    // video de fondo gana, pero un medio del mismo tamaño no le roba la seleccion.
+    if (isContainedBy(geo.el, hit.el) && areaOf(geo.el) < areaOf(hit.el)) {
+      return geo;
+    }
+
+    return hit;
   }
 
   // Sube desde el elemento clickeado hasta encontrar un icono: un <svg> inline
@@ -266,16 +302,60 @@
     return null;
   }
 
-  // En modo "style", devuelve que se puede editar bajo el cursor: un icono
-  // (para reemplazar) o cualquier elemento (para pintar color).
+  // Verdadero si el elemento pinta su propio fondo. Heredar visualmente el del
+  // padre no cuenta: solo un background-color opaco o una imagen de fondo.
+  function hasOwnBackground(el) {
+    var cs = window.getComputedStyle(el);
+
+    if (cs.backgroundImage && cs.backgroundImage !== "none") {
+      return true;
+    }
+
+    var bg = cs.backgroundColor;
+    if (!bg || bg === "transparent") {
+      return false;
+    }
+
+    // rgba(...) con alpha 0 es transparente aunque declare un color.
+    var match = bg.match(/^rgba?\(([^)]+)\)/);
+    if (match) {
+      var parts = match[1].split(",");
+      if (parts.length > 3 && parseFloat(parts[3]) === 0) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // Sube hasta el contenedor mas cercano que YA tenga fondo propio.
+  //
+  // Se limita a esos a proposito: el editor no debe poder inventar fondos donde
+  // el diseño no los previo. Se excluyen body y html porque pintarlos afectaria
+  // la pagina entera en vez de un contenedor.
+  function findBackgroundEl(el) {
+    while (el && el.nodeType === 1 && el !== document.body && el !== document.documentElement) {
+      if (hasOwnBackground(el)) {
+        return el;
+      }
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  // En modo "style" solo se editan dos cosas: iconos y fondos ya existentes.
+  // El color del texto vive en el modo "text", junto al contenido.
   function styleTargetUnder(target) {
     var icon = findIcon(target);
     if (icon) {
       return { el: icon, kind: "icon" };
     }
-    if (target && target.nodeType === 1 && target !== document.body) {
-      return { el: target, kind: "color" };
+
+    var background = findBackgroundEl(target);
+    if (background) {
+      return { el: background, kind: "background" };
     }
+
     return null;
   }
 
@@ -509,7 +589,14 @@
       textEl.style.outlineOffset = "2px";
       currentEditable = textEl;
       textEl.focus();
-      post({ type: "text-selected", selector: cssPath(textEl), value: textEl.textContent || "" });
+      // Se manda el color actual para que el editor abra su control de color
+      // del texto ya sincronizado con lo que se ve.
+      post({
+        type: "text-selected",
+        selector: cssPath(textEl),
+        value: textEl.textContent || "",
+        color: window.getComputedStyle(textEl).color,
+      });
       return;
     }
 
@@ -540,11 +627,7 @@
       if (styleTarget.kind === "icon") {
         post({ type: "icon-selected", selector: cssPath(styleTarget.el) });
       } else {
-        post({
-          type: "color-selected",
-          selector: cssPath(styleTarget.el),
-          hasText: hasDirectText(styleTarget.el),
-        });
+        post({ type: "color-selected", selector: cssPath(styleTarget.el) });
       }
       return;
     }
@@ -675,16 +758,55 @@
 
   // --- Estilo: color e iconos ---------------------------------------------
 
-  function applyColor(selector, colorTarget, color) {
+  // El editor solo ofrece izquierda y derecha.
+  function gradientCss(direction, from, to) {
+    return "linear-gradient(" + (direction === "left" ? "to left" : "to right") + ", " + from + ", " + to + ")";
+  }
+
+  // Quita los restos de un degradado de texto para poder volver a color solido.
+  function clearTextGradient(el) {
+    el.style.backgroundImage = "";
+    el.style.removeProperty("-webkit-background-clip");
+    el.style.removeProperty("background-clip");
+    el.style.removeProperty("-webkit-text-fill-color");
+  }
+
+  // options: { colorTarget, fill, color, colorEnd, direction }
+  //   colorTarget: "text" | "background"
+  //   fill:        "solid" | "gradient"  (ausente = solido, por compatibilidad)
+  function applyColor(selector, options) {
     var el = document.querySelector(selector);
     if (!el) {
       return;
     }
-    if (colorTarget === "background") {
-      el.style.backgroundColor = color;
-    } else {
-      el.style.color = color;
+
+    var isGradient = options.fill === "gradient" && !!options.colorEnd;
+
+    if (options.colorTarget === "background") {
+      if (isGradient) {
+        // backgroundColor se limpia para que no asome bajo el degradado.
+        el.style.backgroundColor = "";
+        el.style.backgroundImage = gradientCss(options.direction, options.color, options.colorEnd);
+      } else {
+        el.style.backgroundImage = "";
+        el.style.backgroundColor = options.color;
+      }
+      return;
     }
+
+    if (isGradient) {
+      // El degradado se recorta a la forma de las letras y el relleno del texto
+      // se vuelve transparente para dejarlo ver.
+      el.style.color = "";
+      el.style.backgroundImage = gradientCss(options.direction, options.color, options.colorEnd);
+      el.style.setProperty("-webkit-background-clip", "text");
+      el.style.setProperty("background-clip", "text");
+      el.style.setProperty("-webkit-text-fill-color", "transparent");
+      return;
+    }
+
+    clearTextGradient(el);
+    el.style.color = options.color;
   }
 
   function applyIcon(selector, svgMarkup) {
@@ -748,7 +870,13 @@
     }
 
     if (data.type === "set-color" && data.selector && data.color) {
-      applyColor(data.selector, data.colorTarget, data.color);
+      applyColor(data.selector, {
+        colorTarget: data.colorTarget,
+        fill: data.fill,
+        color: data.color,
+        colorEnd: data.colorEnd,
+        direction: data.direction,
+      });
       return;
     }
 
