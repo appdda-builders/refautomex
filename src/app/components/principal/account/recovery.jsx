@@ -3,8 +3,7 @@ import { CognitoUser } from 'amazon-cognito-identity-js';
 import { userPool } from '@/app/lib/cognito-manager';
 import RefautomexLogo from "@/app/components/refautomex-logo";
 import { AiFillEye } from 'react-icons/ai';
-import '@/app/translations/i18next-translation';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/app/lib/text/text-provider';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function Recovery() {

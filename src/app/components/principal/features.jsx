@@ -1,7 +1,6 @@
 'use client';
 import { FaTools, FaCar, FaHandsHelping } from "react-icons/fa";
-import { useTranslation } from 'react-i18next';
-import '@/app/translations/i18next-translation'
+import { useTranslation } from '@/app/lib/text/text-provider';
 
 export default function Features() {
     const multimediaSrc = process.env.NEXT_PUBLIC_S3;

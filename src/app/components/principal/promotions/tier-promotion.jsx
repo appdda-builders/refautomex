@@ -1,7 +1,6 @@
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/app/lib/text/text-provider';
 import { MdGetApp } from "react-icons/md";
 import { IoMdCheckmarkCircleOutline } from "react-icons/io";
-import '@/app/translations/i18next-translation';
 
 export default function TierPromotion() {
   const { t } = useTranslation();

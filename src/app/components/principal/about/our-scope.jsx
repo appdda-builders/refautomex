@@ -1,6 +1,5 @@
 import {FaCogs, FaLightbulb, FaCloudsmith, FaDolly, FaHammer, FaRegObjectGroup, FaScrewdriver, FaShoppingBag, FaSplotch} from 'react-icons/fa'
-import { useTranslation } from 'react-i18next';
-import '@/app/translations/i18next-translation';
+import { useTranslation } from '@/app/lib/text/text-provider';
 
 export default function OurScope() {
     const { t } = useTranslation();

@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { userPool } from '@/app/lib/cognito-manager';
 import { TbCircleX } from 'react-icons/tb';
 import { Switch } from '@headlessui/react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/app/lib/text/text-provider';
 import { GoTasklist } from "react-icons/go";
 import { AiFillEye } from 'react-icons/ai';
 
@@ -13,7 +13,6 @@ import ReCAPTCHA from "react-google-recaptcha";
 import GooglePlacesAutocomplete from './google-places';
 import Link from 'next/link';
 
-import '@/app/translations/i18next-translation';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
 
 

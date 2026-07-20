@@ -5,7 +5,7 @@ import { hydrate } from './schema';
 
 /**
  * Lee los overrides de texto de la tabla `hydrate` y los expande al arbol que
- * espera i18next.
+ * consume TextProvider.
  *
  * Cada fila trae el locale como primer segmento del content_key:
  *   "es.navbar.home" -> { es: { navbar: { home: "..." } } }
@@ -27,7 +27,7 @@ const setDeep = (root, segments, value) => {
   for (let i = 0; i < segments.length - 1; i += 1) {
     const segment = segments[i];
     // Si una key mas corta ya ocupo el lugar con un string, no la pisamos con
-    // un objeto: dejaria el arbol inconsistente para i18next.
+    // un objeto: dejaria el arbol inconsistente.
     if (typeof node[segment] !== 'object' || node[segment] === null) {
       if (segment in node) return;
       node[segment] = {};

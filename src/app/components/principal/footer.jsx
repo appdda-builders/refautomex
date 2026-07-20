@@ -4,8 +4,7 @@ import { FaInstagram, FaWhatsapp, FaFacebookSquare } from 'react-icons/fa';
 import { AuthContext } from '@/app/lib/auth-tracker';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { useContext, useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import '@/app/translations/i18next-translation';
+import { useTranslation } from '@/app/lib/text/text-provider';
 
 export default function Footer() {
     const multimediaSrc = process.env.NEXT_PUBLIC_S3;

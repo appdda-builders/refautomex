@@ -2,8 +2,7 @@
 import TierPromotion from "@/app/components/principal/promotions/tier-promotion";
 import CardPromotion from "@/app/components/principal/promotions/card-promotion";
 import MetaHead from "@/app/components/meta-head";
-import { useTranslation } from 'react-i18next';
-import '@/app/translations/i18next-translation';
+import { useTranslation } from '@/app/lib/text/text-provider';
 
 export default function Promotion({ includeMeta = true, sectionId = 'promotions' }) {
     const { t } = useTranslation();
