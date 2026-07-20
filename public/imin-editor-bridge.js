@@ -1,11 +1,20 @@
 /**
- * IMIN editor bridge — se instala en refautomex.com (el sitio hijo).
+ * IMIN editor bridge — se instala en el sitio que se quiere editar (el hijo).
+ *
+ * Es generico: no sabe nada del proyecto en el que corre. Se sirve como archivo
+ * estatico (por ejemplo /imin-editor-bridge.js) y funciona igual en cualquier
+ * sitio, sea cual sea su framework. Lo unico configurable son los origenes del
+ * editor que acepta (ver resolveAllowedOrigins).
  *
  * Recibe comandos por postMessage desde el editor IMIN (la app padre que
- * incrusta este sitio en un <iframe>) y aplica edicion en vivo:
+ * incrusta el sitio en un <iframe>) y aplica edicion en vivo:
  *   - modo "navigate": no hace nada, el sitio navega normal.
- *   - modo "text": bloquea la navegacion y hace contentEditable SOLO el texto
- *     que ya existe (no deja crear texto donde no lo hay); devuelve los cambios.
+ *   - modo "text": bloquea la navegacion y ofrece dos caminos sobre el texto
+ *     que YA existe (nunca crea texto nuevo). Un clic directo lo vuelve
+ *     contentEditable y se escribe en el sitio, devolviendo "text-changed".
+ *     Al pasar el cursor aparece un lapiz: al clickearlo avisa "text-selected"
+ *     con el contenido y el color, y el editor abre su panel, que responde
+ *     "set-text" (nueva descripcion) o "set-color" con colorTarget "text".
  *   - modo "media": bloquea la navegacion; al clickear una imagen (foreground o
  *     background) o un video avisa al editor con el "kind", que responde con
  *     "set-media" para reemplazar la fuente. Los videos solo aceptan mp4.
@@ -28,8 +37,12 @@
  * scroll siguen pasando). Solo se activa cuando la pagina esta dentro de un
  * iframe, asi que no afecta a visitantes.
  *
- * Seguridad: solo acepta mensajes de los origenes en ALLOWED_PARENT_ORIGINS.
- * Agrega ahi el origen donde despliegues el editor IMIN.
+ * Protocolo: todos los mensajes que emite llevan source "imin-bridge", y solo
+ * atiende los que llegan con source "imin-editor".
+ *
+ * Seguridad: solo acepta mensajes de los origenes permitidos. Se configuran por
+ * sitio con window.IMIN_ALLOWED_ORIGINS o el atributo data-imin-origins del
+ * <script>, sin editar este archivo.
  */
 (function () {
   "use strict";
@@ -39,12 +52,54 @@
     return;
   }
 
-  var ALLOWED_PARENT_ORIGINS = [
+  // Origenes del editor aceptados cuando el sitio no configura los suyos.
+  var DEFAULT_PARENT_ORIGINS = [
     // 1) Pruebas: el editor IMIN corriendo en tu localhost.
     "http://localhost:3000",
-    // 2) Produccion: reemplaza por el dominio real donde despliegues el editor
+    // 2) Produccion: donde este desplegado el editor IMIN.
     "https://appstracts.netlify.app",
   ];
+
+  // Cada sitio puede declarar los suyos sin tocar este archivo, de dos formas:
+  //
+  //   window.IMIN_ALLOWED_ORIGINS = ["https://editor.midominio.com"];
+  //   <script src="/imin-editor-bridge.js" data-imin-origins="https://a.com,https://b.com">
+  //
+  // Es lo unico especifico de cada proyecto: el resto del bridge es generico.
+  function resolveAllowedOrigins() {
+    var list = [];
+    var i;
+
+    if (Object.prototype.toString.call(window.IMIN_ALLOWED_ORIGINS) === "[object Array]") {
+      for (i = 0; i < window.IMIN_ALLOWED_ORIGINS.length; i++) {
+        if (window.IMIN_ALLOWED_ORIGINS[i]) {
+          list.push(String(window.IMIN_ALLOWED_ORIGINS[i]));
+        }
+      }
+      if (list.length > 0) {
+        return list;
+      }
+    }
+
+    var tags = document.querySelectorAll("script[data-imin-origins]");
+    if (tags.length > 0) {
+      var raw = tags[tags.length - 1].getAttribute("data-imin-origins") || "";
+      var parts = raw.split(",");
+      for (i = 0; i < parts.length; i++) {
+        var origin = parts[i].replace(/^\s+|\s+$/g, "");
+        if (origin) {
+          list.push(origin);
+        }
+      }
+      if (list.length > 0) {
+        return list;
+      }
+    }
+
+    return DEFAULT_PARENT_ORIGINS.slice();
+  }
+
+  var ALLOWED_PARENT_ORIGINS = resolveAllowedOrigins();
 
   var HOVER_OUTLINE = "2px dashed #589bf9";
   var ACTIVE_OUTLINE = "2px solid #589bf9";
@@ -52,8 +107,11 @@
   var mode = "navigate";
   var parentOrigin = null;
   var currentEditable = null;
-  var hoverEl = null;
   var sendTimer = null;
+  var editableInitialValue = "";
+  var pencilEl = null;
+  var pencilTarget = null;
+  var hoverEl = null;
 
   function isAllowed(origin) {
     return ALLOWED_PARENT_ORIGINS.indexOf(origin) !== -1;
@@ -93,7 +151,7 @@
       return;
     }
 
-    var payload = { source: "refautomex-bridge" };
+    var payload = { source: "imin-bridge" };
 
     for (var key in message) {
       if (Object.prototype.hasOwnProperty.call(message, key)) {
@@ -401,17 +459,140 @@
 
   // --- Edicion de texto ----------------------------------------------------
 
+  // El modo texto tiene dos caminos:
+  //   - clic sobre el texto: se edita en linea, como siempre.
+  //   - clic en el lapiz que aparece al pasar el cursor: abre el panel del
+  //     editor, donde se cambia la descripcion o el color.
+  // Ojo con la reentrancia: quitar el atributo dispara "blur" de forma sincrona,
+  // y ese listener vuelve a entrar aqui. Por eso se toma el elemento en una
+  // variable local y se limpia el estado ANTES de tocar el DOM; si no, al
+  // regresar de la llamada anidada currentEditable ya seria null y la linea
+  // siguiente reventaria.
   function clearEditable() {
-    if (currentEditable) {
-      currentEditable.removeAttribute("contenteditable");
-      currentEditable.style.outline = "";
-      currentEditable.style.outlineOffset = "";
-      currentEditable = null;
+    var el = currentEditable;
+    if (!el) {
+      return;
+    }
+
+    currentEditable = null;
+    el.removeAttribute("contenteditable");
+    el.style.outline = "";
+    el.style.outlineOffset = "";
+
+    // Solo se avisa si el contenido de verdad cambio, para no marcar el
+    // proyecto como modificado por el simple hecho de haber hecho clic.
+    if ((el.textContent || "") !== editableInitialValue) {
+      sendTextChange(el);
     }
   }
 
   function sendTextChange(el) {
     post({ type: "text-changed", selector: cssPath(el), value: el.textContent || "" });
+  }
+
+  // Reemplaza el contenido conservando el elemento (y por tanto su selector).
+  function applyText(selector, value) {
+    var el = document.querySelector(selector);
+    if (el) {
+      el.textContent = value;
+    }
+  }
+
+  // --- Lapiz para abrir el panel ------------------------------------------
+
+  // Verdadero para la UI que inyecta el bridge. Sirve para que el lapiz no se
+  // trate como parte del sitio: ni se resalta, ni se congela, ni se edita.
+  function isBridgeUi(node) {
+    while (node) {
+      if (node.nodeType === 1 && node.hasAttribute && node.hasAttribute("data-imin-ui")) {
+        return true;
+      }
+      node = node.parentNode;
+    }
+    return false;
+  }
+
+  var PENCIL_SVG =
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M12 20h9"></path>' +
+    '<path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>';
+
+  function ensurePencil() {
+    if (pencilEl) {
+      return pencilEl;
+    }
+
+    pencilEl = document.createElement("button");
+    pencilEl.type = "button";
+    pencilEl.setAttribute("data-imin-ui", "pencil");
+    pencilEl.setAttribute("aria-label", "Editar este texto");
+    pencilEl.title = "Editar texto";
+    pencilEl.innerHTML = PENCIL_SVG;
+
+    // Estilos en linea y con prioridad: el CSS del sitio no debe alterarlo.
+    var style =
+      "position:fixed;z-index:2147483647;display:none;align-items:center;" +
+      "justify-content:center;width:26px;height:26px;padding:0;margin:0;" +
+      "border:none;border-radius:9999px;background:#589bf9;color:#fff;" +
+      "box-shadow:0 2px 6px rgba(0,0,0,.3);cursor:pointer;line-height:0;";
+    style.split(";").forEach(function (rule) {
+      var parts = rule.split(":");
+      if (parts.length === 2) {
+        pencilEl.style.setProperty(parts[0], parts[1], "important");
+      }
+    });
+
+    pencilEl.addEventListener("click", onPencilClick, false);
+    document.body.appendChild(pencilEl);
+    return pencilEl;
+  }
+
+  function hidePencil() {
+    if (pencilEl) {
+      pencilEl.style.setProperty("display", "none", "important");
+    }
+    pencilTarget = null;
+  }
+
+  // Se ancla en la esquina superior derecha del texto, sin salirse de la vista.
+  function showPencilFor(el) {
+    if (!el) {
+      hidePencil();
+      return;
+    }
+
+    var button = ensurePencil();
+    var rect = el.getBoundingClientRect();
+
+    pencilTarget = el;
+    button.style.setProperty("top", Math.max(2, rect.top - 13) + "px", "important");
+    button.style.setProperty(
+      "left",
+      Math.min(window.innerWidth - 28, Math.max(2, rect.right - 13)) + "px",
+      "important",
+    );
+    button.style.setProperty("display", "flex", "important");
+  }
+
+  function onPencilClick(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    var el = pencilTarget;
+    if (!el) {
+      return;
+    }
+
+    // Si se estaba editando en linea, se cierra: manda el panel.
+    clearEditable();
+
+    post({
+      type: "text-selected",
+      selector: cssPath(el),
+      value: el.textContent || "",
+      color: window.getComputedStyle(el).color,
+    });
   }
 
   // --- Bloqueo de navegacion ----------------------------------------------
@@ -425,6 +606,7 @@
     }
     return false;
   }
+
 
   // "Congelado" = cualquier modo de edicion. Ahi el sitio no debe navegar ni
   // reaccionar a su propio scripting: solo se edita.
@@ -472,8 +654,11 @@
       return;
     }
 
-    // En modo texto dejamos pasar todo lo que ocurre dentro del campo activo
-    // (posicionar cursor, seleccionar, escribir).
+    // El lapiz del bridge y el campo activo tienen que seguir respondiendo.
+    if (isBridgeUi(event.target)) {
+      return;
+    }
+
     if (mode === "text" && isInsideEditable(event.target)) {
       return;
     }
@@ -561,6 +746,11 @@
 
     var target = event.target;
 
+    // El lapiz tiene su propio manejador; aqui no se toca.
+    if (isBridgeUi(target)) {
+      return;
+    }
+
     if (mode === "text") {
       // Permite mover el cursor / escribir dentro del campo ya activo.
       if (isInsideEditable(target)) {
@@ -588,15 +778,8 @@
       textEl.style.outline = ACTIVE_OUTLINE;
       textEl.style.outlineOffset = "2px";
       currentEditable = textEl;
+      editableInitialValue = textEl.textContent || "";
       textEl.focus();
-      // Se manda el color actual para que el editor abra su control de color
-      // del texto ya sincronizado con lo que se ve.
-      post({
-        type: "text-selected",
-        selector: cssPath(textEl),
-        value: textEl.textContent || "",
-        color: window.getComputedStyle(textEl).color,
-      });
       return;
     }
 
@@ -654,6 +837,12 @@
     var editable = editableUnder(hoverEvent.target, hoverEvent.x, hoverEvent.y);
     setHover(editable);
 
+    // En modo texto, el lapiz acompaña al elemento apuntado: da la via para
+    // abrir el panel sin quitar la edicion en linea de un clic directo.
+    if (mode === "text") {
+      showPencilFor(editable);
+    }
+
     document.body.style.cursor = editable
       ? mode === "media"
         ? "copy"
@@ -669,6 +858,13 @@
       if (mode === "navigate") {
         hoverEvent = null;
         setHover(null);
+        hidePencil();
+        return;
+      }
+
+      // Al pasar sobre el lapiz se conserva lo resaltado; si no, desapareceria
+      // justo cuando se intenta hacer clic en el.
+      if (isBridgeUi(event.target)) {
         return;
       }
 
@@ -705,7 +901,6 @@
     "blur",
     function (event) {
       if (currentEditable && event.target === currentEditable) {
-        sendTextChange(currentEditable);
         clearEditable();
       }
     },
@@ -850,6 +1045,7 @@
 
       if (mode !== "text") {
         clearEditable();
+        hidePencil();
       }
 
       setHover(null);
@@ -861,6 +1057,12 @@
             : mode === "style"
               ? "pointer"
               : "";
+      return;
+    }
+
+    // typeof en vez de truthy: un texto vaciado a "" es un cambio valido.
+    if (data.type === "set-text" && data.selector && typeof data.value === "string") {
+      applyText(data.selector, data.value);
       return;
     }
 
@@ -889,7 +1091,7 @@
   // Anuncia disponibilidad a cualquiera de los origenes permitidos.
   ALLOWED_PARENT_ORIGINS.forEach(function (origin) {
     try {
-      window.parent.postMessage({ source: "refautomex-bridge", type: "ready" }, origin);
+      window.parent.postMessage({ source: "imin-bridge", type: "ready" }, origin);
     } catch (error) {
       /* origen no disponible, se ignora */
     }
