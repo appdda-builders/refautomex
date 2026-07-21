@@ -57,7 +57,7 @@
     // 1) Pruebas: el editor IMIN corriendo en tu localhost.
     "http://localhost:3000",
     // 2) Produccion: donde este desplegado el editor IMIN.
-    "https://appddata.netlify.app/",
+    "https://appddata.netlify.app",
   ];
 
   // Cada sitio puede declarar los suyos sin tocar este archivo, de dos formas:
