@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, Fragment } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/app/lib/text/text-provider';
 import { motion, Variants } from 'framer-motion';
 import { CgMoreO } from 'react-icons/cg';
 import { MdOutlineViewInAr, MdDelete } from 'react-icons/md';
@@ -11,7 +11,6 @@ import Spinner from '@/app/components/principal/spinner';
 import ProductOverview from '@/app/components/principal/products/product-overview';
 import { useCart } from '@/app/lib/shopping-context';
 import { buildApiUrl } from '@/app/lib/refautomex-api';
-import '@/app/translations/i18next-translation';
 
 const GROUP_PAGE_SIZE = 16;
 

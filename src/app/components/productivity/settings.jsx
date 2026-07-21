@@ -7,7 +7,7 @@ import { getStorageValue, setStorageValue } from "@/app/lib/storage-values";
 import { BiSolidUserCircle } from 'react-icons/bi';
 import { MdEdit, MdSave } from 'react-icons/md';
 import { IoHome } from 'react-icons/io5';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/app/lib/text/text-provider';
 import GooglePlacesAutocomplete from '@/app/components/principal/account/google-places';
 import { FaStarHalfAlt } from 'react-icons/fa';
 import { buildApiUrl } from '@/app/lib/refautomex-api';

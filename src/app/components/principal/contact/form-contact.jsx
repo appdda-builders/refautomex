@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
 import emailjs from '@emailjs/browser';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/app/lib/text/text-provider';
 import { AiOutlineSend } from "react-icons/ai";
-import '@/app/translations/i18next-translation';
 import ReCAPTCHA from "react-google-recaptcha";
 
 export default function FormContact() {

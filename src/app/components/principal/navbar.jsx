@@ -9,7 +9,7 @@ import { useCart } from '@/app/lib/shopping-context';
 import { CiShop, CiStar, CiMail } from "react-icons/ci";
 import { MdShoppingCart } from 'react-icons/md';
 import { PiBooksThin } from "react-icons/pi";
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/app/lib/text/text-provider';
 import { TbChristmasTreeFilled } from "react-icons/tb";
 
 import RefautomexLogo from '@/app/components/refautomex-logo';

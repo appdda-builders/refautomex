@@ -9,7 +9,7 @@ import { userPool } from '@/app/lib/cognito-manager';
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthContext } from '@/app/lib/auth-tracker';
 import { getStorageValue, setStorageValue } from "@/app/lib/storage-values";
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/app/lib/text/text-provider';
 
 export default function Refautomex({ loading, websiteData }) {
     const { t } = useTranslation();

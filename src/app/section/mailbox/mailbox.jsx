@@ -3,9 +3,8 @@ import React, { useState } from 'react';
 import emailjs from '@emailjs/browser';
 import { Switch } from '@headlessui/react';
 import ReCAPTCHA from "react-google-recaptcha";
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/app/lib/text/text-provider';
 import { GoTasklist } from "react-icons/go";
-import '@/app/translations/i18next-translation';
 import MetaHead from '@/app/components/meta-head';
 
 function classNames(...classes) {

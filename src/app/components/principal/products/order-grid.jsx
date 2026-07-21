@@ -3,7 +3,7 @@ import React, { useState, useContext, useEffect, useRef } from "react";
 import { getStorageValue } from "@/app/lib/storage-values";
 import { AuthContext } from '@/app/lib/auth-tracker';
 import { loadStripe } from '@stripe/stripe-js';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/app/lib/text/text-provider';
 import { FaShoppingBag } from "react-icons/fa";
 import { IoMdCloseCircle } from "react-icons/io";
 import Link from 'next/link';

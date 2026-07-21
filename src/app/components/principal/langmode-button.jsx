@@ -4,7 +4,7 @@ import { TbWorld } from "react-icons/tb";
 import { IoMdCloseCircle } from "react-icons/io";
 import { useState, useEffect } from 'react';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/app/lib/text/text-provider';
 
 export default function LangModeButton() {
     const [isOpen, setIsOpen] = useState(false);
